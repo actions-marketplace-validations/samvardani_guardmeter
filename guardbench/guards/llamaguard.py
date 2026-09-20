@@ -55,7 +55,7 @@ class LlamaGuardAdapter(Guard):
         except ImportError:
             raise ImportError(
                 "transformers is required for local LlamaGuard inference. "
-                "Install with: pip install guardbench[hf]"
+                "Install with: pip install sea-guard[hf]"
             )
 
     def _predict_http(self, text: str) -> tuple[str, float]:

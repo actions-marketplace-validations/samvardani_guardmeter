@@ -88,14 +88,12 @@ def cli() -> None:
 @click.option("--candidate", required=True, help="Guard name or dotted class path")
 @click.option("--dataset", required=True, type=click.Path(exists=True), help="CSV or JSONL dataset path")
 @click.option("--policy", default="strict", show_default=True, help="strict | lenient")
-@click.option("--config", "cfg_path", default="config.yaml", show_default=True, help="config.yaml path")
 @click.option("--store", "store_path", default=None, help="Override DB path")
 def compare(
     baseline: str,
     candidate: str,
     dataset: str,
     policy: str,
-    cfg_path: str,
     store_path: Optional[str],
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
@@ -380,20 +378,6 @@ def init() -> None:
     import shutil
     from pathlib import Path
 
-    # config.yaml
-    if not Path("config.yaml").exists():
-        Path("config.yaml").write_text(
-            "dataset_path: ./dataset/sample.jsonl\n"
-            "policy_version: v0.1\n"
-            "engines:\n"
-            "  baseline:\n"
-            "    name: regex-baseline\n"
-            "  candidate:\n"
-            "    name: regex-enhanced\n",
-            encoding="utf-8",
-        )
-        click.echo("Created config.yaml")
-
     # gate.json
     if not Path("gate.json").exists():
         Path("gate.json").write_text(
@@ -414,24 +398,27 @@ def init() -> None:
         )
         click.echo("Created gate.json")
 
-    # dataset/sample.jsonl
+    # dataset/sample.csv — matches every README example
     dataset_dir = Path("dataset")
     dataset_dir.mkdir(exist_ok=True)
-    target = dataset_dir / "sample.jsonl"
+    target = dataset_dir / "sample.csv"
     if not target.exists():
         import importlib.resources
         try:
-            with importlib.resources.path("guardbench.data.builtin", "sample_10.jsonl") as src:
+            with importlib.resources.path("guardbench.data.builtin", "sample.csv") as src:
                 shutil.copy(str(src), str(target))
         except Exception:
             # Fallback: locate relative to this file
-            src_path = Path(__file__).parent.parent / "data" / "builtin" / "sample_10.jsonl"
+            src_path = Path(__file__).parent.parent / "data" / "builtin" / "sample.csv"
             if src_path.exists():
                 shutil.copy(str(src_path), str(target))
         click.echo(f"Created {target}")
 
     click.echo("\nGuardBench initialized. Run:")
-    click.echo("  guardbench compare --candidate regex --dataset dataset/sample.jsonl")
+    click.echo(
+        "  guardbench compare --baseline regex-baseline --candidate regex-enhanced "
+        "--dataset dataset/sample.csv"
+    )
 
 
 # ─────────────────────────────────────────────────────────────────────────────

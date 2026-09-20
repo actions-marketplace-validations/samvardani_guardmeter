@@ -79,7 +79,7 @@ class LLMJudge(Judge):
         try:
             import anthropic
         except ImportError:
-            raise ImportError("anthropic package required. Install with: pip install guardbench[llm]")
+            raise ImportError("anthropic package required. Install with: pip install sea-guard[llm]")
 
         client = anthropic.Anthropic(api_key=self.api_key)
         response = client.messages.create(
@@ -95,7 +95,7 @@ class LLMJudge(Judge):
         try:
             import openai
         except ImportError:
-            raise ImportError("openai package required. Install with: pip install guardbench[llm]")
+            raise ImportError("openai package required. Install with: pip install sea-guard[llm]")
 
         client = openai.OpenAI(api_key=self.api_key)
         response = client.chat.completions.create(

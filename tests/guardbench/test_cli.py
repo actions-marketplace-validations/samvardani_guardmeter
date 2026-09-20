@@ -48,12 +48,29 @@ def test_runs_list_empty_store(runner, tmp_path):
 
 
 def test_init_creates_files(runner, tmp_path):
-    """init should create config.yaml and gate.json."""
+    """init should create gate.json and the CSV dataset the README uses (no config.yaml)."""
     with runner.isolated_filesystem(temp_dir=tmp_path):
         result = runner.invoke(cli, ["init"])
         assert result.exit_code == 0, result.output
-        assert pathlib.Path("config.yaml").exists()
         assert pathlib.Path("gate.json").exists()
+        assert pathlib.Path("dataset/sample.csv").exists()
+        assert not pathlib.Path("config.yaml").exists()
+
+
+def test_init_then_compare_works(runner, tmp_path):
+    """The dataset written by init must be usable by compare verbatim."""
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        init_result = runner.invoke(cli, ["init"])
+        assert init_result.exit_code == 0, init_result.output
+        result = runner.invoke(cli, [
+            "compare",
+            "--baseline", "regex-baseline",
+            "--candidate", "regex-enhanced",
+            "--dataset", "dataset/sample.csv",
+            "--store", str(tmp_path / "test.db"),
+        ])
+        assert result.exit_code == 0, result.output
+        assert "Run ID:" in result.output
 
 
 def test_compare_end_to_end(runner, tmp_path):

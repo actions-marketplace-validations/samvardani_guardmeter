@@ -43,7 +43,7 @@ class OpenAIModerationGuard(Guard):
         except ImportError:
             raise ImportError(
                 "openai package is required for OpenAIModerationGuard. "
-                "Install it with: pip install guardbench[llm]"
+                "Install it with: pip install sea-guard[llm]"
             )
         import openai as _openai
         self._client = _openai.OpenAI(api_key=api_key)
