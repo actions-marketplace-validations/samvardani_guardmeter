@@ -64,7 +64,8 @@ export function Sparkline({ values, width = 90, height = 26, color = "var(--acce
 }
 
 export function Delta({ value, higherBetter = true, dec = 4 }) {
-  if (value === null || value === undefined || value === 0) return html`<span class="muted">—</span>`;
+  if (value === null || value === undefined) return html`<span class="muted">—</span>`;  // no previous run
+  if (value === 0) return html`<span class="muted">${(0).toFixed(dec)} · no change</span>`;
   const good = higherBetter ? value > 0 : value < 0;
   const arrow = value > 0 ? "▲" : "▼";
   const cls = good ? "delta up" : "delta down";
@@ -76,7 +77,7 @@ export function KpiCard({ label, value, delta, higherBetter, spark, sparkColor }
     <span class="label">${label}</span>
     <span class="value">${value}</span>
     <div class="row center between">
-      ${delta !== undefined ? html`<${Delta} value=${delta} higherBetter=${higherBetter}/>` : html`<span></span>`}
+      <${Delta} value=${delta} higherBetter=${higherBetter}/>
       <${Sparkline} values=${spark} color=${sparkColor || "var(--accent)"}/>
     </div>
   </div>`;
