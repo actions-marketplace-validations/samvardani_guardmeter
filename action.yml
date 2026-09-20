@@ -1,0 +1,108 @@
+name: GuardMeter
+description: Benchmark, compare, and gate AI safety guards in CI
+branding:
+  icon: shield
+  color: blue
+
+inputs:
+  baseline:
+    description: Baseline guard name or dotted class path
+    required: false
+    default: regex-baseline
+  candidate:
+    description: Candidate guard name or dotted class path
+    required: true
+  dataset:
+    description: Path to a CSV or JSONL dataset
+    required: true
+  gate:
+    description: Path to the gate.json policy
+    required: false
+    default: gate.json
+  python-version:
+    description: Python version to run on
+    required: false
+    default: "3.12"
+  version:
+    # Defaults to this repo's current release. Users should pin the action to a
+    # matching tag, e.g. `uses: samvardani/guardmeter@v0.4.0`. Pass `local` to
+    # install the checked-out source instead (used by this repo's own selftest).
+    description: guardmeter version to install (PyPI), or "local" to install the checkout
+    required: false
+    default: "0.3.0"
+
+outputs:
+  passed:
+    description: "true if the gate passed, false otherwise"
+    value: ${{ steps.outputs.outputs.passed }}
+  run_id:
+    description: The evaluation run id
+    value: ${{ steps.outputs.outputs.run_id }}
+  report_path:
+    description: Path to the generated HTML report
+    value: ${{ steps.outputs.outputs.report_path }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Install guardmeter
+      shell: bash
+      run: |
+        python -m pip install --upgrade pip
+        if [ -z "${{ inputs.version }}" ] || [ "${{ inputs.version }}" = "local" ]; then
+          pip install .
+        else
+          pip install "guardmeter==${{ inputs.version }}"
+        fi
+
+    - name: Compare guards
+      shell: bash
+      run: |
+        guardmeter compare \
+          --baseline "${{ inputs.baseline }}" \
+          --candidate "${{ inputs.candidate }}" \
+          --dataset "${{ inputs.dataset }}" \
+          --json > compare.json
+
+    - name: Build report and dashboard
+      shell: bash
+      run: |
+        guardmeter report --run latest
+        guardmeter dashboard --no-open
+
+    - name: Run gate
+      shell: bash
+      run: |
+        guardmeter gate \
+          --config "${{ inputs.gate }}" \
+          --run latest \
+          --json \
+          --summary-md "$GITHUB_STEP_SUMMARY" > gate.json \
+          || echo "failed=1" >> "$GITHUB_ENV"
+
+    - name: Set outputs
+      id: outputs
+      shell: bash
+      run: |
+        {
+          echo "passed=$(jq -r '.passed' gate.json)"
+          echo "run_id=$(jq -r '.run_id' compare.json)"
+          echo "report_path=report/index.html"
+        } >> "$GITHUB_OUTPUT"
+
+    - uses: actions/upload-artifact@v4
+      with:
+        name: guardmeter-report
+        path: report/
+
+    - name: Fail if gate failed
+      shell: bash
+      run: |
+        if [ "${failed:-0}" = "1" ]; then
+          echo "Gate failed — see the step summary." >&2
+          exit 1
+        fi

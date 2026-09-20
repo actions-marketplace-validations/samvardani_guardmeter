@@ -96,6 +96,26 @@ GitHub Actions:
 
 ---
 
+## Use as a GitHub Action
+
+The composite action runs compare → report → dashboard → gate, writes a
+Markdown table to the job summary, uploads the HTML report as an artifact, and
+fails the job when the gate fails. Pin it to a release tag:
+
+```yaml
+- uses: samvardani/guardmeter@v0.4.0
+  with:
+    candidate: regex-enhanced
+    dataset: dataset/sample.csv
+```
+
+Inputs: `baseline` (default `regex-baseline`), `candidate` (required),
+`dataset` (required), `gate` (default `gate.json`), `python-version` (default
+`3.12`), `version` (guardmeter version to install; defaults to the pinned
+release). Outputs: `passed`, `run_id`, `report_path`.
+
+---
+
 ## Built-in guards
 
 | Name | Requirements | Notes |

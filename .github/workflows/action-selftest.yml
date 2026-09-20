@@ -1,0 +1,28 @@
+name: Action Selftest
+
+on:
+  push:
+    branches: [main, feat/**]
+  pull_request:
+    branches: [main]
+
+jobs:
+  selftest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - id: guard
+        uses: ./
+        with:
+          candidate: regex-enhanced
+          dataset: dataset/sample.csv
+          gate: gate.json
+          version: local
+      - name: Assert action outputs
+        shell: bash
+        run: |
+          echo "passed=${{ steps.guard.outputs.passed }}"
+          echo "run_id=${{ steps.guard.outputs.run_id }}"
+          echo "report_path=${{ steps.guard.outputs.report_path }}"
+          test "${{ steps.guard.outputs.passed }}" = "true"
+          test -n "${{ steps.guard.outputs.run_id }}"
