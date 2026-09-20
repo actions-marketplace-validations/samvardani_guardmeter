@@ -518,6 +518,28 @@ def dataset_augment(dataset_path: str, output_path: str, techniques: str, multip
     click.echo(f"Wrote {len(records)} original + {len(augmented)} augmented = {len(records)+len(augmented)} → {out}")
 
 
+@dataset.command("fetch")
+@click.argument("name")
+@click.option("--dest", default=".", show_default=True, help="Root directory to write the dataset under")
+def dataset_fetch(name: str, dest: str) -> None:
+    """Download a repo-artifact dataset (e.g. agentic-v1) from GitHub release assets.
+
+    Verifies the data file against a sha256 baked into the package before writing.
+    """
+    from guardmeter.data.fetch import RELEASES, fetch_dataset
+
+    if name not in RELEASES:
+        raise click.BadParameter(f"Unknown dataset '{name}'. Known: {', '.join(sorted(RELEASES))}")
+    click.echo(f"Fetching {name} (release {RELEASES[name].tag}) …")
+    try:
+        paths = fetch_dataset(name, dest)
+    except ValueError as exc:
+        raise click.ClickException(str(exc)) from exc
+    for p in paths:
+        click.echo(f"  ✓ {p}")
+    click.echo(f"✅ Fetched {len(paths)} file(s), sha256 verified.")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # guardmeter dashboard
 # ─────────────────────────────────────────────────────────────────────────────

@@ -1,0 +1,90 @@
+"""Fetch repo-artifact datasets from tagged GitHub release assets.
+
+The agentic dataset is intentionally *not* bundled in the wheel — it is a
+research artifact with its own licence and lifecycle. `guardmeter dataset fetch
+agentic-v1` downloads it from the GitHub release assets into
+``./dataset/agentic/v1/`` and verifies the data file against a sha256 constant
+baked in here, so an installed wheel can pull the exact frozen dataset.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import urllib.request
+from dataclasses import dataclass
+from pathlib import Path
+
+_REPO = "samvardani/guardmeter"
+
+
+@dataclass(frozen=True)
+class DatasetAsset:
+    """A single downloadable dataset file and its expected sha256 (None = unchecked)."""
+
+    filename: str
+    sha256: str | None
+
+
+@dataclass(frozen=True)
+class DatasetRelease:
+    """A named dataset published as assets on a tagged GitHub release."""
+
+    name: str
+    tag: str
+    dest: str  # path (relative to cwd) the files are written into
+    assets: tuple[DatasetAsset, ...]
+
+    def asset_url(self, filename: str) -> str:
+        """GitHub release-asset download URL for one file."""
+        return f"https://github.com/{_REPO}/releases/download/{self.tag}/{filename}"
+
+
+# Registry of fetchable datasets. sha256 pins the exact frozen data file; the
+# card is unpinned (prose may get typo fixes within a release without a re-cut).
+AGENTIC_V1 = DatasetRelease(
+    name="agentic-v1",
+    tag="v0.7.0",
+    dest="dataset/agentic/v1",
+    assets=(
+        DatasetAsset(
+            "data.jsonl",
+            "012507e611fe1140628dab8bc6502ae312507d448d7dcd12e42b3df135279347",
+        ),
+        DatasetAsset("DATASET_CARD.md", None),
+    ),
+)
+
+RELEASES: dict[str, DatasetRelease] = {AGENTIC_V1.name: AGENTIC_V1}
+
+
+def _download(url: str) -> bytes:
+    with urllib.request.urlopen(url) as resp:
+        return resp.read()
+
+
+def fetch_dataset(name: str, dest_root: str | Path = ".") -> list[Path]:
+    """Download ``name``'s assets into ``dest_root/<release.dest>/``.
+
+    Verifies the sha256 of any asset that pins one; raises ValueError on a
+    mismatch (and writes nothing for that file). Returns the written paths.
+    """
+    if name not in RELEASES:
+        raise ValueError(f"Unknown dataset '{name}'. Known: {', '.join(sorted(RELEASES))}")
+    release = RELEASES[name]
+    out_dir = Path(dest_root) / release.dest
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    written: list[Path] = []
+    for asset in release.assets:
+        data = _download(release.asset_url(asset.filename))
+        if asset.sha256 is not None:
+            got = hashlib.sha256(data).hexdigest()
+            if got != asset.sha256:
+                raise ValueError(
+                    f"sha256 mismatch for {asset.filename}: "
+                    f"expected {asset.sha256}, got {got}"
+                )
+        path = out_dir / asset.filename
+        path.write_bytes(data)
+        written.append(path)
+    return written
