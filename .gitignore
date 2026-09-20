@@ -304,3 +304,4 @@ assets/latency_*.png
 # Un-ignore guardbench package subdirectories that match ignored patterns
 !guardbench/report/
 !guardbench/report/**
+guardbench/report/__pycache__/
