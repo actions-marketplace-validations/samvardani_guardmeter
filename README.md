@@ -124,6 +124,7 @@ release). Outputs: `passed`, `run_id`, `report_path`.
 | `regex-enhanced` | built-in | Expanded patterns, obfuscation detection, Farsi coverage |
 | `regex` | built-in | Alias of `regex-enhanced` (kept for backward compatibility) |
 | `openai` | `pip install guardmeter[llm]` + `OPENAI_API_KEY` | OpenAI Moderation API (experimental — see below) |
+| `anthropic` | `pip install guardmeter[llm]` + `ANTHROPIC_API_KEY` | Claude as a JSON-verdict safety classifier (experimental — see below) |
 | `llamaguard` | HuggingFace `transformers` or an HTTP endpoint | Llama Guard 3, local pipeline or hosted API (experimental — see below) |
 
 ### Write your own guard
@@ -165,6 +166,7 @@ These features work but require API keys or extra dependencies and have limited 
 
 - **LLM-as-judge** (`guardmeter/judge/`) — uses Claude or an OpenAI model as a second opinion on predictions. Available through the Python API only (no CLI subcommand); needs a provider API key.
 - **`openai` guard** — calls the OpenAI Moderation API; needs `guardmeter[llm]` and `OPENAI_API_KEY`.
+- **`anthropic` guard** — asks a Claude model (default `claude-sonnet-4-5`) for a strict JSON safety verdict over GuardMeter's category vocabulary; needs `guardmeter[llm]` and `ANTHROPIC_API_KEY`. Malformed or failed responses fall back to a safe `pass`.
 - **`llamaguard` guard** — runs Llama Guard 3 via a local `transformers` pipeline or an HTTP endpoint; needs `guardmeter[hf]` or a hosted endpoint and key.
 - **Regulatory mapping (informational).** The HTML report includes a table mapping a run's metrics to regulatory themes (e.g. EU AI Act articles, NIST AI RMF). It is an informational aid for your own documentation, **not** a compliance certification or legal assessment.
 

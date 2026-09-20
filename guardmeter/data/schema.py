@@ -6,6 +6,19 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+# Canonical harm-category vocabulary used across GuardMeter datasets. The
+# DatasetRecord.category field holds one of these for unsafe/borderline rows
+# (safe rows use "benign"). This is the single source of truth for adapters
+# that need to emit categories — do not fork a different taxonomy.
+CATEGORY_VOCABULARY: list[str] = [
+    "crime",
+    "malware",
+    "pii",
+    "self_harm",
+    "violence",
+    "prompt_injection",
+]
+
 
 class DatasetRecord(BaseModel):
     """A single labelled evaluation sample."""

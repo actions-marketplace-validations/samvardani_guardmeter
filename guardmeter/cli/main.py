@@ -28,7 +28,7 @@ def _import_builtin_guards() -> None:
     import importlib
 
     import guardmeter.guards.regex_guard  # noqa: F401
-    for mod in ("openai_moderation", "llamaguard"):
+    for mod in ("openai_moderation", "llamaguard", "anthropic_guard"):
         try:
             importlib.import_module(f"guardmeter.guards.{mod}")
         except ImportError:
