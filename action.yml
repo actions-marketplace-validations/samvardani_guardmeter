@@ -29,7 +29,7 @@ inputs:
     # install the checked-out source instead (used by this repo's own selftest).
     description: guardmeter version to install (PyPI), or "local" to install the checkout
     required: false
-    default: "0.3.0"
+    default: "0.4.0"
 
 outputs:
   passed:

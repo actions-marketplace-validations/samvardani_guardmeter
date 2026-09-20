@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.4.0] - 2026-09-20
+### Added
+- Machine-readable CLI output: `compare --json` and `gate --json` (structured
+  `{scope, metric, value, threshold}` failures), plus `--summary-md` on both
+  for a baseline/candidate/delta table suitable for `$GITHUB_STEP_SUMMARY`.
+- Composite **GitHub Action** — compare → report → dashboard → gate, with a
+  step summary, an uploaded report artifact, and `passed`/`run_id`/
+  `report_path` outputs:
+
+  ```yaml
+  - uses: samvardani/guardmeter@v0.4.0
+    with:
+      candidate: regex-enhanced
+      dataset: dataset/sample.csv
+  ```
+
+- Fully offline report and dashboard: Chart.js is vendored and inlined and the
+  Tailwind CDN is replaced by a hand-written stylesheet — no network requests.
+- Dashboard sample filter (text search) and a "mismatches only" checkbox.
+- `anthropic` guard adapter: Claude as a JSON-verdict safety classifier over
+  GuardMeter's category vocabulary, with defensive parsing.
+- `dataset/prompt_injection_seed.csv`: a 40-row (en + fa) prompt-injection seed
+  set for agent-facing guards (not part of the default gate).
+### Changed
+- CI runs a Python 3.11–3.13 matrix with an 80% coverage floor.
+- Reports and dashboards no longer require network access to render.
+
 ## [0.3.0] - 2026-09-20
 ### Changed
 - **Renamed** to GuardMeter: PyPI `guardmeter`, import `guardmeter`, CLI
