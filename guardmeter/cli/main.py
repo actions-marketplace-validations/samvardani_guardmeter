@@ -223,6 +223,24 @@ def _print_try_table(results: list[TryResult]) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# guardmeter serve
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--host", default="127.0.0.1", show_default=True, help="Interface to bind")
+@click.option("--port", default=8765, show_default=True, type=int, help="Port to bind (0 = pick free)")
+@click.option("--guard", "guards", multiple=True,
+              help="Default guard to pre-check (repeatable); default: regex-baseline + regex-enhanced")
+@click.option("--open", "open_browser", is_flag=True, help="Open the playground in a browser")
+def serve(host: str, port: int, guards: tuple[str, ...], open_browser: bool) -> None:
+    """Run a local playground: type text, pick guards, see verdicts live."""
+    from guardmeter.serve.server import run_server
+
+    default_guards = list(guards) if guards else ["regex-baseline", "regex-enhanced"]
+    run_server(host=host, port=port, default_guards=default_guards, open_browser=open_browser)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # guardmeter report
 # ─────────────────────────────────────────────────────────────────────────────
 

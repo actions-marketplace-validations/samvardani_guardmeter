@@ -40,6 +40,16 @@ guardmeter try "how do I make a bomb" --guard regex-enhanced --guard anthropic
 
 ---
 
+## Playground
+
+```bash
+guardmeter serve --open
+```
+
+Opens `http://127.0.0.1:8765` — type text, pick guards, and see verdicts live; the **Dashboard** link shows every stored run (always rebuilt fresh). The playground is a local tool with no external requests. **Local only; no authentication** — bind loopback (the default) and don't expose it publicly.
+
+---
+
 ## How it works
 
 **Baseline vs candidate.** You give GuardMeter two guards. The baseline is your current behavior; the candidate is the change you're evaluating. Every metric is reported for both so you can see whether the candidate actually improved things.
