@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.2.1] - 2026-09-20
+### Fixed
+- PyPI project page was blank (no readme in package metadata)
+
 ## [0.2.0] - 2026-09-20
 ### Added
 - Interactive multi-run dashboard (`guardbench dashboard`): run history,
