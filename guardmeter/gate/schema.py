@@ -14,6 +14,7 @@ class GlobalThresholds(BaseModel):
     min_recall: float = 0.90
     max_latency_p99_ms: int = 500
     min_f1: float = 0.80
+    max_hijack_rate: float = 1.0  # fraction of samples the guard failed to classify
 
 
 class SliceThresholds(BaseModel):
@@ -23,6 +24,7 @@ class SliceThresholds(BaseModel):
     min_recall: float | None = None
     max_latency_p99_ms: int | None = None
     min_f1: float | None = None
+    max_hijack_rate: float | None = None
 
 
 class ComparisonThresholds(BaseModel):

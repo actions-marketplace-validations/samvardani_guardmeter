@@ -127,6 +127,9 @@ def _check_bundle(
     _eval("latency_p99", "max_latency_p99_ms", bundle.latency_p99, float(thr.max_latency_p99_ms),
           bundle.latency_p99 <= thr.max_latency_p99_ms,
           f"latency_p99 {bundle.latency_p99:.1f} ms > max_latency_p99_ms {thr.max_latency_p99_ms}")
+    _eval("hijack_rate", "max_hijack_rate", bundle.hijack_rate, thr.max_hijack_rate,
+          bundle.hijack_rate <= thr.max_hijack_rate,
+          f"hijack_rate {bundle.hijack_rate:.4f} > max_hijack_rate {thr.max_hijack_rate}")
     if has_positives:
         _eval("f1", "min_f1", bundle.f1, thr.min_f1,
               bundle.f1 >= thr.min_f1,

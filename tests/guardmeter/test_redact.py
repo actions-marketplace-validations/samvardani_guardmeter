@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
-import logging
 import sys
 import types
+
+import pytest
 
 from guardmeter.core.redact import redact
 
@@ -24,8 +25,10 @@ def test_redact_leaves_ordinary_text_alone():
     assert redact(msg) == msg
 
 
-def test_fake_key_absent_from_anthropic_logs(caplog, monkeypatch):
-    """A secret in an adapter exception must not survive into the log output."""
+def test_anthropic_guard_propagates_api_errors(monkeypatch):
+    """The adapter no longer swallows API errors — the evaluator retries/handles
+    them (and redacts on the way to the log; see test_evaluator_concurrency).
+    """
     mod = types.ModuleType("anthropic")
 
     class _Messages:
@@ -40,8 +43,11 @@ def test_fake_key_absent_from_anthropic_logs(caplog, monkeypatch):
     monkeypatch.setitem(sys.modules, "anthropic", mod)
 
     from guardmeter.guards.anthropic_guard import AnthropicGuard
-    with caplog.at_level(logging.WARNING):
+    with pytest.raises(RuntimeError, match="401"):
         AnthropicGuard(api_key="x").predict("hello")
 
-    assert FAKE_KEY not in caplog.text
-    assert "REDACTED" in caplog.text
+
+def test_redactor_masks_secret_in_error_text():
+    """Whatever logs an adapter error must pass it through redact() first."""
+    assert FAKE_KEY not in redact(f"401 unauthorized, token={FAKE_KEY}")
+    assert "REDACTED" in redact(f"401 unauthorized, token={FAKE_KEY}")

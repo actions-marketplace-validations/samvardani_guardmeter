@@ -50,6 +50,7 @@ function metricCard(title, m) {
       ${cell("FPR", `${fmt(m.fpr)} (${fmt(m.fpr_lo, 3)}–${fmt(m.fpr_hi, 3)})`)}
       ${cell("FNR", fmt(m.fnr))}
       ${cell("p50/p90/p99", `${fmtMs(m.latency_p50)}/${fmtMs(m.latency_p90)}/${fmtMs(m.latency_p99)} ms`)}
+      ${m.hijacked ? cell("Hijacked", `${m.hijacked} (${fmt(m.hijack_rate)})`) : ""}
     </div>
   </div>`;
 }

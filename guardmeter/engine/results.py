@@ -40,6 +40,7 @@ def _bundle_to_dict(b: MetricsBundle) -> dict[str, Any]:
         "latency_p50": b.latency_p50, "latency_p90": b.latency_p90,
         "latency_p95": b.latency_p95, "latency_p99": b.latency_p99,
         "latency_mean": b.latency_mean, "latency_max": b.latency_max,
+        "hijacked": b.hijacked, "hijack_rate": b.hijack_rate,
     }
 
 

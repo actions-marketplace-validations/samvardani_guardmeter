@@ -107,11 +107,14 @@ def compare(
     strict = results.candidate_metrics.get("strict")
     _log(f"\nRun ID: {results.run_id}")
     if strict:
-        _log(
+        line = (
             f"Candidate (strict) — recall: {strict.recall:.4f} | "
             f"fpr: {strict.fpr:.4f} | f1: {strict.f1:.4f} | "
             f"p99: {strict.latency_p99:.1f} ms"
         )
+        if strict.hijacked:
+            line += f" | hijacked: {strict.hijacked} ({strict.hijack_rate:.2%})"
+        _log(line)
     _log(f"Dataset SHA: {results.dataset_sha[:12]}")
 
     if json_out:

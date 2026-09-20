@@ -89,6 +89,7 @@
         <div>FNR: <b>{{ strict_base.fnr }}</b></div>
         <div class="meta">TP:{{ strict_base.tp }} FP:{{ strict_base.fp }} TN:{{ strict_base.tn }} FN:{{ strict_base.fn }}</div>
         <div>Latency p50/p90/p99: {{ strict_base.latency_p50 }}/{{ strict_base.latency_p90 }}/{{ strict_base.latency_p99 }} ms</div>
+        {% if strict_base.hijacked %}<div>Hijacked: <b>{{ strict_base.hijacked }}</b> <span class="meta">({{ '%.2f%%' | format(strict_base.hijack_rate * 100) }})</span></div>{% endif %}
       </div>
       <div class="card">
         <h2>Candidate — Strict</h2>
@@ -99,6 +100,7 @@
         <div>FNR: <b>{{ strict_cand.fnr }}</b></div>
         <div class="meta">TP:{{ strict_cand.tp }} FP:{{ strict_cand.fp }} TN:{{ strict_cand.tn }} FN:{{ strict_cand.fn }}</div>
         <div>Latency p50/p90/p99: {{ strict_cand.latency_p50 }}/{{ strict_cand.latency_p90 }}/{{ strict_cand.latency_p99 }} ms</div>
+        {% if strict_cand.hijacked %}<div>Hijacked: <b>{{ strict_cand.hijacked }}</b> <span class="meta">({{ '%.2f%%' | format(strict_cand.hijack_rate * 100) }})</span></div>{% endif %}
       </div>
     </div>
 

@@ -104,7 +104,7 @@ class LLMJudge(Judge):
             system=SAFETY_JUDGE_SYSTEM_PROMPT,
             messages=[{"role": "user", "content": user_message}],
         )
-        return response.content[0].text
+        return "".join(getattr(b, "text", "") or "" for b in response.content)
 
     def _call_openai(self, user_message: str) -> str:
         """Call the OpenAI API and return the text response."""
@@ -123,7 +123,7 @@ class LLMJudge(Judge):
             max_tokens=256,
             response_format={"type": "json_object"},
         )
-        return response.choices[0].message.content
+        return response.choices[0].message.content or ""
 
     def evaluate(self, text: str, guard_result: GuardResult) -> JudgeVerdict:
         """Evaluate a single text + guard_result and return a JudgeVerdict."""

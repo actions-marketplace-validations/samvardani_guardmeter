@@ -12,7 +12,7 @@ from typing import Any
 from guardmeter.core.guard import Guard
 from guardmeter.core.io_utils import git_commit_sha, hash_content, new_run_id
 from guardmeter.data.schema import DatasetRecord
-from guardmeter.engine.metrics import compute_metrics, compute_slices
+from guardmeter.engine.metrics import compute_metrics, compute_slices, count_hijacked
 from guardmeter.engine.results import EvalResults, SampleResult
 from guardmeter.engine.significance import mcnemar_test
 
@@ -110,8 +110,8 @@ class Evaluator:
             base_lats = [p.latency_ms for p in base_preds]
             cand_lats = [p.latency_ms for p in cand_preds]
 
-            base_metrics[pol] = compute_metrics(base_conf, base_lats)
-            cand_metrics[pol] = compute_metrics(cand_conf, cand_lats)
+            base_metrics[pol] = compute_metrics(base_conf, base_lats, count_hijacked(base_preds))
+            cand_metrics[pol] = compute_metrics(cand_conf, cand_lats, count_hijacked(cand_preds))
             base_slices[pol] = compute_slices(base_preds, self.dataset, pol, self.config.slices)
             cand_slices[pol] = compute_slices(cand_preds, self.dataset, pol, self.config.slices)
             base_attack_slices[pol] = compute_slices(base_preds, self.dataset, pol, [attack_dim])

@@ -39,6 +39,9 @@ def test_shipped_gate_survives_editor_round_trip():
     out = json.loads(result.stdout)
 
     # Every threshold in the shipped file — including min_f1 — round-trips intact.
+    # (The editor may surface newer defaulted fields like max_hijack_rate that the
+    # file omits; the regression guard is that nothing present is dropped or changed.)
     assert out["slices"] == raw["slices"]
-    assert out["global_thresholds"] == raw["global_thresholds"]
+    for k, v in raw["global_thresholds"].items():
+        assert out["global_thresholds"][k] == v
     assert out["slices"]["self_harm/en"]["min_f1"] == raw["slices"]["self_harm/en"]["min_f1"]

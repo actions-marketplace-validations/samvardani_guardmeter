@@ -5,7 +5,7 @@
 // — earlier the editor only exposed recall+fpr, so min_f1 (and latency) on a
 // loaded gate.json were invisible and could be lost on a new override.
 
-export const SLICE_FIELDS = ["min_recall", "min_f1", "max_fpr", "max_latency_p99_ms"];
+export const SLICE_FIELDS = ["min_recall", "min_f1", "max_fpr", "max_latency_p99_ms", "max_hijack_rate"];
 
 function cleanNumbers(obj) {
   const out = {};
