@@ -156,6 +156,26 @@ class SQLiteStore(RunStore):
             "precision_delta": round(b_m.precision - a_m.precision, 4),
         }
 
+    def _load_sample_results(self, run_id: str) -> List[dict]:
+        """Read persisted per-sample rows for a run, ordered by row index."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT text, label, category, language, baseline_pred, candidate_pred "
+                "FROM sample_results WHERE run_id=? ORDER BY row_idx",
+                (run_id,),
+            ).fetchall()
+        return [
+            {
+                "text": text,
+                "label": label,
+                "category": category,
+                "language": language,
+                "baseline_pred": baseline_pred,
+                "candidate_pred": candidate_pred,
+            }
+            for text, label, category, language, baseline_pred, candidate_pred in rows
+        ]
+
     def _row_to_results(self, row: tuple) -> EvalResults:
         """Reconstruct an EvalResults from a DB row."""
         run_id, timestamp, dataset_sha, git_commit, baseline, candidate, metrics_json = row
@@ -171,7 +191,7 @@ class SQLiteStore(RunStore):
             "candidate_metrics": metrics.get("candidate_metrics", {}),
             "baseline_slices": metrics.get("baseline_slices", {}),
             "candidate_slices": metrics.get("candidate_slices", {}),
-            "sample_results": [],
+            "sample_results": self._load_sample_results(run_id),
             "mcnemar_p": metrics.get("mcnemar_p"),
             "judge_agreement_rate": metrics.get("judge_agreement_rate"),
         }

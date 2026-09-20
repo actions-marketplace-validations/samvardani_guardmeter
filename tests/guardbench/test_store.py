@@ -58,6 +58,21 @@ class TestSQLiteStore:
         assert "recall_delta" in delta
         assert "fpr_delta" in delta
 
+    def test_sample_results_round_trip(self, sample_records, regex_enhanced, tmp_db):
+        """get_run should read back the per-sample results, not drop them."""
+        results = _run(sample_records[:5], regex_enhanced)
+        assert len(results.sample_results) == 5
+        tmp_db.save_run(results)
+        retrieved = tmp_db.get_run(results.run_id)
+        assert len(retrieved.sample_results) == 5
+        for original, loaded in zip(results.sample_results, retrieved.sample_results):
+            assert loaded.text == original.text
+            assert loaded.label == original.label
+            assert loaded.category == original.category
+            assert loaded.language == original.language
+            assert loaded.baseline_pred == original.baseline_pred
+            assert loaded.candidate_pred == original.candidate_pred
+
 
 class TestJSONFileStore:
     def test_save_get_round_trip(self, sample_records, regex_enhanced, tmp_path):
