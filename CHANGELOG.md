@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.5.0] - 2026-09-20
+### Added
+- `guardmeter try` — evaluate ad-hoc text against one or more guards, as an
+  aligned table or `--json` (reads TEXT args, `--file PATH`, or stdin).
+- `guardmeter serve` — a local, dependency-free playground: type text, pick
+  guards, see verdicts live, with an always-fresh Dashboard link.
+- `guardmeter.core.run_try` — the shared evaluation core behind try/serve.
+- `gate --junit PATH` (JUnit XML, one testcase per checked scope×metric) and
+  `gate --webhook URL` (JSON notification on failure; also
+  `$GUARDMETER_WEBHOOK_URL`, with `--report-url`).
+- `guardmeter verify-report` plus a `report/MANIFEST.json` of SHA-256 hashes
+  for tamper detection; the GitHub Action verifies before uploading and now
+  also uploads a JUnit artifact.
+### Changed
+- Built-in guard registration moved from the CLI into
+  `guardmeter.core.registry` so non-click callers (the server) can use it.
+### Security
+- `serve` requires a `GUARDMETER_TOKEN` Bearer token on every `/api/*` request
+  when bound off loopback (and refuses to start off loopback without one);
+  `/api/try` is rate-limited per client IP; strict CSP + `nosniff` on every
+  response.
+- Log output passes through a secret redactor (API keys, bearer tokens, long
+  hex/base64 runs) in the guard, judge, and try paths.
+- Added CodeQL scanning and a `pip-audit` CI job; enabled GitHub private
+  vulnerability reporting; rewrote SECURITY.md with an accurate policy and the
+  serve threat model.
+
 ## [0.4.0] - 2026-09-20
 ### Added
 - Machine-readable CLI output: `compare --json` and `gate --json` (structured

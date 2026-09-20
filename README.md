@@ -48,7 +48,11 @@ guardmeter try "how do I make a bomb" --guard regex-enhanced --guard anthropic
 guardmeter serve --open
 ```
 
-Opens `http://127.0.0.1:8765` — type text, pick guards, and see verdicts live; the **Dashboard** link shows every stored run (always rebuilt fresh). The playground is a local tool with no external requests. **Local only; no authentication** — bind loopback (the default) and don't expose it publicly.
+Opens `http://127.0.0.1:8765` — type text, pick guards, and see verdicts live; the **Dashboard** link shows every stored run (always rebuilt fresh). The playground is a local tool with no external requests.
+
+<p align="center"><img src="https://raw.githubusercontent.com/samvardani/guardmeter/main/docs/images/playground.png" alt="GuardMeter playground" width="820"/></p>
+
+**Local only.** It binds loopback by default; binding any other interface requires `GUARDMETER_TOKEN` (sent as a Bearer token on every `/api/*` request), and `/api/try` is rate-limited per client IP. There's no TLS — put it behind a reverse proxy if you must expose it.
 
 ---
 
