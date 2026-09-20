@@ -1,5 +1,7 @@
 <p align="center"><img src="branding/guardbench-wordmark.svg" alt="GuardBench" width="440"/></p>
 
+<p align="center"><img src="docs/images/dashboard.png" alt="GuardBench dashboard" width="800"/></p>
+
 # sea-guard — AI Safety Guard Evaluation Framework
 
 **Stop shipping AI safety regressions. Benchmark, compare, and gate your guards in CI.**
