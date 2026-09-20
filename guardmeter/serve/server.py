@@ -16,7 +16,6 @@ import logging
 import math
 import os
 import sys
-import tempfile
 import threading
 import time
 import urllib.parse
@@ -41,16 +40,18 @@ _LOOPBACK = {"127.0.0.1", "localhost", "::1"}
 _DEFAULT_GUARDS = ["regex-baseline", "regex-enhanced"]
 
 _SECURITY_HEADERS = {
+    # style-src includes 'self' so the app's linked /static/styles.css loads;
+    # inline styles stay allowed for the vendored-JS render path.
     "Content-Security-Policy": (
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'"
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
     ),
     "X-Content-Type-Options": "nosniff",
 }
 
 
-def _playground_html() -> str:
+def _app_html() -> str:
     return (
-        importlib.resources.files("guardmeter.serve") / "templates" / "playground.html"
+        importlib.resources.files("guardmeter.serve") / "templates" / "app.html"
     ).read_text(encoding="utf-8")
 
 
@@ -88,18 +89,6 @@ def read_static(name: str) -> tuple[bytes, str] | None:
         if alt.is_file():
             return alt.read_bytes(), _STATIC_TYPES[".js"]
     return None
-
-
-def _render_dashboard() -> str:
-    """Rebuild the dashboard from the default store and return its HTML."""
-    from guardmeter.report.generator import DashboardGenerator
-    from guardmeter.store.sqlite import SQLiteStore
-
-    store = SQLiteStore()
-    with tempfile.TemporaryDirectory() as td:
-        out = Path(td) / "dashboard.html"
-        DashboardGenerator(store).build(out)
-        return out.read_text(encoding="utf-8")
 
 
 class PlaygroundServer(http.server.ThreadingHTTPServer):
@@ -215,11 +204,7 @@ class PlaygroundHandler(http.server.BaseHTTPRequestHandler):
             return
         seg = [s for s in path.split("/") if s]
 
-        if path == "/":
-            self._send_html(200, _playground_html())
-        elif path == "/dashboard":
-            self._send_html(200, _render_dashboard())
-        elif path == "/styleguide":
+        if path == "/styleguide":
             found = read_static("styleguide.html")
             self._send_html(200, found[0].decode("utf-8")) if found else self._send_json(404, {"error": "not found"})
         elif path.startswith("/static/"):
@@ -255,8 +240,11 @@ class PlaygroundHandler(http.server.BaseHTTPRequestHandler):
             self._send_json(200, job) if job else self._send_json(404, {"error": "not found"})
         elif len(seg) >= 3 and seg[:2] == ["api", "runs"]:
             self._run_subroute_get(seg, params)
-        else:
+        elif path.startswith("/api/"):
             self._send_json(404, {"error": "not found"})
+        else:
+            # SPA fallback: /, /run/<id>, /gate, /compare, /try, /datasets, /dashboard …
+            self._send_html(200, _app_html())
 
     def _run_subroute_get(self, seg: list[str], params: dict[str, list[str]]) -> None:
         run_id = seg[2]

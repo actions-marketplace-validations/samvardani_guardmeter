@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <title>GuardMeter</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/chart.umd.min.js"></script>
+</head>
+<body>
+  <div id="app" aria-live="polite">
+    <!-- Nav names kept in the shell so the app is recognisable before hydration -->
+    <noscript>GuardMeter needs JavaScript. Pages: Overview · Run · Gate · Compare · Try · Datasets.</noscript>
+  </div>
+  <div class="toasts" id="toasts"></div>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

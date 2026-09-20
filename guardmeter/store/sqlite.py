@@ -175,6 +175,7 @@ class SQLiteStore(RunStore):
                     "recall": cand_strict.get("recall"),
                     "fpr": cand_strict.get("fpr"),
                     "f1": cand_strict.get("f1"),
+                    "latency_p99": cand_strict.get("latency_p99"),
                     "mcnemar_p": metrics.get("mcnemar_p"),
                 }
             )

@@ -57,11 +57,18 @@ def _start(httpd):
     return thread
 
 
-def test_index_serves_playground(base_url):
+def test_index_serves_app_shell(base_url):
     status, headers, body = _get(base_url + "/")
     assert status == 200
-    assert "<textarea" in body
+    assert 'id="app"' in body and "app.js" in body
     assert "Content-Security-Policy" in headers  # CSP present on every response
+
+
+def test_spa_fallback_deeplink(base_url):
+    # A client-side route path returns the app shell (200), not a 404.
+    status, _, body = _get(base_url + "/run/whatever")
+    assert status == 200
+    assert 'id="app"' in body
 
 
 def test_api_guards_lists_guards(base_url):
@@ -92,10 +99,8 @@ def test_api_try_oversize_body_returns_413(base_url):
     assert status == 413
 
 
-def test_dashboard_route(base_url):
-    status, _, body = _get(base_url + "/dashboard")
-    assert status == 200
-    assert "Overview" in body  # the dashboard's Overview tab
+def test_unknown_api_route_404(base_url):
+    assert _get_status(base_url + "/api/nope") == 404
 
 
 def test_static_css_served(base_url):
@@ -133,7 +138,7 @@ def test_chart_js_served_via_fallback(base_url):
 def test_csp_header_value(base_url):
     _, headers, _ = _get(base_url + "/")
     assert headers["Content-Security-Policy"] == (
-        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'"
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
     )
 
 
