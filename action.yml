@@ -76,12 +76,14 @@ runs:
 
     - name: Run gate
       shell: bash
+      # NB: output goes to gate-result.json, NOT the input config (which may be
+      # named gate.json) — redirecting over the config would truncate it first.
       run: |
         guardmeter gate \
           --config "${{ inputs.gate }}" \
           --run latest \
           --json \
-          --summary-md "$GITHUB_STEP_SUMMARY" > gate.json \
+          --summary-md "$GITHUB_STEP_SUMMARY" > gate-result.json \
           || echo "failed=1" >> "$GITHUB_ENV"
 
     - name: Set outputs
@@ -89,7 +91,7 @@ runs:
       shell: bash
       run: |
         {
-          echo "passed=$(jq -r '.passed' gate.json)"
+          echo "passed=$(jq -r '.passed' gate-result.json)"
           echo "run_id=$(jq -r '.run_id' compare.json)"
           echo "report_path=report/index.html"
         } >> "$GITHUB_OUTPUT"
