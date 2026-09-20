@@ -25,11 +25,11 @@ inputs:
     default: "3.12"
   version:
     # Defaults to this repo's current release. Users should pin the action to a
-    # matching tag, e.g. `uses: samvardani/guardmeter@v0.6.0`. Pass `local` to
+    # matching tag, e.g. `uses: samvardani/guardmeter@v0.6.1`. Pass `local` to
     # install the checked-out source instead (used by this repo's own selftest).
     description: guardmeter version to install (PyPI), or "local" to install the checkout
     required: false
-    default: "0.6.0"
+    default: "0.6.1"
   junit:
     description: Path for the JUnit XML report (always written and uploaded)
     required: false

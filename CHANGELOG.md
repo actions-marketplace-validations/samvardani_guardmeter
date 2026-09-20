@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.1] - 2026-09-20
+### Fixed
+- **Gate editor** no longer hides (and could drop) per-slice `min_f1` and
+  `max_latency_p99_ms`: every threshold field is rendered (blank = inherit),
+  unknown fields are preserved with a warning, and a round-trip test asserts
+  the shipped `gate.json` survives load → save intact.
+- Undefined slice metrics render as **n/a**, not `0` — recall for slices with
+  no positives, FPR for slices with no negatives — in the run heatmap, the
+  Compare delta heatmap, and the attack-type chart.
+- Latency histogram uses the accent colour (Chart.js can't read CSS vars);
+  sub-millisecond latencies now format with useful precision across the KPI
+  card, run cards, Try table, and CLI `try`.
+- KPI deltas show `0.0000 · no change` when a previous run exists and the
+  metric is unchanged, reserving `—` for "no previous run".
+
 ## [0.6.0] - 2026-09-20
 ### Added
 - **The dashboard is now a local app** served by `guardmeter serve`: a

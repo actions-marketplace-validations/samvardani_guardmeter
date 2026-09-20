@@ -160,7 +160,7 @@ Markdown table to the job summary, uploads the HTML report as an artifact, and
 fails the job when the gate fails. Pin it to a release tag:
 
 ```yaml
-- uses: samvardani/guardmeter@v0.6.0
+- uses: samvardani/guardmeter@v0.6.1
   with:
     candidate: regex-enhanced
     dataset: dataset/sample.csv
