@@ -291,6 +291,7 @@ datasets_raw/jigsaw-toxic-comment-classification-challenge.zip
 **/.DS_Store
 *.backup.py
 *.egg-info/
+runs.jsonl
 .venv/
 *.db
 report/index*.html

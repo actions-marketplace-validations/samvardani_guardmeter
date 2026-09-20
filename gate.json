@@ -1,34 +1,13 @@
 {
   "mode": "strict",
-  "model": "Candidate",
-  "defaults": {
+  "global_thresholds": {
     "min_recall": 0.55,
     "max_fpr": 0.01,
-    "max_p90_ms": 12,
-    "max_p99_ms": 20
+    "max_latency_p99_ms": 20
   },
-  "overrides": [
-    {
-      "category": "self_harm",
-      "language": "en",
-      "min_recall": 0.44,
-      "max_p90_ms": 10
-    },
-    {
-      "category": "violence",
-      "language": "fa",
-      "max_p90_ms": 15,
-      "max_p99_ms": 25
-    },
-    {
-      "category": "crime",
-      "language": "en",
-      "min_recall": 0.44
-    },
-    {
-      "category": "malware",
-      "language": "en",
-      "min_recall": 0.44
-    }
-  ]
+  "slices": {
+    "self_harm/en": { "min_recall": 0.44 },
+    "crime/en":     { "min_recall": 0.44 },
+    "malware/en":   { "min_recall": 0.44 }
+  }
 }

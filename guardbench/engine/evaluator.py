@@ -49,7 +49,7 @@ class Evaluator:
     def run(self) -> EvalResults:
         """Run the full evaluation and return EvalResults."""
         run_id = self.config.run_id or new_run_id()
-        timestamp = datetime.datetime.utcnow().isoformat() + "Z"
+        timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
         git_commit = git_commit_sha()
 
         # Hash the dataset for reproducibility

@@ -4,7 +4,7 @@
 
 **Stop shipping AI safety regressions. Benchmark, compare, and gate your guards in CI.**
 
-[![CI](https://github.com/samvardani/GuardBench/actions/workflows/eval.yml/badge.svg)](https://github.com/samvardani/GuardBench/actions)
+[![CI](https://github.com/samvardani/GuardBench/actions/workflows/guardbench-eval.yml/badge.svg)](https://github.com/samvardani/GuardBench/actions)
 [![PyPI](https://img.shields.io/pypi/v/sea-guard)](https://pypi.org/project/sea-guard/)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -96,6 +96,18 @@ guardbench compare \
 guardbench report --run latest --open
 guardbench gate --config gate.json
 ```
+
+### Development Setup
+
+```bash
+# Development setup
+python3.13 -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+pytest tests/guardbench/ -q    # 125 tests should pass
+```
+
+> **Note:** macOS users with Homebrew Python must use a virtual environment (Homebrew enforces PEP 668).
 
 ---
 

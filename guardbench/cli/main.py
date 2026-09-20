@@ -164,6 +164,15 @@ def report(
         import webbrowser
         webbrowser.open(out.as_uri())
 
+    # Auto-rebuild dashboard so it always reflects the latest run
+    try:
+        from guardbench.report.generator import DashboardGenerator
+        dash = DashboardGenerator(store, gate_config=gate_config)
+        dash_path = dash.build()
+        click.echo(f"Dashboard updated at {dash_path}")
+    except Exception as _dash_exc:
+        logger.debug("Dashboard auto-build failed: %s", _dash_exc)
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # guardbench gate
@@ -307,6 +316,41 @@ def dataset_augment(dataset_path: str, output_path: str, techniques: str, multip
         for r in records + augmented:
             writer.writerow(r.model_dump())
     click.echo(f"Wrote {len(records)} original + {len(augmented)} augmented = {len(records)+len(augmented)} → {out}")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# guardbench dashboard
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--output", "output_path", default=None, help="Output path (default: report/dashboard.html)")
+@click.option("--gate", "cfg_path", default=None, help="gate.json path for pass/fail badges")
+@click.option("--store", "store_path", default=None, help="Override DB path")
+@click.option("--open/--no-open", "open_browser", default=False,
+              help="Open dashboard in browser after building")
+def dashboard(
+    output_path: Optional[str],
+    cfg_path: Optional[str],
+    store_path: Optional[str],
+    open_browser: bool,
+) -> None:
+    """Build an interactive multi-run dashboard and open it in the browser."""
+    from guardbench.report.generator import DashboardGenerator
+
+    store = _get_store(store_path)
+
+    gate_config = None
+    if cfg_path:
+        gate_config = _load_gate_config(cfg_path).model_dump()
+
+    out = Path(output_path) if output_path else None
+    gen = DashboardGenerator(store, gate_config=gate_config)
+    out = gen.build(out)
+    click.echo(f"Dashboard written to {out}")
+
+    if open_browser:
+        import webbrowser
+        webbrowser.open(out.as_uri())
 
 
 # ─────────────────────────────────────────────────────────────────────────────
