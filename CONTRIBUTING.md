@@ -1,33 +1,46 @@
-# Contributing
+# Contributing to GuardBench
 
-Thank you for your interest in contributing! Please follow standard GitHub workflows for PRs.
+Thanks for your interest. Bug reports, guard adapters, dataset improvements, and docs fixes are all welcome.
 
-## Last-Touch Polish Checklist
+## Development setup
 
-Repo hygiene
-- README.md updated
-- CHANGELOG.md v0.3.0 entry added
-- LICENSE present and attribution footer in report template
-- requirements.txt includes: fastapi uvicorn python-multipart prometheus-client grpcio grpcio-tools grpcio-reflection httpx jinja2 pyyaml numpy matplotlib
-- src/__init__.py exists; src/grpc_generated/__init__.py exists
+```bash
+git clone https://github.com/samvardani/GuardBench.git
+cd GuardBench
+python3 -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+pytest tests/guardbench/ -q
+```
 
-Build & tests
-- Headless CI sets MPLBACKEND=Agg
-- pytest -q green locally; flaky markers isolated
-- make grpc-gen regenerates stubs cleanly
+All dependencies live in `pyproject.toml`. There are no `requirements*.txt` files.
 
-UX polish (report)
-- Apple-ish light UI: soft gray background, clean type scale, airy spacing
-- Footer: “Made by SeaTechOne.com — designed by Sam Vardani”
-- Empty-state cards render helpful guidance, not blank panes
-- PNGs inline with alt text; lazy-loaded to keep first paint quick
+## Before opening a PR
 
-Ops
-- PROMETHEUS_MULTIPROC_DIR doc’d; /metrics verified under concurrent load
-- Rate limiter default sensible; env var to disable for perf tests
-- Evidence pack includes manifest checksums and version metadata
+- `pytest tests/guardbench/ -q` passes
+- `ruff check guardbench tests` passes
+- `mypy guardbench` passes (or the failure is pre-existing and noted in the PR)
+- If you changed evaluation or gate behaviour, run the full pipeline once:
 
-Security & privacy
-- privacy_mode defaults to strict in sample config
-- Scrubber rules cover PII tokens likely in your domain
-- No raw secrets in repo (scan with git secrets or truffleHog)
+  ```bash
+  guardbench compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
+  guardbench report --run latest
+  guardbench gate --config gate.json --run latest
+  ```
+
+- Add a line to `CHANGELOG.md` under an `[Unreleased]` heading
+
+## Adding a guard
+
+Subclass `guardbench.core.guard.Guard`, implement `classify(text) -> GuardResult`, and register it:
+
+```python
+from guardbench.core.registry import register
+register("my-guard", MyGuard)
+```
+
+Third-party packages can expose guards through the `guardbench.guards` entry-point group so they resolve by name without any import.
+
+## Releases
+
+Maintainers cut releases by bumping the version in `pyproject.toml` and `guardbench/__init__.py`, updating `CHANGELOG.md`, and pushing a `vX.Y.Z` tag. The `release.yml` workflow builds, publishes to PyPI via trusted publishing, and creates the GitHub release.

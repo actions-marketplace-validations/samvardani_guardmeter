@@ -106,7 +106,7 @@ guardbench gate --config gate.json
 python3.13 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
-pytest tests/guardbench/ -q    # 125 tests should pass
+pytest tests/guardbench/ -q    # all tests should pass
 ```
 
 > **Note:** macOS users with Homebrew Python must use a virtual environment (Homebrew enforces PEP 668).
