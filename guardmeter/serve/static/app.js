@@ -7,6 +7,7 @@ import { RunPage } from "/static/pages/run.js";
 import { GatePage } from "/static/pages/gate.js";
 import { TryPage } from "/static/pages/try.js";
 import { DatasetsPage } from "/static/pages/datasets.js";
+import { ComparePage } from "/static/pages/compare.js";
 import { NewEvalModal } from "/static/components/neweval.js";
 
 initTheme();
@@ -29,7 +30,7 @@ function parseRoute() {
 }
 
 // Registry filled in by later page modules; overview is built in.
-export const PAGES = { overview: OverviewPage, run: RunPage, gate: GatePage, try: TryPage, datasets: DatasetsPage };
+export const PAGES = { overview: OverviewPage, run: RunPage, gate: GatePage, try: TryPage, datasets: DatasetsPage, compare: ComparePage };
 
 function Stub({ title }) {
   return html`<main class="container" style="padding:24px 24px 48px">
