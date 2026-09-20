@@ -47,6 +47,20 @@ jobs:
       - name: Verify report integrity
         run: guardmeter verify-report report
 
+  dataset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install guardmeter
+        run: pip install -e ".[dev]"
+      - name: Validate sample dataset
+        run: guardmeter dataset validate dataset/sample.csv
+      - name: Validate agentic dataset
+        run: guardmeter dataset validate dataset/agentic/v1/data.jsonl
+
   audit:
     runs-on: ubuntu-latest
     steps:

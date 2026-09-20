@@ -436,29 +436,63 @@ def dataset() -> None:
 
 
 @dataset.command("validate")
-@click.option("--dataset", "dataset_path", required=True, type=click.Path(exists=True))
-def dataset_validate(dataset_path: str) -> None:
-    """Validate a CSV or JSONL dataset file."""
+@click.argument("path", type=click.Path(exists=True))
+def dataset_validate(path: str) -> None:
+    """Validate a dataset (schema, duplicates, near-duplicates, language, decoded).
+
+    Exits 1 on any problem. Rows without an attack_family (e.g. sample.csv) skip
+    the family-specific checks.
+    """
     from guardmeter.data.loader import load_dataset
-    records = load_dataset(dataset_path)
-    click.echo(f"✅ Valid dataset: {len(records)} records in {dataset_path}")
+    from guardmeter.data.validate import dataset_stats, validate_records
+
+    records = load_dataset(path)
+    problems = validate_records(records)
+    st = dataset_stats(records)
+    click.echo(f"Dataset: {path}")
+    click.echo(f"  rows={st['total']} languages={st['languages']} labels={st['labels']}")
+    click.echo(f"  families={st['families']}")
+    if not problems:
+        click.echo(f"✅ Valid: {st['total']} rows, no problems.")
+        return
+    click.echo(f"❌ {len(problems)} problem(s) found (showing first 20):")
+    for p in problems[:20]:
+        click.echo(f"  - {p}")
+    sys.exit(1)
 
 
 @dataset.command("stats")
-@click.option("--dataset", "dataset_path", required=True, type=click.Path(exists=True))
-def dataset_stats(dataset_path: str) -> None:
-    """Print statistics about a dataset."""
-    from collections import Counter
-
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--markdown", "as_markdown", is_flag=True, help="Emit the composition table as Markdown")
+def dataset_stats_cmd(path: str, as_markdown: bool) -> None:
+    """Print dataset statistics; --markdown emits the composition table."""
     from guardmeter.data.loader import load_dataset
-    records = load_dataset(dataset_path)
-    labels = Counter(r.label for r in records)
-    categories = Counter(r.category for r in records)
-    languages = Counter(r.language for r in records)
-    click.echo(f"Total records: {len(records)}")
-    click.echo(f"Labels:     {dict(labels)}")
-    click.echo(f"Categories: {dict(categories)}")
-    click.echo(f"Languages:  {dict(languages)}")
+    from guardmeter.data.validate import dataset_stats, stats_markdown
+
+    records = load_dataset(path)
+    if as_markdown:
+        click.echo(stats_markdown(records))
+        return
+    st = dataset_stats(records)
+    click.echo(f"Total records: {st['total']}")
+    click.echo(f"Labels:     {st['labels']}")
+    click.echo(f"Languages:  {st['languages']}")
+    click.echo(f"Families:   {st['families']}")
+    click.echo(f"With context: {st['with_context']}")
+    click.echo(f"Text length p50/p90/p99: {st['text_len_p50']}/{st['text_len_p90']}/{st['text_len_p99']}")
+
+
+@dataset.command("info")
+@click.argument("path", type=click.Path(exists=True))
+def dataset_info(path: str) -> None:
+    """Print row count, sha256, families, and card version for a dataset."""
+    from guardmeter.data.validate import dataset_info as _info
+    info = _info(path)
+    click.echo(f"path:     {info['path']}")
+    click.echo(f"version:  {info['version']}")
+    click.echo(f"rows:     {info['rows']}")
+    click.echo(f"sha256:   {info['sha256']}")
+    click.echo(f"families: {', '.join(info['families'])}")
 
 
 @dataset.command("augment")
