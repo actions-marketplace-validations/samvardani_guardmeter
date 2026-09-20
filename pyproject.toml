@@ -1,5 +1,5 @@
 [project]
-name = "sea-guard"
+name = "guardmeter"
 version = "0.2.1"
 description = "Benchmark, compare, and gate AI safety guards"
 readme = "README.md"
@@ -39,13 +39,13 @@ dev = [
 ]
 
 [project.scripts]
-guardbench = "guardbench.cli.main:cli"
+guardmeter = "guardmeter.cli.main:cli"
 
 [project.urls]
-Homepage = "https://github.com/samvardani/GuardBench"
-Repository = "https://github.com/samvardani/GuardBench"
-Changelog = "https://github.com/samvardani/GuardBench/blob/main/CHANGELOG.md"
-Issues = "https://github.com/samvardani/GuardBench/issues"
+Homepage = "https://github.com/samvardani/guardmeter"
+Repository = "https://github.com/samvardani/guardmeter"
+Changelog = "https://github.com/samvardani/guardmeter/blob/main/CHANGELOG.md"
+Issues = "https://github.com/samvardani/guardmeter/issues"
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
@@ -53,12 +53,12 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["guardbench*"]
+include = ["guardmeter*"]
 
 [tool.setuptools.package-data]
-"guardbench.report.templates" = ["*.html"]
-"guardbench.data.builtin" = ["*.csv", "*.jsonl"]
+"guardmeter.report.templates" = ["*.html"]
+"guardmeter.data.builtin" = ["*.csv", "*.jsonl"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests/guardbench"]
+testpaths = ["tests/guardmeter"]
 addopts = "--tb=short"

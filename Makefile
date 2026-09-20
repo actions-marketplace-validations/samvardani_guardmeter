@@ -4,25 +4,25 @@ install:
 	pip install -e ".[dev]"
 
 test:
-	pytest tests/guardbench/ --cov=guardbench -q
+	pytest tests/guardmeter/ --cov=guardmeter -q
 
 lint:
-	ruff check guardbench tests
+	ruff check guardmeter tests
 
 typecheck:
-	mypy guardbench
+	mypy guardmeter
 
 compare:
-	guardbench compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
+	guardmeter compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
 
 report:
-	guardbench report --run latest
+	guardmeter report --run latest
 
 gate:
-	guardbench gate --config gate.json --run latest
+	guardmeter gate --config gate.json --run latest
 
 dashboard:
-	guardbench dashboard --open
+	guardmeter dashboard --open
 
 demo: compare report gate dashboard
 
