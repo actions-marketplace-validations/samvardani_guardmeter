@@ -220,6 +220,14 @@ def test_try_unknown_guard_shows_error_row_exits_zero(runner):
     assert "ERROR" in result.output
 
 
+def test_fmt_latency_sub_millisecond():
+    from guardmeter.cli.main import _fmt_latency
+    assert _fmt_latency(0.42) == "0.42 ms"   # <10 → 2 decimals
+    assert _fmt_latency(0.0) == "0.00 ms"
+    assert _fmt_latency(42.7) == "42.7 ms"   # <100 → 1 decimal
+    assert _fmt_latency(523.9) == "524 ms"   # ≥100 → integer
+
+
 def test_try_requires_text_or_file(runner):
     """Neither TEXT nor --file is a usage error (exit 2)."""
     result = runner.invoke(cli, ["try"])

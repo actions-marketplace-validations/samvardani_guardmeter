@@ -1,6 +1,16 @@
 // Chart helpers built on the globally-loaded Chart.js (window.Chart) plus a
 // couple of pure data transforms. Charts render into a <canvas> ref.
 
+// Chart.js draws on a canvas and can't read CSS custom properties, so resolve
+// any "var(--x)" to its computed value before handing it a colour.
+function resolveColor(color) {
+  if (typeof color === "string" && color.startsWith("var(")) {
+    const name = color.slice(4, -1).trim();
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || color;
+  }
+  return color;
+}
+
 function themeColors() {
   const css = getComputedStyle(document.documentElement);
   return {
@@ -80,7 +90,7 @@ export function barChart(canvas, labels, data, label, color) {
   const c = themeColors();
   return new window.Chart(canvas, {
     type: "bar",
-    data: { labels, datasets: [{ label, data, backgroundColor: color || c.accent }] },
+    data: { labels, datasets: [{ label, data, backgroundColor: resolveColor(color) || c.accent }] },
     options: {
       responsive: true, maintainAspectRatio: false,
       plugins: { legend: { display: false } },

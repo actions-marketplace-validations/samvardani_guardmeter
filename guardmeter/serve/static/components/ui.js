@@ -13,6 +13,19 @@ export function fmt(v, dec = 4) {
   return Number(v).toFixed(dec);
 }
 
+// Latency number (no unit) with resolution that keeps sub-ms values readable.
+export function fmtMs(v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "—";
+  const n = Number(v);
+  if (n < 10) return n.toFixed(2);
+  if (n < 100) return n.toFixed(1);
+  return String(Math.round(n));
+}
+
+export function fmtLatency(v) {
+  return v === null || v === undefined || Number.isNaN(v) ? "—" : fmtMs(v) + " ms";
+}
+
 export function fmtP(v) {
   if (v === null || v === undefined) return "—";
   const n = Number(v);

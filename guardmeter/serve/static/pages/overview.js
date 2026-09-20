@@ -1,7 +1,7 @@
 // Overview page: KPI row (latest run) + filterable, sortable runs table.
 import { Component } from "/static/preact.module.js";
 import { api } from "/static/api.js";
-import { html, fmt, fmtP, shortId, GateChip, KpiCard, toast, isSnapshot } from "/static/components/ui.js";
+import { html, fmt, fmtP, fmtLatency, shortId, GateChip, KpiCard, toast, isSnapshot } from "/static/components/ui.js";
 
 export class OverviewPage extends Component {
   state = { runs: [], loading: true, q: "", guard: "", sortKey: "timestamp", sortDir: "desc",
@@ -94,7 +94,7 @@ export class OverviewPage extends Component {
       <${KpiCard} label="Candidate F1" value=${fmt(latest.f1)} delta=${d("f1")} higherBetter=${true} spark=${hist("f1")} sparkColor="var(--ok)"/>
       <${KpiCard} label="Recall" value=${fmt(latest.recall)} delta=${d("recall")} higherBetter=${true} spark=${hist("recall")}/>
       <${KpiCard} label="FPR" value=${fmt(latest.fpr)} delta=${d("fpr")} higherBetter=${false} spark=${hist("fpr")} sparkColor="var(--danger)"/>
-      <${KpiCard} label="Latency p99" value=${latest.latency_p99 != null ? fmt(latest.latency_p99, 1) + " ms" : "—"} spark=${hist("latency_p99")} sparkColor="var(--warn)"/>
+      <${KpiCard} label="Latency p99" value=${fmtLatency(latest.latency_p99)} spark=${hist("latency_p99")} sparkColor="var(--warn)"/>
       <div class="card kpi"><span class="label">Gate</span><span class="value"><${GateChip} pass=${latest.gate_pass}/></span></div>
     </div>`;
   }

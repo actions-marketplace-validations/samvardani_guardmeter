@@ -1,7 +1,7 @@
 // Try page: evaluate ad-hoc text against selected guards, with a live history.
 import { Component } from "/static/preact.module.js";
 import { api } from "/static/api.js";
-import { html, fmt, VerdictChip, toast, isSnapshot } from "/static/components/ui.js";
+import { html, fmt, fmtLatency, VerdictChip, toast, isSnapshot } from "/static/components/ui.js";
 import { pushHistory, truncate } from "/static/components/history.js";
 
 export class TryPage extends Component {
@@ -44,7 +44,7 @@ export class TryPage extends Component {
           <td><${VerdictChip} prediction=${r.prediction} error=${r.error}/></td>
           <td class="mono">${r.score === null ? "—" : fmt(r.score, 2)}</td>
           <td>${r.categories && r.categories.length ? r.categories.join(", ") : "—"}</td>
-          <td class="mono">${fmt(r.latency_ms, 1)} ms</td>
+          <td class="mono">${fmtLatency(r.latency_ms)}</td>
         </tr>${r.error ? html`<tr><td></td><td colspan="4" style="color:var(--warn);font-size:12px">${r.error}</td></tr>` : ""}`)}
         </tbody></table>
     </div>`;

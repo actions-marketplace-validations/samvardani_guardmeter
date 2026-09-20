@@ -2,7 +2,7 @@
 // threshold-sweep + latency charts, and a paginated sample explorer + drawer.
 import { Component } from "/static/preact.module.js";
 import { api } from "/static/api.js";
-import { html, fmt, shortId, VerdictChip, toast } from "/static/components/ui.js";
+import { html, fmt, fmtMs, fmtLatency, shortId, VerdictChip, toast } from "/static/components/ui.js";
 import { computeSweep, latencyBuckets, heatColor, lineChart, barChart, downloadCanvasPng } from "/static/charts.js";
 import { sliceMetricValue, naReason } from "/static/components/metrics.js";
 
@@ -49,7 +49,7 @@ function metricCard(title, m) {
       ${cell("F1", fmt(m.f1))}
       ${cell("FPR", `${fmt(m.fpr)} (${fmt(m.fpr_lo, 3)}–${fmt(m.fpr_hi, 3)})`)}
       ${cell("FNR", fmt(m.fnr))}
-      ${cell("p50/p90/p99", `${fmt(m.latency_p50, 1)}/${fmt(m.latency_p90, 1)}/${fmt(m.latency_p99, 1)} ms`)}
+      ${cell("p50/p90/p99", `${fmtMs(m.latency_p50)}/${fmtMs(m.latency_p90)}/${fmtMs(m.latency_p99)} ms`)}
     </div>
   </div>`;
 }
@@ -191,7 +191,7 @@ export class RunPage extends Component {
           ${sweep ? html`<${ChartCanvas} name="threshold-sweep" make=${(cv) => lineChart(cv, sweep)}/>` : html`<div class="empty">No candidate scores</div>`}
         </div>
         <div class="card"><h3>Candidate per-sample latency (ms)</h3>
-          <${ChartCanvas} name="latency-hist" make=${(cv) => barChart(cv, lat.labels, lat.counts, "count", "var(--warn)")}/>
+          <${ChartCanvas} name="latency-hist" make=${(cv) => barChart(cv, lat.labels, lat.counts, "count", "var(--accent)")}/>
         </div>
       </div>
 
@@ -239,8 +239,8 @@ export class RunPage extends Component {
           <p style="white-space:pre-wrap;background:var(--surface-2);padding:12px;border-radius:8px">${drawer.text}</p>
           <div class="grid" style="grid-template-columns:auto 1fr;gap:4px 16px;font-size:13px">
             <span class="muted">Ground truth</span><span>${drawer.label} · ${drawer.category}/${drawer.language}${drawer.attack_type ? " · " + drawer.attack_type : ""}</span>
-            <span class="muted">Baseline</span><span><${VerdictChip} prediction=${drawer.baseline_pred}/> score ${fmt(drawer.baseline_score, 2)} · ${fmt(drawer.baseline_latency_ms, 1)} ms</span>
-            <span class="muted">Candidate</span><span><${VerdictChip} prediction=${drawer.candidate_pred}/> score ${fmt(drawer.candidate_score, 2)} · ${fmt(drawer.candidate_latency_ms, 1)} ms</span>
+            <span class="muted">Baseline</span><span><${VerdictChip} prediction=${drawer.baseline_pred}/> score ${fmt(drawer.baseline_score, 2)} · ${fmtLatency(drawer.baseline_latency_ms)}</span>
+            <span class="muted">Candidate</span><span><${VerdictChip} prediction=${drawer.candidate_pred}/> score ${fmt(drawer.candidate_score, 2)} · ${fmtLatency(drawer.candidate_latency_ms)}</span>
           </div>
           ${!isSnapshot() && html`<div style="margin-top:16px">
             <button class="btn primary" disabled=${retest && retest.loading} onClick=${() => this.retest(drawer.text)}>

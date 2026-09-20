@@ -172,6 +172,15 @@ def try_(text_parts: tuple[str, ...], guards: tuple[str, ...], file_path: str | 
     _print_try_table(results)
 
 
+def _fmt_latency(v: float) -> str:
+    """Format latency, keeping sub-millisecond values readable."""
+    if v < 10:
+        return f"{v:.2f} ms"
+    if v < 100:
+        return f"{v:.1f} ms"
+    return f"{round(v)} ms"
+
+
 def _print_try_table(results: list[TryResult]) -> None:
     """Print an aligned Guard | Verdict | Score | Categories | Latency table."""
     headers = ("Guard", "Verdict", "Score", "Categories", "Latency")
@@ -180,7 +189,7 @@ def _print_try_table(results: list[TryResult]) -> None:
         verdict = "ERROR" if r.error else r.prediction.upper()
         score = "—" if r.score is None else f"{r.score:.2f}"
         cats = ", ".join(r.categories) if r.categories else "—"
-        rows.append((r.guard, verdict, score, cats, f"{r.latency_ms:.1f} ms"))
+        rows.append((r.guard, verdict, score, cats, _fmt_latency(r.latency_ms)))
 
     widths = [len(h) for h in headers]
     for row in rows:
