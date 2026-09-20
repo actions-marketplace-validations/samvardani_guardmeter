@@ -147,6 +147,13 @@ register("my-guard", MyGuard)  # now usable as --candidate my-guard
 
 ---
 
+## Datasets
+
+- **`dataset/sample.csv`** — the smoke-test set used throughout this README and by `guardmeter init`. Small, balanced across categories and languages; good enough to exercise the pipeline and calibrate a demo gate.
+- **`dataset/prompt_injection_seed.csv`** — a 40-row seed set (English + Farsi) of prompt-injection attempts (direct overrides, poisoned tool/document output, multi-turn setups, and base64/ROT13-encoded instructions) plus benign look-alikes that merely *mention* instructions, prompts, or tools. It's aimed at **agent-facing** guards and is **not** part of the default gate: the built-in regex guards score poorly on it (they aren't designed for injection detection), which is the point — use it to benchmark a real LLM or injection-aware guard.
+
+---
+
 ## Dashboard & report
 
 `guardmeter report --run latest` writes an HTML report for a single run (baseline vs candidate cards with Wilson CIs, category×language and attack-type slice tables, a real candidate threshold-sweep chart, and per-sample latency charts). It also mentions an informational regulatory mapping — see the note under *Experimental*.
