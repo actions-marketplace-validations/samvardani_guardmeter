@@ -6,14 +6,13 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 import click
 
 logger = logging.getLogger(__name__)
 
 
-def _get_store(store_path: Optional[str] = None):
+def _get_store(store_path: str | None = None):
     """Return a SQLiteStore at the given path (or default)."""
     from guardbench.store.sqlite import SQLiteStore
     return SQLiteStore(db_path=store_path)
@@ -92,7 +91,7 @@ def compare(
     baseline: str,
     candidate: str,
     dataset: str,
-    store_path: Optional[str],
+    store_path: str | None,
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
     from guardbench.data.loader import load_dataset
@@ -142,10 +141,10 @@ def compare(
 @click.option("--store", "store_path", default=None, help="Override DB path")
 def report(
     run_id: str,
-    output_path: Optional[str],
+    output_path: str | None,
     open_browser: bool,
-    cfg_path: Optional[str],
-    store_path: Optional[str],
+    cfg_path: str | None,
+    store_path: str | None,
 ) -> None:
     """Generate an HTML report for a stored run."""
     from guardbench.report.generator import ReportGenerator
@@ -179,7 +178,7 @@ def report(
         dash = DashboardGenerator(store, gate_config=gate_config)
         dash_path = dash.build()
         click.echo(f"Dashboard updated at {dash_path}")
-    except Exception as _dash_exc:
+    except Exception as _dash_exc:  # noqa: BLE001 (intentional resilience boundary)
         logger.debug("Dashboard auto-build failed: %s", _dash_exc)
 
 
@@ -196,7 +195,7 @@ def gate(
     cfg_path: str,
     run_id: str,
     output_path: str,
-    store_path: Optional[str],
+    store_path: str | None,
 ) -> None:
     """Run the CI gate check. Exits 0 on pass, 1 on failure."""
     from guardbench.gate.checker import GateChecker
@@ -240,7 +239,7 @@ def runs() -> None:
 @runs.command("list")
 @click.option("--store", "store_path", default=None, help="Override DB path")
 @click.option("--limit", default=20, show_default=True, help="Number of runs to show")
-def runs_list(store_path: Optional[str], limit: int) -> None:
+def runs_list(store_path: str | None, limit: int) -> None:
     """List recent evaluation runs."""
     store = _get_store(store_path)
     run_list = store.list_runs(limit=limit)
@@ -262,7 +261,7 @@ def runs_list(store_path: Optional[str], limit: int) -> None:
 @runs.command("show")
 @click.argument("run_id")
 @click.option("--store", "store_path", default=None, help="Override DB path")
-def runs_show(run_id: str, store_path: Optional[str]) -> None:
+def runs_show(run_id: str, store_path: str | None) -> None:
     """Show full metrics for a specific run."""
     store = _get_store(store_path)
     results = store.get_run(run_id)
@@ -291,8 +290,9 @@ def dataset_validate(dataset_path: str) -> None:
 @click.option("--dataset", "dataset_path", required=True, type=click.Path(exists=True))
 def dataset_stats(dataset_path: str) -> None:
     """Print statistics about a dataset."""
-    from guardbench.data.loader import load_dataset
     from collections import Counter
+
+    from guardbench.data.loader import load_dataset
     records = load_dataset(dataset_path)
     labels = Counter(r.label for r in records)
     categories = Counter(r.category for r in records)
@@ -311,8 +311,9 @@ def dataset_stats(dataset_path: str) -> None:
 def dataset_augment(dataset_path: str, output_path: str, techniques: str, multiplier: int) -> None:
     """Augment a dataset with adversarial transformations."""
     import csv
-    from guardbench.data.loader import load_dataset
+
     from guardbench.data.augmentor import augment_dataset
+    from guardbench.data.loader import load_dataset
     records = load_dataset(dataset_path)
     tech_list = [t.strip() for t in techniques.split(",")]
     augmented = augment_dataset(records, techniques=tech_list, multiplier=multiplier)
@@ -336,9 +337,9 @@ def dataset_augment(dataset_path: str, output_path: str, techniques: str, multip
 @click.option("--open/--no-open", "open_browser", default=False,
               help="Open dashboard in browser after building")
 def dashboard(
-    output_path: Optional[str],
-    cfg_path: Optional[str],
-    store_path: Optional[str],
+    output_path: str | None,
+    cfg_path: str | None,
+    store_path: str | None,
     open_browser: bool,
 ) -> None:
     """Build an interactive multi-run dashboard and open it in the browser."""
@@ -399,7 +400,7 @@ def init() -> None:
         try:
             with importlib.resources.path("guardbench.data.builtin", "sample.csv") as src:
                 shutil.copy(str(src), str(target))
-        except Exception:
+        except Exception:  # noqa: BLE001 (intentional resilience boundary)
             # Fallback: locate relative to this file
             src_path = Path(__file__).parent.parent / "data" / "builtin" / "sample.csv"
             if src_path.exists():

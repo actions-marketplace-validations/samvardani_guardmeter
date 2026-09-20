@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
-
 from guardbench.core.guard import GuardResult
 from guardbench.data.schema import DatasetRecord
 from guardbench.engine.metrics import (
-    MetricsBundle,
     compute_confusion,
     compute_metrics,
     compute_slices,
@@ -101,7 +98,7 @@ class TestComputeSlices:
         preds = _make_preds(["flag", "pass"])
         records = _make_records(["unsafe", "benign"])
         slices = compute_slices(preds, records)
-        for key in slices.keys():
+        for key in slices:
             assert isinstance(key, tuple)
 
     def test_slice_dimensions(self):

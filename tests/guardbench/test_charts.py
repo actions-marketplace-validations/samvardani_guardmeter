@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from itertools import pairwise
+
 from guardbench.engine.evaluator import EvalConfig, Evaluator
 from guardbench.engine.results import EvalResults, SampleResult
 from guardbench.report.charts import threshold_sweep_data
@@ -31,5 +33,5 @@ def test_sweep_recall_monotone_non_increasing(sample_records, regex_enhanced):
     assert sweep, "expected real scores to produce a sweep"
     recalls = sweep["recall"]
     assert len(recalls) == len(sweep["thresholds"])
-    for earlier, later in zip(recalls, recalls[1:]):
+    for earlier, later in pairwise(recalls):
         assert later <= earlier + 1e-9, f"recall rose: {earlier} -> {later}"

@@ -7,7 +7,6 @@ import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
-from typing import List, Optional
 
 from guardbench.core.guard import GuardResult
 from guardbench.judge.base import Judge, JudgeVerdict
@@ -28,9 +27,9 @@ class BatchJudgeSummary:
     successful verdicts only (``None`` when there are none).
     """
 
-    verdicts: List[Optional[JudgeVerdict]]
+    verdicts: list[JudgeVerdict | None]
     errors: int
-    agreement_rate: Optional[float]
+    agreement_rate: float | None
 
 
 class LLMJudge(Judge):
@@ -42,7 +41,7 @@ class LLMJudge(Judge):
     def __init__(
         self,
         model: str = "claude-sonnet-4-6",
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         rate_rps: float = _DEFAULT_RATE_RPS,
     ) -> None:
         """Initialise with model name, optional API key, and rate limit."""
@@ -54,7 +53,7 @@ class LLMJudge(Judge):
 
         if model.startswith("claude"):
             self._backend = "anthropic"
-        elif model.startswith("gpt") or model.startswith("o1") or model.startswith("o3"):
+        elif model.startswith(("gpt", "o1", "o3")):
             self._backend = "openai"
         else:
             self._backend = "anthropic"  # default
@@ -137,8 +136,8 @@ class LLMJudge(Judge):
 
     def evaluate_batch(
         self,
-        texts: List[str],
-        guard_results: List[GuardResult],
+        texts: list[str],
+        guard_results: list[GuardResult],
         max_workers: int = 4,
     ) -> BatchJudgeSummary:
         """Evaluate multiple texts in parallel (respecting rate limit per worker).
@@ -146,7 +145,7 @@ class LLMJudge(Judge):
         A judge API error is recorded as a ``None`` verdict and counted in
         ``errors`` — it is never silently converted into agreement.
         """
-        verdicts: List[Optional[JudgeVerdict]] = [None] * len(texts)
+        verdicts: list[JudgeVerdict | None] = [None] * len(texts)
         errors = 0
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
@@ -157,7 +156,7 @@ class LLMJudge(Judge):
                 idx = futures[future]
                 try:
                     verdicts[idx] = future.result()
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 (intentional resilience boundary)
                     logger.warning("Judge failed on sample %d: %s", idx, exc)
                     verdicts[idx] = None
                     errors += 1

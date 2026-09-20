@@ -6,7 +6,7 @@ import datetime
 import json
 import logging
 from dataclasses import dataclass, field
-from typing import Any, List, Optional
+from typing import Any
 
 from guardbench.core.guard import Guard
 from guardbench.core.io_utils import git_commit_sha, hash_content, new_run_id
@@ -23,8 +23,8 @@ class EvalConfig:
     """Configuration for an evaluation run."""
 
     policy: str = "strict"
-    slices: List[str] = field(default_factory=lambda: ["category", "language"])
-    run_id: Optional[str] = None  # auto-generated UUID if None
+    slices: list[str] = field(default_factory=lambda: ["category", "language"])
+    run_id: str | None = None  # auto-generated UUID if None
     include_lenient: bool = True  # also compute lenient-policy metrics
 
 
@@ -35,7 +35,7 @@ class Evaluator:
         self,
         baseline: Guard,
         candidate: Guard,
-        dataset: List[DatasetRecord],
+        dataset: list[DatasetRecord],
         config: EvalConfig | None = None,
         judge: Any = None,
     ) -> None:
@@ -49,7 +49,7 @@ class Evaluator:
     def run(self) -> EvalResults:
         """Run the full evaluation and return EvalResults."""
         run_id = self.config.run_id or new_run_id()
-        timestamp = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+        timestamp = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
         git_commit = git_commit_sha()
 
         # Hash the dataset for reproducibility
@@ -62,8 +62,7 @@ class Evaluator:
 
         logger.info("Running baseline (%s) on %d samples", self.baseline.name, len(texts))
         base_preds = self.baseline.batch_predict(
-            texts,
-            **{},  # metadata passed per-record below if needed
+            texts,  # metadata passed per-record below if needed
         )
 
         logger.info("Running candidate (%s) on %d samples", self.candidate.name, len(texts))
@@ -96,7 +95,7 @@ class Evaluator:
 
         # McNemar significance test on primary policy
         try:
-            from scipy import stats as _  # noqa: F401
+            import scipy.stats  # noqa: F401  (availability check)
             _, mcnemar_p = mcnemar_test(base_preds, cand_preds, self.dataset, policy=self.config.policy)
         except ImportError:
             logger.warning("scipy not available; skipping McNemar test")
@@ -132,7 +131,7 @@ class Evaluator:
                     sample_results[len(verdicts) - 1].judge_verdict = (
                         "agree" if verdict.agrees else "disagree"
                     )
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001 (intentional resilience boundary)
                     logger.warning("Judge failed on sample: %s", exc)
                     verdicts.append(None)
             valid = [v for v in verdicts if v is not None]

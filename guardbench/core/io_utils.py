@@ -50,7 +50,7 @@ def git_commit_sha() -> str:
         return subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT
         ).decode().strip()
-    except Exception:
+    except Exception:  # noqa: BLE001 (intentional resilience boundary)
         return "unknown"
 
 

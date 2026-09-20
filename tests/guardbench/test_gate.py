@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from guardbench.engine.evaluator import EvalConfig, Evaluator
 from guardbench.gate.checker import GateChecker
 from guardbench.gate.schema import ComparisonThresholds, GateConfig, GlobalThresholds
@@ -130,7 +128,7 @@ class TestRegressionCheck:
     def test_recall_drop_fails(self, sample_records, regex_enhanced, tmp_db):
         """Recall regression > threshold should fail."""
         import copy
-        from guardbench.engine.results import EvalResults
+
         from guardbench.engine.metrics import MetricsBundle
 
         results = _run(sample_records, regex_enhanced)
@@ -151,7 +149,6 @@ class TestRegressionCheck:
         )
         checker = GateChecker(config, store=tmp_db)
         # Override latest_run to return prev as the baseline
-        original_latest = tmp_db.latest_run
 
         class MockStore:
             def latest_run(self):

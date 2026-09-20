@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
+from contextlib import closing
 from pathlib import Path
-from typing import List, Optional
+from typing import Any
 
 from guardbench.engine.results import EvalResults
 from guardbench.store.base import RunStore
@@ -19,7 +20,7 @@ _DEFAULT_DB = Path.home() / ".guardbench" / "history.db"
 class SQLiteStore(RunStore):
     """Stores evaluation runs in a local SQLite database."""
 
-    def __init__(self, db_path: Optional[Path | str] = None) -> None:
+    def __init__(self, db_path: Path | str | None = None) -> None:
         """Initialise with an optional DB path; defaults to ~/.guardbench/history.db."""
         self.db_path = Path(db_path) if db_path else _DEFAULT_DB
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -29,7 +30,7 @@ class SQLiteStore(RunStore):
         return sqlite3.connect(str(self.db_path))
 
     def _init_db(self) -> None:
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS runs (
                     run_id     TEXT PRIMARY KEY,
@@ -82,7 +83,7 @@ class SQLiteStore(RunStore):
                 "judge_agreement_rate": data["judge_agreement_rate"],
             }
         )
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO runs VALUES (?,?,?,?,?,?,?)",
                 (
@@ -113,7 +114,7 @@ class SQLiteStore(RunStore):
 
     def get_run(self, run_id: str) -> EvalResults:
         """Retrieve an EvalResults by run_id. Raises KeyError if not found."""
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             row = conn.execute(
                 "SELECT * FROM runs WHERE run_id=?", (run_id,)
             ).fetchone()
@@ -121,9 +122,9 @@ class SQLiteStore(RunStore):
             raise KeyError(f"Run '{run_id}' not found in store")
         return self._row_to_results(row)
 
-    def list_runs(self, limit: int = 20) -> List[dict]:
+    def list_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         """Return summary dicts for the most recent runs, newest first."""
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             rows = conn.execute(
                 "SELECT run_id, timestamp, baseline, candidate, metrics_json "
                 "FROM runs ORDER BY timestamp DESC LIMIT ?",
@@ -145,9 +146,9 @@ class SQLiteStore(RunStore):
             )
         return summaries
 
-    def latest_run(self) -> Optional[EvalResults]:
+    def latest_run(self) -> EvalResults | None:
         """Return the most recently saved EvalResults, or None if empty."""
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             row = conn.execute(
                 "SELECT * FROM runs ORDER BY timestamp DESC LIMIT 1"
             ).fetchone()
@@ -155,7 +156,7 @@ class SQLiteStore(RunStore):
             return None
         return self._row_to_results(row)
 
-    def compare_runs(self, run_id_a: str, run_id_b: str) -> dict:
+    def compare_runs(self, run_id_a: str, run_id_b: str) -> dict[str, Any]:
         """Return a delta dict comparing two runs' candidate metrics."""
         a = self.get_run(run_id_a)
         b = self.get_run(run_id_b)
@@ -172,9 +173,9 @@ class SQLiteStore(RunStore):
             "precision_delta": round(b_m.precision - a_m.precision, 4),
         }
 
-    def _load_sample_results(self, run_id: str) -> List[dict]:
+    def _load_sample_results(self, run_id: str) -> list[dict[str, Any]]:
         """Read persisted per-sample rows for a run, ordered by row index."""
-        with self._connect() as conn:
+        with closing(self._connect()) as conn:
             rows = conn.execute(
                 "SELECT text, label, category, language, baseline_pred, candidate_pred, "
                 "baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms "
@@ -198,7 +199,7 @@ class SQLiteStore(RunStore):
                  baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms) in rows
         ]
 
-    def _row_to_results(self, row: tuple) -> EvalResults:
+    def _row_to_results(self, row: tuple[Any, ...]) -> EvalResults:
         """Reconstruct an EvalResults from a DB row."""
         run_id, timestamp, dataset_sha, git_commit, baseline, candidate, metrics_json = row
         metrics = json.loads(metrics_json) if metrics_json else {}

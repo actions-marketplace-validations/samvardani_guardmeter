@@ -7,7 +7,7 @@ import json
 import pytest
 
 from guardbench.core.guard import GuardResult
-from guardbench.judge.base import Judge, JudgeVerdict
+from guardbench.judge.base import JudgeVerdict
 from guardbench.judge.consensus import agreement_rate, disagreement_analysis
 from guardbench.judge.prompts import SAFETY_JUDGE_SYSTEM_PROMPT
 

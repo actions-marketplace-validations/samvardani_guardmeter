@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import List, Optional
+from typing import Any
 
 from guardbench.engine.results import EvalResults
 from guardbench.store.base import RunStore
@@ -18,7 +18,7 @@ _DEFAULT_DIR = Path.home() / ".guardbench" / "runs"
 class JSONFileStore(RunStore):
     """Stores evaluation runs as individual JSON files in a directory."""
 
-    def __init__(self, dir_path: Optional[Path | str] = None) -> None:
+    def __init__(self, dir_path: Path | str | None = None) -> None:
         """Initialise with an optional directory path; defaults to ~/.guardbench/runs/."""
         self.dir_path = Path(dir_path) if dir_path else _DEFAULT_DIR
         self.dir_path.mkdir(parents=True, exist_ok=True)
@@ -39,7 +39,7 @@ class JSONFileStore(RunStore):
             raise KeyError(f"Run '{run_id}' not found in store (looked for {p})")
         return EvalResults.from_dict(json.loads(p.read_text(encoding="utf-8")))
 
-    def list_runs(self, limit: int = 20) -> List[dict]:
+    def list_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         """Return summary dicts for the most recent runs, sorted by timestamp descending."""
         files = sorted(self.dir_path.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
         summaries = []
@@ -57,18 +57,18 @@ class JSONFileStore(RunStore):
                         "fpr": cand_strict.get("fpr"),
                     }
                 )
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 (intentional resilience boundary)
                 logger.warning("Failed to parse run file %s: %s", p, exc)
         return summaries
 
-    def latest_run(self) -> Optional[EvalResults]:
+    def latest_run(self) -> EvalResults | None:
         """Return the most recently saved EvalResults, or None if the store is empty."""
         files = sorted(self.dir_path.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
         if not files:
             return None
         return EvalResults.from_dict(json.loads(files[0].read_text(encoding="utf-8")))
 
-    def compare_runs(self, run_id_a: str, run_id_b: str) -> dict:
+    def compare_runs(self, run_id_a: str, run_id_b: str) -> dict[str, Any]:
         """Return a delta dict comparing two runs' candidate metrics."""
         a = self.get_run(run_id_a)
         b = self.get_run(run_id_b)

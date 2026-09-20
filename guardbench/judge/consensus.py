@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from typing import Dict, List, Optional
+from typing import Any
 
 from guardbench.engine.results import EvalResults
 from guardbench.judge.base import JudgeVerdict
 
 
-def agreement_rate(verdicts: List[JudgeVerdict]) -> float:
+def agreement_rate(verdicts: list[JudgeVerdict]) -> float:
     """Return the fraction of verdicts where the judge agreed with the guard.
 
     Returns 0.0 for an empty list.
@@ -20,8 +20,8 @@ def agreement_rate(verdicts: List[JudgeVerdict]) -> float:
 
 def disagreement_analysis(
     results: EvalResults,
-    verdicts: List[JudgeVerdict],
-) -> Dict[str, List[dict]]:
+    verdicts: list[JudgeVerdict],
+) -> dict[str, list[dict[str, Any]]]:
     """Categorise disagreements into false positive and false negative candidates.
 
     Returns:

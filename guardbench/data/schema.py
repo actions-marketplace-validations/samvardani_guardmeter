@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -15,4 +15,4 @@ class DatasetRecord(BaseModel):
     category: str
     language: str = "en"
     source: str = "unknown"
-    attack_type: Optional[str] = None
+    attack_type: str | None = None

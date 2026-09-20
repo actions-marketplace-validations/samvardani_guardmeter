@@ -2,18 +2,16 @@
 
 from __future__ import annotations
 
-from typing import List, Tuple
-
 from guardbench.core.guard import GuardResult
 from guardbench.data.schema import DatasetRecord
 
 
 def mcnemar_test(
-    preds_a: List[GuardResult],
-    preds_b: List[GuardResult],
-    records: List[DatasetRecord],
+    preds_a: list[GuardResult],
+    preds_b: list[GuardResult],
+    records: list[DatasetRecord],
     policy: str = "strict",
-) -> Tuple[float, float]:
+) -> tuple[float, float]:
     """Compute McNemar's test statistic and p-value comparing two guard predictions.
 
     Returns (statistic, p_value). p_value < 0.05 indicates statistical significance.

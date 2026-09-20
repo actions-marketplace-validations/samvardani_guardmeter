@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import List, Optional
+from typing import Any
 
 from guardbench.engine.results import EvalResults
 
@@ -22,16 +22,16 @@ class RunStore(ABC):
         ...
 
     @abstractmethod
-    def list_runs(self, limit: int = 20) -> List[dict]:
+    def list_runs(self, limit: int = 20) -> list[dict[str, Any]]:
         """Return summary dicts for the most recent runs, newest first."""
         ...
 
     @abstractmethod
-    def latest_run(self) -> Optional[EvalResults]:
+    def latest_run(self) -> EvalResults | None:
         """Return the most recently saved EvalResults, or None if the store is empty."""
         ...
 
     @abstractmethod
-    def compare_runs(self, run_id_a: str, run_id_b: str) -> dict:
+    def compare_runs(self, run_id_a: str, run_id_b: str) -> dict[str, Any]:
         """Return a delta dict comparing two runs' candidate metrics."""
         ...

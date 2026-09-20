@@ -6,7 +6,7 @@ import csv
 import json
 import logging
 from pathlib import Path
-from typing import List
+from typing import Any
 
 from guardbench.data.schema import DatasetRecord
 
@@ -26,7 +26,7 @@ _FIELD_ALIASES = {
 }
 
 
-def _normalise_row(raw: dict, row_num: int) -> dict:
+def _normalise_row(raw: dict[str, Any], row_num: int) -> dict[str, Any]:
     """Map raw row keys (case-insensitive aliases) to canonical field names."""
     lower_raw = {k.lower().strip(): v for k, v in raw.items()}
     out = {}
@@ -53,7 +53,7 @@ def _normalise_row(raw: dict, row_num: int) -> dict:
     return out
 
 
-def load_dataset(path: str | Path) -> List[DatasetRecord]:
+def load_dataset(path: str | Path) -> list[DatasetRecord]:
     """Load a CSV or JSONL file and return a list of validated DatasetRecords.
 
     Raises ValueError with a row number and message on any validation failure.
@@ -68,9 +68,9 @@ def load_dataset(path: str | Path) -> List[DatasetRecord]:
         raise ValueError(f"Unsupported file extension '{suffix}'. Use .csv or .jsonl")
 
 
-def _load_csv(path: Path) -> List[DatasetRecord]:
+def _load_csv(path: Path) -> list[DatasetRecord]:
     """Load a CSV file, validate rows, and return DatasetRecords."""
-    records: List[DatasetRecord] = []
+    records: list[DatasetRecord] = []
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row_num, raw in enumerate(reader, start=2):  # 1 = header
@@ -79,9 +79,9 @@ def _load_csv(path: Path) -> List[DatasetRecord]:
     return records
 
 
-def _load_jsonl(path: Path) -> List[DatasetRecord]:
+def _load_jsonl(path: Path) -> list[DatasetRecord]:
     """Load a JSONL file, validate rows, and return DatasetRecords."""
-    records: List[DatasetRecord] = []
+    records: list[DatasetRecord] = []
     with open(path, encoding="utf-8") as f:
         for row_num, line in enumerate(f, start=1):
             line = line.strip()
@@ -92,7 +92,8 @@ def _load_jsonl(path: Path) -> List[DatasetRecord]:
             except json.JSONDecodeError as exc:
                 raise ValueError(f"Row {row_num}: invalid JSON — {exc}") from exc
             if not isinstance(raw, dict):
-                raise ValueError(f"Row {row_num}: expected JSON object, got {type(raw).__name__}")
+                # ValueError (not TypeError) for parse-consistency with other row errors.
+                raise ValueError(f"Row {row_num}: expected JSON object, got {type(raw).__name__}")  # noqa: TRY004
             normalised = _normalise_row(raw, row_num)
             records.append(DatasetRecord.model_validate(normalised))
     return records

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import re
-from typing import List
 
 from guardbench.data.schema import DatasetRecord
 
@@ -65,10 +64,10 @@ class Augmentor:
 
 
 def augment_dataset(
-    records: List[DatasetRecord],
-    techniques: List[str] | None = None,
+    records: list[DatasetRecord],
+    techniques: list[str] | None = None,
     multiplier: int = 2,
-) -> List[DatasetRecord]:
+) -> list[DatasetRecord]:
     """Return augmented copies of all records using the given techniques.
 
     Each record gets up to `multiplier` variants; original records are NOT included.
@@ -81,7 +80,7 @@ def augment_dataset(
         raise ValueError(f"Unknown augmentation techniques: {unknown}. Available: {sorted(_TECHNIQUE_MAP)}")
 
     fns = [_TECHNIQUE_MAP[t] for t in techniques[:multiplier]]
-    augmented: List[DatasetRecord] = []
+    augmented: list[DatasetRecord] = []
     for record in records:
         for fn in fns:
             new_text = fn(record.text)

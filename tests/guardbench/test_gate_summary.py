@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import json
 
-import pytest
-
 from guardbench.engine.evaluator import EvalConfig, Evaluator
-from guardbench.gate.checker import GateCheckResult, GateChecker
+from guardbench.gate.checker import GateChecker, GateCheckResult
 from guardbench.gate.schema import GateConfig, GlobalThresholds
 from guardbench.gate.summary import write_markdown_summary
 

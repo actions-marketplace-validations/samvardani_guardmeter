@@ -2,10 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
 from guardbench.core.text_norm import normalize
-from guardbench.engine.evaluator import EvalConfig, Evaluator
 
 
 class TestTextNorm:
@@ -57,6 +54,7 @@ class TestIOUtils:
 
     def test_new_run_id_is_uuid(self):
         import uuid
+
         from guardbench.core.io_utils import new_run_id
         rid = new_run_id()
         uuid.UUID(rid)  # should not raise

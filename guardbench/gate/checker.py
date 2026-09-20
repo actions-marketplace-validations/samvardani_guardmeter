@@ -5,7 +5,7 @@ from __future__ import annotations
 import fnmatch
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any
 
 from guardbench.engine.metrics import MetricsBundle
 from guardbench.engine.results import EvalResults
@@ -19,14 +19,14 @@ class GateCheckResult:
     """Result of running the CI gate checker."""
 
     passed: bool
-    failures: List[str] = field(default_factory=list)
-    warnings: List[str] = field(default_factory=list)
+    failures: list[str] = field(default_factory=list)
+    warnings: list[str] = field(default_factory=list)
 
 
 def _effective_thresholds(
     slice_key: str,
     global_thr: GlobalThresholds,
-    slice_overrides: dict,
+    slice_overrides: dict[str, Any],
 ) -> GlobalThresholds:
     """Merge global thresholds with any matching slice override (fnmatch)."""
     merged = global_thr.model_copy()
@@ -46,7 +46,7 @@ def _check_bundle(
     bundle: MetricsBundle,
     thr: GlobalThresholds,
     label: str,
-    failures: List[str],
+    failures: list[str],
 ) -> None:
     """Append failure strings to the list for any threshold violations.
 
@@ -84,8 +84,8 @@ class GateChecker:
 
     def check(self, results: EvalResults) -> GateCheckResult:
         """Run all gate checks and return a GateCheckResult."""
-        failures: List[str] = []
-        warnings: List[str] = []
+        failures: list[str] = []
+        warnings: list[str] = []
 
         policy = self.config.mode
         cand_metrics = results.candidate_metrics.get(policy)
@@ -133,7 +133,7 @@ class GateChecker:
             prev = None
             try:
                 prev = self.store.latest_run()  # type: ignore[attr-defined]
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 (intentional resilience boundary)
                 logger.warning("Could not load previous run for comparison: %s", exc)
             if prev is not None:
                 prev_cand = prev.candidate_metrics.get(policy) or prev.candidate_metrics.get("strict")

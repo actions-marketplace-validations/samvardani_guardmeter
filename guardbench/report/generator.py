@@ -6,7 +6,7 @@ import datetime
 import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from jinja2 import Environment, PackageLoader, select_autoescape
 
@@ -47,7 +47,9 @@ _DEFAULT_GATE = {
 }
 
 
-def _slice_row(key: tuple, bundle: MetricsBundle, gate_config: Optional[dict]) -> dict:
+def _slice_row(
+    key: tuple[Any, ...], bundle: MetricsBundle, gate_config: dict[str, Any] | None
+) -> dict[str, Any]:
     """Convert a slice key + MetricsBundle into a template-friendly dict."""
     cat = key[0] if len(key) > 0 else "?"
     lang = key[1] if len(key) > 1 else "?"
@@ -86,12 +88,12 @@ def _slice_row(key: tuple, bundle: MetricsBundle, gate_config: Optional[dict]) -
 class ReportGenerator:
     """Renders an EvalResults object to an interactive HTML report."""
 
-    def __init__(self, results: EvalResults, gate_config: Optional[dict] = None) -> None:
+    def __init__(self, results: EvalResults, gate_config: dict[str, Any] | None = None) -> None:
         """Initialise with evaluation results and optional gate config for colour coding."""
         self.results = results
         self.gate_config = gate_config
 
-    def build(self, output_path: Optional[Path] = None) -> Path:
+    def build(self, output_path: Path | None = None) -> Path:
         """Render the HTML report and write it to output_path.
 
         Returns the path of the written file.
@@ -115,7 +117,7 @@ class ReportGenerator:
         lenient_cand = results.candidate_metrics.get("lenient", MetricsBundle())
 
         # Slice rows sorted by category, language
-        def _slice_rows(slices_dict: Dict) -> List[dict]:
+        def _slice_rows(slices_dict: dict[tuple[Any, ...], MetricsBundle]) -> list[dict[str, Any]]:
             rows = []
             for key in sorted(slices_dict.keys(), key=lambda k: (str(k[0]), str(k[1]) if len(k) > 1 else "")):
                 rows.append(_slice_row(key, slices_dict[key], gate))
@@ -125,7 +127,7 @@ class ReportGenerator:
         strict_cand_slices = _slice_rows(results.candidate_slices.get("strict", {}))
 
         # Attack-type family (single-dimension slices keyed by (attack_type,))
-        def _attack_rows(slices_dict: Dict) -> List[dict]:
+        def _attack_rows(slices_dict: dict[tuple[Any, ...], MetricsBundle]) -> list[dict[str, Any]]:
             rows = []
             for key in sorted(slices_dict.keys(), key=lambda k: str(k[0])):
                 b = slices_dict[key]
@@ -152,7 +154,7 @@ class ReportGenerator:
             total_samples=len(results.sample_results),
             dataset_sha=results.dataset_sha,
             git_commit=results.git_commit,
-            generated_at=datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+            generated_at=datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M UTC"),
             baseline_name=results.baseline_name,
             candidate_name=results.candidate_name,
             mcnemar_p=results.mcnemar_p,
@@ -180,11 +182,11 @@ class ReportGenerator:
 class DashboardGenerator:
     """Renders an interactive multi-run HTML dashboard from a RunStore."""
 
-    def __init__(self, store: RunStore, gate_config: Optional[dict] = None) -> None:
+    def __init__(self, store: RunStore, gate_config: dict[str, Any] | None = None) -> None:
         self.store = store
         self.gate_config = gate_config
 
-    def build(self, output_path: Optional[Path] = None) -> Path:
+    def build(self, output_path: Path | None = None) -> Path:
         """Serialise all runs from the store and write dashboard.html."""
         if output_path is None:
             output_path = Path("report") / "dashboard.html"
@@ -193,7 +195,7 @@ class DashboardGenerator:
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         summaries = self.store.list_runs(limit=100)
-        runs_data: List[dict] = []
+        runs_data: list[dict[str, Any]] = []
         for summary in summaries:
             run_id = summary.get("run_id")
             if not run_id:
@@ -201,14 +203,14 @@ class DashboardGenerator:
             try:
                 results = self.store.get_run(run_id)
                 runs_data.append(self._serialize_run(results))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 (intentional resilience boundary)
                 logger.warning("Dashboard: failed to load run %s: %s", run_id, exc)
 
         env = _make_env()
         template = env.get_template("dashboard.html")
         html = template.render(
             runs_json=_safe_json(runs_data),
-            generated_at=datetime.datetime.now(datetime.timezone.utc).strftime(
+            generated_at=datetime.datetime.now(datetime.UTC).strftime(
                 "%Y-%m-%d %H:%M UTC"
             ),
         )
@@ -216,13 +218,13 @@ class DashboardGenerator:
         logger.info("Dashboard written to %s", output_path)
         return output_path
 
-    def _serialize_run(self, results: EvalResults) -> dict:
+    def _serialize_run(self, results: EvalResults) -> dict[str, Any]:
         strict_base = results.baseline_metrics.get("strict", MetricsBundle())
         strict_cand = results.candidate_metrics.get("strict", MetricsBundle())
         lenient_base = results.baseline_metrics.get("lenient", MetricsBundle())
         lenient_cand = results.candidate_metrics.get("lenient", MetricsBundle())
 
-        def bundle_dict(b: MetricsBundle) -> dict:
+        def bundle_dict(b: MetricsBundle) -> dict[str, Any]:
             return {
                 "recall": b.recall, "recall_lo": b.recall_lo, "recall_hi": b.recall_hi,
                 "precision": b.precision, "f1": b.f1,
@@ -233,7 +235,7 @@ class DashboardGenerator:
                 "latency_p99": b.latency_p99,
             }
 
-        def slices_list(slices_dict: Dict[Tuple, MetricsBundle]) -> List[dict]:
+        def slices_list(slices_dict: dict[tuple[Any, ...], MetricsBundle]) -> list[dict[str, Any]]:
             rows = []
             for key in sorted(
                 slices_dict.keys(),
@@ -249,7 +251,7 @@ class DashboardGenerator:
                 })
             return rows
 
-        def attack_list(slices_dict: Dict[Tuple, MetricsBundle]) -> List[dict]:
+        def attack_list(slices_dict: dict[tuple[Any, ...], MetricsBundle]) -> list[dict[str, Any]]:
             rows = []
             for key in sorted(slices_dict.keys(), key=lambda k: str(k[0])):
                 b = slices_dict[key]
@@ -262,9 +264,9 @@ class DashboardGenerator:
             return rows
 
         try:
-            dt = datetime.datetime.fromisoformat(results.timestamp.replace("Z", "+00:00"))
+            dt = datetime.datetime.fromisoformat(results.timestamp)
             date_str = dt.strftime("%Y-%m-%d %H:%M UTC")
-        except Exception:
+        except Exception:  # noqa: BLE001 (intentional resilience boundary)
             date_str = results.timestamp
 
         gate_pass = None

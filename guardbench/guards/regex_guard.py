@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, ClassVar
 
 from guardbench.core.guard import Guard, GuardResult
 from guardbench.core.registry import register
@@ -25,7 +25,7 @@ class RegexGuard(Guard):
     version: str = "1.0.0"
 
     # ── Baseline patterns (simple) ──────────────────────────────────────────
-    BASELINE_PATTERNS: Dict[str, List[str]] = {
+    BASELINE_PATTERNS: ClassVar[dict[str, list[str]]] = {
         "violence": [
             r"\bbomb\b", r"\bgun\b", r"\bknife\b", r"\bk!ll\b", r"\bkill\b",
             r"\bhurt\b", r"\bexplosive\b",
@@ -41,13 +41,13 @@ class RegexGuard(Guard):
         "pii": [r"\bssn\b", r"\bsocial security number\b", r"\bcredit card\b"],
     }
 
-    BASELINE_WHITELIST: List[str] = [
+    BASELINE_WHITELIST: ClassVar[list[str]] = [
         r"\bdefen[cs]e\b", r"\bhow to prevent\b", r"\bmitigat(e|ion)\b",
         r"\bfirst[-\s]?aid\b", r"\bbest practices\b",
     ]
 
     # ── Enhanced patterns ───────────────────────────────────────────────────
-    ENHANCED_PATTERNS: Dict[str, List[str]] = {
+    ENHANCED_PATTERNS: ClassVar[dict[str, list[str]]] = {
         "violence": [
             r"\bkill\b", r"\bpoison\b", r"\bhurt\b", r"\bassault\b",
             r"\bbomb\b", r"\bpipe\s*bomb\b",
@@ -79,7 +79,7 @@ class RegexGuard(Guard):
         "violence_fa": [r"بمب", r"کشت(ن|ار)", r"انفجار", r"چاقو", r"حمله", r"خشونت", r"آسیب"],
     }
 
-    ENHANCED_SUBSTRINGS: Dict[str, List[str]] = {
+    ENHANCED_SUBSTRINGS: ClassVar[dict[str, list[str]]] = {
         "violence": [
             "makeabomb", "buildabomb", "pipebomb", "hurtsomeone",
             "killpeople", "killperson", "killhim", "killher",
@@ -94,7 +94,7 @@ class RegexGuard(Guard):
         ],
     }
 
-    ENHANCED_SAFE_CONTEXT: List[str] = [
+    ENHANCED_SAFE_CONTEXT: ClassVar[list[str]] = [
         r"\bdefen[cs]e\b", r"\bprevent(ion)?\b", r"\bmitigat(e|ion)\b",
         r"\bfirst[-\s]?aid\b", r"\bresponsible disclosure\b", r"\bhow to avoid\b",
         r"\bbest practices\b",
@@ -103,7 +103,7 @@ class RegexGuard(Guard):
         r"\bprevention\b",
     ]
 
-    ENHANCED_WEIGHTS: Dict[str, float] = {
+    ENHANCED_WEIGHTS: ClassVar[dict[str, float]] = {
         "violence": 1.0, "self_harm": 1.2, "crime": 1.0,
         "malware": 1.3, "pii": 1.0, "violence_fa": 1.0,
     }
@@ -111,7 +111,7 @@ class RegexGuard(Guard):
     # Default score threshold for 'enhanced' profile
     DEFAULT_THRESHOLD: float = 0.5
 
-    def __init__(self, profile: str = "enhanced", threshold: Optional[float] = None) -> None:
+    def __init__(self, profile: str = "enhanced", threshold: float | None = None) -> None:
         """Initialise the guard with the given profile.
 
         profile: 'baseline' uses simple keyword matching; 'enhanced' uses expanded patterns.
@@ -124,7 +124,7 @@ class RegexGuard(Guard):
 
     # ── Internal helpers ────────────────────────────────────────────────────
 
-    def _text_variants(self, text: str) -> Tuple[str, ...]:
+    def _text_variants(self, text: str) -> tuple[str, ...]:
         """Return (raw_normalised, wordified, compact) text variants."""
         base = normalize(text)
         compact = base.replace(" ", "")
@@ -133,7 +133,7 @@ class RegexGuard(Guard):
             variants.append(compact)
         return tuple(variants)
 
-    def _baseline_predict(self, text: str) -> Tuple[str, float]:
+    def _baseline_predict(self, text: str) -> tuple[str, float]:
         """Run baseline (simple keyword) prediction. Returns (prediction, score)."""
         t = normalize(text)
         # Whitelist check
@@ -145,21 +145,21 @@ class RegexGuard(Guard):
                 return "flag", 0.9
         return "pass", 0.1
 
-    def _enhanced_predict(self, text: str, **meta: Any) -> Tuple[str, float, List[str]]:
+    def _enhanced_predict(self, text: str, **meta: Any) -> tuple[str, float, list[str]]:
         """Run enhanced prediction. Returns (prediction, score, categories)."""
         variants = self._text_variants(text)
         compact_variants = tuple(v.replace(" ", "") for v in variants)
 
         penalty = 0.8 if any(
-            re.search(w, v, re.I)
+            re.search(w, v, re.IGNORECASE)
             for v in variants
             for w in self.ENHANCED_SAFE_CONTEXT
         ) else 0.0
 
         score = 0.0
-        matched_cats: List[str] = []
+        matched_cats: list[str] = []
         for cat, patterns in self.ENHANCED_PATTERNS.items():
-            matched = any(re.search(p, v, re.I) for v in variants for p in patterns)
+            matched = any(re.search(p, v, re.IGNORECASE) for v in variants for p in patterns)
             if not matched:
                 substrings = self.ENHANCED_SUBSTRINGS.get(cat, [])
                 if substrings:
@@ -179,7 +179,7 @@ class RegexGuard(Guard):
         start = time.perf_counter()
         if self.profile == "baseline":
             prediction, score = self._baseline_predict(text)
-            categories: List[str] = []
+            categories: list[str] = []
         else:
             prediction, score, categories = self._enhanced_predict(text, **meta)
         latency_ms = int((time.perf_counter() - start) * 1000)
@@ -196,7 +196,7 @@ class RegexBaselineGuard(RegexGuard):
 
     name = "regex-baseline"
 
-    def __init__(self, threshold: Optional[float] = None) -> None:
+    def __init__(self, threshold: float | None = None) -> None:
         super().__init__("baseline", threshold)
 
 
@@ -205,7 +205,7 @@ class RegexEnhancedGuard(RegexGuard):
 
     name = "regex-enhanced"
 
-    def __init__(self, threshold: Optional[float] = None) -> None:
+    def __init__(self, threshold: float | None = None) -> None:
         super().__init__("enhanced", threshold)
 
 

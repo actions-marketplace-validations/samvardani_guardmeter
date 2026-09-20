@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any
 
 from guardbench.engine.results import EvalResults
 
 
-def threshold_sweep_data(results: EvalResults) -> Dict[str, Any]:
+def threshold_sweep_data(results: EvalResults) -> dict[str, Any]:
     """Build Chart.js data for a threshold sweep of the candidate guard's real scores.
 
     Sweeps decision thresholds from 0.0 to 1.0 (step 0.05) over the per-sample
@@ -27,15 +27,18 @@ def threshold_sweep_data(results: EvalResults) -> Dict[str, Any]:
         return {}
 
     thresholds = [round(i * 0.05, 2) for i in range(21)]  # 0.00 .. 1.00
-    precisions: List[float] = []
-    recalls: List[float] = []
-    fprs: List[float] = []
+    precisions: list[float] = []
+    recalls: list[float] = []
+    fprs: list[float] = []
 
     for thr in thresholds:
         tp = fp = tn = fn = 0
         for s in scored:
+            score = s.candidate_score
+            if score is None:
+                continue
             gt_pos = s.label != "benign"
-            pr_pos = s.candidate_score >= thr
+            pr_pos = score >= thr
             if gt_pos and pr_pos:
                 tp += 1
             elif not gt_pos and pr_pos:

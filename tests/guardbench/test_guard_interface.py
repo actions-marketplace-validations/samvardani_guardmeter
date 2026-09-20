@@ -92,29 +92,29 @@ def test_unknown_profile_raises():
 
 def test_registry_contains_regex():
     """'regex' should be in the guard registry after importing regex_guard."""
-    from guardbench.core.registry import list_guards
     import guardbench.guards.regex_guard  # noqa: F401
+    from guardbench.core.registry import list_guards
     assert "regex" in list_guards()
 
 
 def test_regex_baseline_resolves_to_baseline_profile():
     """get_guard('regex-baseline') must instantiate the baseline profile."""
-    from guardbench.core.registry import get_guard
     import guardbench.guards.regex_guard  # noqa: F401
+    from guardbench.core.registry import get_guard
     assert get_guard("regex-baseline").profile == "baseline"
 
 
 def test_regex_enhanced_resolves_to_enhanced_profile():
     """get_guard('regex-enhanced') must instantiate the enhanced profile."""
-    from guardbench.core.registry import get_guard
     import guardbench.guards.regex_guard  # noqa: F401
+    from guardbench.core.registry import get_guard
     assert get_guard("regex-enhanced").profile == "enhanced"
 
 
 def test_regex_alias_resolves_to_enhanced_profile():
     """'regex' stays an alias of the enhanced profile for backward compatibility."""
-    from guardbench.core.registry import get_guard
     import guardbench.guards.regex_guard  # noqa: F401
+    from guardbench.core.registry import get_guard
     assert get_guard("regex").profile == "enhanced"
 
 

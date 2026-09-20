@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from dataclasses import dataclass
+from typing import Any
 
 from guardbench.core.guard import GuardResult
 from guardbench.data.schema import DatasetRecord
 
 
-def wilson_ci(successes: int, total: int, z: float = 1.96) -> Tuple[float, float]:
+def wilson_ci(successes: int, total: int, z: float = 1.96) -> tuple[float, float]:
     """Compute Wilson score confidence interval for a proportion.
 
     Returns (lower, upper) clamped to [0, 1]. Returns (0.0, 1.0) for total == 0.
@@ -53,7 +53,7 @@ class MetricsBundle:
     latency_max: float = 0.0
 
 
-def _percentile(vals: List[float], q: float) -> float:
+def _percentile(vals: list[float], q: float) -> float:
     """Return the q-th percentile (0–1) of a sorted list (nearest-rank method)."""
     if not vals:
         return 0.0
@@ -64,10 +64,10 @@ def _percentile(vals: List[float], q: float) -> float:
 
 
 def compute_confusion(
-    preds: List[GuardResult],
-    records: List[DatasetRecord],
+    preds: list[GuardResult],
+    records: list[DatasetRecord],
     policy: str = "strict",
-) -> dict:
+) -> dict[str, int]:
     """Build a confusion dict from predictions and ground-truth records.
 
     strict: borderline == unsafe (positive label)
@@ -89,7 +89,7 @@ def compute_confusion(
     return {"tp": tp, "fp": fp, "tn": tn, "fn": fn}
 
 
-def compute_metrics(confusion: dict, latencies: List[int]) -> MetricsBundle:
+def compute_metrics(confusion: dict[str, int], latencies: list[int]) -> MetricsBundle:
     """Compute a full MetricsBundle from a confusion dict and latency list."""
     tp = confusion.get("tp", 0)
     fp = confusion.get("fp", 0)
@@ -125,11 +125,11 @@ def compute_metrics(confusion: dict, latencies: List[int]) -> MetricsBundle:
 
 
 def compute_slices(
-    preds: List[GuardResult],
-    records: List[DatasetRecord],
+    preds: list[GuardResult],
+    records: list[DatasetRecord],
     policy: str = "strict",
-    slice_dims: List[str] | None = None,
-) -> Dict[Tuple, MetricsBundle]:
+    slice_dims: list[str] | None = None,
+) -> dict[tuple[Any, ...], MetricsBundle]:
     """Compute per-slice MetricsBundles grouped by the given dimensions.
 
     Returns a dict keyed by tuples of dimension values, e.g. ("violence", "en").
@@ -138,7 +138,7 @@ def compute_slices(
         slice_dims = ["category", "language"]
 
     # Group indices by slice key
-    groups: Dict[Tuple, Tuple[List[GuardResult], List[DatasetRecord], List[int]]] = {}
+    groups: dict[tuple[Any, ...], tuple[list[GuardResult], list[DatasetRecord], list[int]]] = {}
     for pred, rec in zip(preds, records):
         key = tuple(getattr(rec, dim, "?") for dim in slice_dims)
         if key not in groups:
@@ -147,7 +147,7 @@ def compute_slices(
         groups[key][1].append(rec)
         groups[key][2].append(pred.latency_ms)
 
-    result: Dict[Tuple, MetricsBundle] = {}
+    result: dict[tuple[Any, ...], MetricsBundle] = {}
     for key, (g_preds, g_recs, g_lats) in groups.items():
         confusion = compute_confusion(g_preds, g_recs, policy=policy)
         result[key] = compute_metrics(confusion, g_lats)

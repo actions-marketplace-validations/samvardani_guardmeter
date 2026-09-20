@@ -16,6 +16,10 @@ jobs:
           python-version: "3.11"
       - name: Install guardbench
         run: pip install -e ".[dev]"
+      - name: Lint (ruff)
+        run: ruff check guardbench tests
+      - name: Type check (mypy)
+        run: mypy guardbench
       - name: Run tests
         run: pytest tests/guardbench/ --cov=guardbench -q
       - name: Compare guards

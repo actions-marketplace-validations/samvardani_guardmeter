@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, Optional
+from typing import Any
 
 from guardbench.core.guard import Guard, GuardResult
 from guardbench.core.registry import register
@@ -25,15 +25,15 @@ class LlamaGuardAdapter(Guard):
     def __init__(
         self,
         model: str = "meta-llama/Llama-Guard-3-8B",
-        endpoint: Optional[str] = None,
-        api_key: Optional[str] = None,
+        endpoint: str | None = None,
+        api_key: str | None = None,
     ) -> None:
         """Initialise with model name, optional HTTP endpoint, and optional API key."""
         self.model = model
         self.endpoint = endpoint
         self.api_key = api_key
-        self._pipeline = None
-        self._http_client = None
+        self._pipeline: Any = None
+        self._http_client: Any = None
 
         if endpoint:
             self._init_http()

@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import uuid
 
-import pytest
-
 from guardbench.engine.evaluator import EvalConfig, Evaluator
 from guardbench.engine.results import EvalResults
 
@@ -62,7 +60,7 @@ def test_slice_keys_are_category_language_tuples(sample_records, regex_enhanced)
     """Slice keys should be (category, language) tuples."""
     ev = Evaluator(regex_enhanced, regex_enhanced, sample_records, EvalConfig())
     results = ev.run()
-    for key in results.candidate_slices.get("strict", {}).keys():
+    for key in results.candidate_slices.get("strict", {}):
         assert isinstance(key, tuple)
         assert len(key) == 2
 

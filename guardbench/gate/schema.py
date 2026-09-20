@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Dict, Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -19,10 +19,10 @@ class GlobalThresholds(BaseModel):
 class SliceThresholds(BaseModel):
     """Per-slice threshold overrides (fields are optional — only override what differs)."""
 
-    max_fpr: Optional[float] = None
-    min_recall: Optional[float] = None
-    max_latency_p99_ms: Optional[int] = None
-    min_f1: Optional[float] = None
+    max_fpr: float | None = None
+    min_recall: float | None = None
+    max_latency_p99_ms: int | None = None
+    min_f1: float | None = None
 
 
 class ComparisonThresholds(BaseModel):
@@ -40,6 +40,6 @@ class GateConfig(BaseModel):
     # Slice override keys support fnmatch globs. A "category/language" key (e.g.
     # "self_harm/en", "*/fa") targets the category×language family; an
     # "attack:<glob>" key (e.g. "attack:leetspeak") targets the attack-type family.
-    slices: Dict[str, SliceThresholds] = {}
-    comparison: Optional[ComparisonThresholds] = None
+    slices: dict[str, SliceThresholds] = {}
+    comparison: ComparisonThresholds | None = None
     on_failure: Literal["block", "warn"] = "block"

@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 from guardbench.engine.metrics import MetricsBundle
+
+# policy → (dimension values, ...) → metrics
+SliceFamily = dict[str, dict[tuple[Any, ...], MetricsBundle]]
 
 
 @dataclass
@@ -19,14 +22,14 @@ class SampleResult:
     language: str
     baseline_pred: str  # "pass" | "flag"
     candidate_pred: str  # "pass" | "flag"
-    judge_verdict: Optional[str] = None  # "agree" | "disagree" | None
-    baseline_score: Optional[float] = None
-    candidate_score: Optional[float] = None
+    judge_verdict: str | None = None  # "agree" | "disagree" | None
+    baseline_score: float | None = None
+    candidate_score: float | None = None
     baseline_latency_ms: float = 0.0
     candidate_latency_ms: float = 0.0
 
 
-def _bundle_to_dict(b: MetricsBundle) -> dict:
+def _bundle_to_dict(b: MetricsBundle) -> dict[str, Any]:
     return {
         "tp": b.tp, "fp": b.fp, "tn": b.tn, "fn": b.fn,
         "precision": b.precision, "recall": b.recall, "f1": b.f1,
@@ -39,7 +42,7 @@ def _bundle_to_dict(b: MetricsBundle) -> dict:
     }
 
 
-def _bundle_from_dict(d: dict) -> MetricsBundle:
+def _bundle_from_dict(d: dict[str, Any]) -> MetricsBundle:
     return MetricsBundle(**{k: d[k] for k in MetricsBundle.__dataclass_fields__ if k in d})
 
 
@@ -54,22 +57,22 @@ class EvalResults:
     baseline_name: str
     candidate_name: str
     # Metrics keyed by policy: {"strict": MetricsBundle, "lenient": MetricsBundle}
-    baseline_metrics: Dict[str, MetricsBundle] = field(default_factory=dict)
-    candidate_metrics: Dict[str, MetricsBundle] = field(default_factory=dict)
+    baseline_metrics: dict[str, MetricsBundle] = field(default_factory=dict)
+    candidate_metrics: dict[str, MetricsBundle] = field(default_factory=dict)
     # Slices keyed by policy → (category, language) → MetricsBundle
-    baseline_slices: Dict[str, Dict[str, MetricsBundle]] = field(default_factory=dict)
-    candidate_slices: Dict[str, Dict[str, MetricsBundle]] = field(default_factory=dict)
+    baseline_slices: SliceFamily = field(default_factory=dict)
+    candidate_slices: SliceFamily = field(default_factory=dict)
     # Parallel attack-type family, keyed by policy → (attack_type,) → MetricsBundle
-    baseline_attack_slices: Dict[str, Dict[str, MetricsBundle]] = field(default_factory=dict)
-    candidate_attack_slices: Dict[str, Dict[str, MetricsBundle]] = field(default_factory=dict)
-    sample_results: List[SampleResult] = field(default_factory=list)
-    mcnemar_p: Optional[float] = None
-    judge_agreement_rate: Optional[float] = None
+    baseline_attack_slices: SliceFamily = field(default_factory=dict)
+    candidate_attack_slices: SliceFamily = field(default_factory=dict)
+    sample_results: list[SampleResult] = field(default_factory=list)
+    mcnemar_p: float | None = None
+    judge_agreement_rate: float | None = None
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Serialise to a JSON-compatible dict."""
-        def slices_to_dict(slices: Dict[str, Dict]) -> Dict[str, Dict]:
-            out: Dict[str, Dict] = {}
+        def slices_to_dict(slices: SliceFamily) -> dict[str, dict[str, Any]]:
+            out: dict[str, dict[str, Any]] = {}
             for policy, per_slice in slices.items():
                 out[policy] = {
                     json.dumps(list(k)): _bundle_to_dict(v)
@@ -104,10 +107,10 @@ class EvalResults:
         }
 
     @classmethod
-    def from_dict(cls, d: dict) -> "EvalResults":
+    def from_dict(cls, d: dict[str, Any]) -> EvalResults:
         """Deserialise from a dict (as produced by to_dict)."""
-        def slices_from_dict(raw: Dict[str, Dict]) -> Dict[str, Dict[Tuple, MetricsBundle]]:
-            out: Dict[str, Dict[Tuple, MetricsBundle]] = {}
+        def slices_from_dict(raw: dict[str, dict[str, Any]]) -> SliceFamily:
+            out: SliceFamily = {}
             for policy, per_slice in raw.items():
                 out[policy] = {}
                 for k_str, v in per_slice.items():

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Any, List, Optional
+from typing import Any
 
 from guardbench.core.guard import Guard, GuardResult
 from guardbench.core.registry import register
@@ -36,7 +36,7 @@ class OpenAIModerationGuard(Guard):
     name: str = "openai"
     version: str = "1.0.0"
 
-    def __init__(self, api_key: Optional[str] = None, model: str = "text-moderation-latest") -> None:
+    def __init__(self, api_key: str | None = None, model: str = "text-moderation-latest") -> None:
         """Initialise with optional API key and moderation model name."""
         try:
             import openai  # noqa: F401
@@ -57,7 +57,7 @@ class OpenAIModerationGuard(Guard):
         latency_ms = int((time.perf_counter() - start) * 1000)
 
         prediction = "flag" if result.flagged else "pass"
-        categories: List[str] = []
+        categories: list[str] = []
         if result.flagged and result.categories:
             for oai_cat, flagged in result.categories.model_dump().items():
                 if flagged:

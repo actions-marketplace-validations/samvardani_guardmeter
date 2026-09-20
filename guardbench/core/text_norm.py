@@ -33,7 +33,7 @@ def normalize(text: str) -> str:
     # Decode leetspeak digits/symbols
     t = t.translate(LEET_REV)
     # Collapse 'b o m b' → 'bomb' (4+ spaced single chars)
-    def _join(m: re.Match) -> str:
+    def _join(m: re.Match[str]) -> str:
         return m.group(0).replace(" ", "")
 
     t = re.sub(r"(?:[a-zA-Z]\s){3,}[a-zA-Z]", _join, t)

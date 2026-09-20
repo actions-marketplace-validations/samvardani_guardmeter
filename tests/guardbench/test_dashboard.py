@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from guardbench.engine.evaluator import EvalConfig, Evaluator
 from guardbench.report.generator import DashboardGenerator
 from guardbench.store.json_store import JSONFileStore
