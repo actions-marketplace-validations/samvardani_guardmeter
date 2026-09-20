@@ -1,22 +1,21 @@
 # Changelog
 
-## v0.3.0 — “Telemetry & gRPC”
-
+## [0.2.0] - 2026-09-20
 ### Added
-- gRPC service (Score, BatchScore) + health checks; optional reflection.
-- Prometheus counters for gRPC; surfaced via REST /metrics.
-- Privacy-aware prompt logging in runtime exporter.
-- New multi-turn conversation harness samples (support, extortion).
-
-### Improved
-- Red-team deduper catches zero-width obfuscations (\u200b) reliably.
-- NotificationManager robust to non-JSONable errors (logs instead of failing).
-- Obfuscation lab, parity JSON feed into dashboard & report.
-- Make targets for gRPC (grpc-gen, grpc-serve, grpc-client) and CLI helpers.
-
+- Interactive multi-run dashboard (`guardbench dashboard`): run history,
+  per-run detail, trend charts, side-by-side run comparison
+- `regex-baseline` / `regex-enhanced` guard names; built-in `openai` and
+  `llamaguard` adapters now resolve by name
+- Branding assets (logo, wordmark, social card)
+### Changed
+- Gate now enforces `min_f1` (default 0.80); the legacy gate.json
+  translation layer silently disabled it
+- `gate.json` uses the native `global_thresholds` / `slices` schema
+- `guardbench dashboard` no longer opens a browser unless `--open`
 ### Fixed
-- Policy validation drift between guard/runtime; CI runs DSL check before report.
-- Headless build stability (switch to non-GUI Matplotlib backend when needed).
+- `guardbench dashboard` raised ImportError on fresh clones
+- Deprecated `datetime.utcnow()` usage
+- CI badge pointed at a non-existent workflow file
 
-### Artifacts
-- Evidence pack includes report + obfuscation/parity/incidents + manifest checksums.
+## [0.1.0] - 2025-09-29
+Initial release: evaluation engine, regex guard, HTML report, CI gate.
