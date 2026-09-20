@@ -87,24 +87,32 @@ def cli() -> None:
 @click.option("--candidate", required=True, help="Guard name or dotted class path")
 @click.option("--dataset", required=True, type=click.Path(exists=True), help="CSV or JSONL dataset path")
 @click.option("--store", "store_path", default=None, help="Override DB path")
+@click.option("--json", "json_out", is_flag=True, help="Print a JSON summary to stdout (human text goes to stderr)")
+@click.option("--summary-md", "summary_md", default=None, help="Write a Markdown step-summary table to this path")
 def compare(
     baseline: str,
     candidate: str,
     dataset: str,
     store_path: str | None,
+    json_out: bool,
+    summary_md: str | None,
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
     from guardmeter.data.loader import load_dataset
     from guardmeter.engine.evaluator import EvalConfig, Evaluator
 
+    # When --json is set, all human-readable text goes to stderr so stdout is pure JSON.
+    def _log(msg: str) -> None:
+        click.echo(msg, err=json_out)
+
     # Import built-in guards to trigger self-registration
     _import_builtin_guards()
 
-    click.echo(f"Loading dataset: {dataset}")
+    _log(f"Loading dataset: {dataset}")
     records = load_dataset(dataset)
-    click.echo(f"  {len(records)} records loaded")
+    _log(f"  {len(records)} records loaded")
 
-    click.echo(f"Instantiating guards: baseline={baseline!r}, candidate={candidate!r}")
+    _log(f"Instantiating guards: baseline={baseline!r}, candidate={candidate!r}")
     base_guard = _resolve_guard(baseline)
     cand_guard = _resolve_guard(candidate)
 
@@ -112,21 +120,38 @@ def compare(
     config = EvalConfig()
     evaluator = Evaluator(base_guard, cand_guard, records, config)
 
-    click.echo("Running evaluation …")
+    _log("Running evaluation …")
     results = evaluator.run()
 
     store = _get_store(store_path)
     store.save_run(results)
 
+    if summary_md:
+        from guardmeter.gate.summary import write_step_summary
+        write_step_summary(Path(summary_md), results)
+        _log(f"Step summary written to {summary_md}")
+
     strict = results.candidate_metrics.get("strict")
-    click.echo(f"\nRun ID: {results.run_id}")
+    _log(f"\nRun ID: {results.run_id}")
     if strict:
-        click.echo(
+        _log(
             f"Candidate (strict) — recall: {strict.recall:.4f} | "
             f"fpr: {strict.fpr:.4f} | f1: {strict.f1:.4f} | "
             f"p99: {strict.latency_p99:.1f} ms"
         )
-    click.echo(f"Dataset SHA: {results.dataset_sha[:12]}")
+    _log(f"Dataset SHA: {results.dataset_sha[:12]}")
+
+    if json_out:
+        d = results.to_dict()
+        payload = {
+            "run_id": results.run_id,
+            "baseline_name": results.baseline_name,
+            "candidate_name": results.candidate_name,
+            "dataset_sha": results.dataset_sha,
+            "candidate_metrics": d["candidate_metrics"],
+            "mcnemar_p": results.mcnemar_p,
+        }
+        click.echo(json.dumps(payload, indent=2))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -191,15 +216,23 @@ def report(
 @click.option("--run", "run_id", default="latest", show_default=True, help="run_id or 'latest'")
 @click.option("--output", "output_path", default="report/ci_summary.md", show_default=True, help="Output md path")
 @click.option("--store", "store_path", default=None, help="Override DB path")
+@click.option("--json", "json_out", is_flag=True, help="Print a JSON result to stdout (human text goes to stderr)")
+@click.option("--summary-md", "summary_md", default=None, help="Write a Markdown step-summary table to this path")
 def gate(
     cfg_path: str,
     run_id: str,
     output_path: str,
     store_path: str | None,
+    json_out: bool,
+    summary_md: str | None,
 ) -> None:
     """Run the CI gate check. Exits 0 on pass, 1 on failure."""
     from guardmeter.gate.checker import GateChecker
-    from guardmeter.gate.summary import write_markdown_summary
+    from guardmeter.gate.summary import write_markdown_summary, write_step_summary
+
+    # When --json is set, all human-readable text goes to stderr so stdout is pure JSON.
+    def _log(msg: str) -> None:
+        click.echo(msg, err=json_out)
 
     store = _get_store(store_path)
 
@@ -215,15 +248,27 @@ def gate(
     check_result = checker.check(results)
 
     write_markdown_summary(check_result, results, gate_config, Path(output_path))
-    click.echo(f"CI summary written to {output_path}")
+    _log(f"CI summary written to {output_path}")
+
+    if summary_md:
+        write_step_summary(Path(summary_md), results, config=gate_config, check_result=check_result)
+        _log(f"Step summary written to {summary_md}")
+
+    if json_out:
+        payload = {
+            "passed": check_result.passed,
+            "failures": [f.to_dict() for f in check_result.structured_failures],
+            "run_id": results.run_id,
+        }
+        click.echo(json.dumps(payload, indent=2))
 
     if check_result.passed:
-        click.echo("CI Gate: PASSED")
+        _log("CI Gate: PASSED")
         sys.exit(0)
     else:
-        click.echo("CI Gate: FAILED")
+        _log("CI Gate: FAILED")
         for f in check_result.failures:
-            click.echo(f"  ❌ {f}")
+            _log(f"  ❌ {f}")
         sys.exit(1)
 
 
