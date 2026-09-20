@@ -9,6 +9,7 @@ import time
 from typing import Any
 
 from guardmeter.core.guard import Guard, GuardResult
+from guardmeter.core.redact import redact
 from guardmeter.core.registry import register
 from guardmeter.data.schema import CATEGORY_VOCABULARY
 
@@ -54,14 +55,14 @@ def _parse_verdict(raw: str, latency_ms: int) -> GuardResult:
                 data = None
 
     if not isinstance(data, dict):
-        logger.warning("AnthropicGuard could not parse verdict: %r", raw)
+        logger.warning("AnthropicGuard could not parse verdict: %r", redact(raw))
         return GuardResult(prediction="pass", score=0.0, latency_ms=latency_ms)
 
     try:
         unsafe = bool(data.get("unsafe", False))
         score = float(data.get("score", 0.0))
     except (TypeError, ValueError):
-        logger.warning("AnthropicGuard verdict had non-numeric fields: %r", raw)
+        logger.warning("AnthropicGuard verdict had non-numeric fields: %r", redact(raw))
         return GuardResult(prediction="pass", score=0.0, latency_ms=latency_ms)
 
     raw_cats = data.get("categories") or []
@@ -111,7 +112,7 @@ class AnthropicGuard(Guard):
             raw = _extract_text(response)
         except Exception as exc:  # noqa: BLE001 (never raise mid-evaluation)
             latency_ms = int((time.perf_counter() - start) * 1000)
-            logger.warning("AnthropicGuard API call failed: %s", exc)
+            logger.warning("AnthropicGuard API call failed: %s", redact(str(exc)))
             return GuardResult(prediction="pass", score=0.0, latency_ms=latency_ms)
 
         latency_ms = int((time.perf_counter() - start) * 1000)

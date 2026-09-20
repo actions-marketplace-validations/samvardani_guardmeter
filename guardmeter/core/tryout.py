@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from guardmeter.core.redact import redact
 from guardmeter.core.registry import get_guard, import_builtin_guards
 
 logger = logging.getLogger(__name__)
@@ -71,7 +72,7 @@ def run_try(text: str, guard_names: Sequence[str]) -> list[TryResult]:
             result = guard.predict(text)
         except Exception as exc:  # noqa: BLE001 (one bad guard must not hide the rest)
             latency_ms = (time.perf_counter() - start) * 1000
-            logger.warning("try: guard %r failed: %s", name, exc)
+            logger.warning("try: guard %r failed: %s", name, redact(str(exc)))
             results.append(
                 TryResult(
                     guard=name,

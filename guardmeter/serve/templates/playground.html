@@ -94,6 +94,26 @@
     var DEFAULT_GUARDS = ["regex-baseline", "regex-enhanced"];
     var history = [];
 
+    /* Token is kept only in sessionStorage and sent as a Bearer header — never
+       placed in the URL. On a 401 we prompt once and retry. */
+    function withAuth(opts){
+      opts = opts || {};
+      var h = opts.headers || {};
+      var t = sessionStorage.getItem('gm_token');
+      if (t) h['Authorization'] = 'Bearer ' + t;
+      opts.headers = h;
+      return opts;
+    }
+    function apiFetch(url, opts){
+      return fetch(url, withAuth(opts)).then(function(r){
+        if (r.status !== 401) return r;
+        var t = window.prompt('This playground requires a token (GUARDMETER_TOKEN):');
+        if (!t) return r;
+        sessionStorage.setItem('gm_token', t);
+        return fetch(url, withAuth(opts));
+      });
+    }
+
     function verdictCell(r){
       if (r.error) return '<span class="v-error">ERROR</span>';
       return r.prediction === 'flag'
@@ -113,7 +133,7 @@
     }
 
     function loadGuards(){
-      return fetch('/api/guards').then(function(r){ return r.json(); }).then(function(data){
+      return apiFetch('/api/guards').then(function(r){ return r.json(); }).then(function(data){
         var checked = data.default || DEFAULT_GUARDS;
         var wrap = document.getElementById('guards');
         wrap.innerHTML = (data.guards || []).map(function(name){
@@ -163,7 +183,7 @@
       if (!text) return;
       var btn = document.getElementById('evaluate');
       btn.disabled = true;
-      fetch('/api/try', {
+      apiFetch('/api/try', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text: text, guards: selectedGuards() }),

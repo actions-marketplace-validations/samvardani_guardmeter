@@ -96,6 +96,10 @@ runs:
           echo "report_path=report/index.html"
         } >> "$GITHUB_OUTPUT"
 
+    - name: Verify report integrity
+      shell: bash
+      run: guardmeter verify-report report
+
     - uses: actions/upload-artifact@v7
       with:
         name: guardmeter-report

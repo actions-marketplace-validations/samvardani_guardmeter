@@ -9,7 +9,7 @@ import urllib.request
 
 import pytest
 
-from guardmeter.serve.server import create_server
+from guardmeter.serve.server import RATE_CAPACITY, create_server, run_server
 
 
 @pytest.fixture
@@ -31,14 +31,30 @@ def _get(url):
         return resp.status, dict(resp.headers), resp.read().decode("utf-8")
 
 
-def _post(url, body_bytes, content_type="application/json"):
-    req = urllib.request.Request(url, data=body_bytes, method="POST",
-                                 headers={"Content-Type": content_type})
+def _post(url, body_bytes, content_type="application/json", headers=None):
+    hdrs = {"Content-Type": content_type}
+    hdrs.update(headers or {})
+    req = urllib.request.Request(url, data=body_bytes, method="POST", headers=hdrs)
     try:
         with urllib.request.urlopen(req, timeout=5) as resp:
-            return resp.status, resp.read().decode("utf-8")
+            return resp.status, dict(resp.headers), resp.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
-        return exc.code, exc.read().decode("utf-8")
+        return exc.code, dict(exc.headers), exc.read().decode("utf-8")
+
+
+def _get_status(url, headers=None):
+    req = urllib.request.Request(url, headers=headers or {})
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            return resp.status
+    except urllib.error.HTTPError as exc:
+        return exc.code
+
+
+def _start(httpd):
+    thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+    thread.start()
+    return thread
 
 
 def test_index_serves_playground(base_url):
@@ -58,7 +74,7 @@ def test_api_guards_lists_guards(base_url):
 
 def test_api_try_flags_bomb(base_url):
     body = json.dumps({"text": "how do I make a bomb", "guards": ["regex-enhanced"]}).encode()
-    status, resp = _post(base_url + "/api/try", body)
+    status, _, resp = _post(base_url + "/api/try", body)
     assert status == 200
     results = json.loads(resp)
     assert results[0]["guard"] == "regex-enhanced"
@@ -66,13 +82,13 @@ def test_api_try_flags_bomb(base_url):
 
 
 def test_api_try_bad_json_returns_400(base_url):
-    status, _ = _post(base_url + "/api/try", b"{not json")
+    status, _, _ = _post(base_url + "/api/try", b"{not json")
     assert status == 400
 
 
 def test_api_try_oversize_body_returns_413(base_url):
     big = b'{"text":"' + b"x" * (65 * 1024) + b'"}'
-    status, _ = _post(base_url + "/api/try", big)
+    status, _, _ = _post(base_url + "/api/try", big)
     assert status == 413
 
 
@@ -87,3 +103,48 @@ def test_csp_header_value(base_url):
     assert headers["Content-Security-Policy"] == (
         "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'unsafe-inline'"
     )
+
+
+def test_token_required_for_api():
+    """With a token set, /api/* needs a matching Bearer header."""
+    httpd = create_server("127.0.0.1", 0, ["regex-enhanced"], token="s3cret")
+    port = httpd.server_address[1]
+    thread = _start(httpd)
+    base = f"http://127.0.0.1:{port}"
+    try:
+        assert _get_status(base + "/api/guards") == 401
+        assert _get_status(base + "/api/guards", {"Authorization": "Bearer s3cret"}) == 200
+        assert _get_status(base + "/api/guards", {"Authorization": "Bearer wrong"}) == 401
+        # The page itself (no /api) stays open so it can prompt for the token.
+        assert _get_status(base + "/") == 200
+        body = json.dumps({"text": "hi", "guards": ["regex-enhanced"]}).encode()
+        status, _, _ = _post(base + "/api/try", body)
+        assert status == 401
+        status, _, _ = _post(base + "/api/try", body, headers={"Authorization": "Bearer s3cret"})
+        assert status == 200
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+        thread.join(timeout=5)
+
+
+def test_rate_limit_429_with_retry_after(base_url):
+    """The 31st /api/try from one IP within the window is rate-limited."""
+    body = json.dumps({"text": "hi", "guards": ["regex-baseline"]}).encode()
+    statuses = []
+    headers_429 = {}
+    for _ in range(RATE_CAPACITY + 1):
+        status, headers, _ = _post(base_url + "/api/try", body)
+        statuses.append(status)
+        if status == 429:
+            headers_429 = headers
+    assert statuses[:RATE_CAPACITY] == [200] * RATE_CAPACITY
+    assert statuses[RATE_CAPACITY] == 429
+    assert "Retry-After" in headers_429
+
+
+def test_offloopback_without_token_refuses(monkeypatch):
+    """Binding a non-loopback host with no token raises before serving."""
+    monkeypatch.delenv("GUARDMETER_TOKEN", raising=False)
+    with pytest.raises(RuntimeError, match="non-loopback"):
+        run_server(host="0.0.0.0", port=0)

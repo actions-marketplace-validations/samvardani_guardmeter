@@ -237,7 +237,10 @@ def serve(host: str, port: int, guards: tuple[str, ...], open_browser: bool) -> 
     from guardmeter.serve.server import run_server
 
     default_guards = list(guards) if guards else ["regex-baseline", "regex-enhanced"]
-    run_server(host=host, port=port, default_guards=default_guards, open_browser=open_browser)
+    try:
+        run_server(host=host, port=port, default_guards=default_guards, open_browser=open_browser)
+    except RuntimeError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -291,6 +294,16 @@ def report(
         click.echo(f"Dashboard updated at {dash_path}")
     except Exception as _dash_exc:  # noqa: BLE001 (intentional resilience boundary)
         logger.debug("Dashboard auto-build failed: %s", _dash_exc)
+
+    # Integrity manifest over the generated HTML
+    from guardmeter.report.manifest import write_manifest
+    mpath = write_manifest(
+        out.parent,
+        run_id=results.run_id,
+        dataset_sha=results.dataset_sha,
+        git_commit=results.git_commit,
+    )
+    click.echo(f"Integrity manifest written to {mpath}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -487,9 +500,38 @@ def dashboard(
     out = gen.build(out)
     click.echo(f"Dashboard written to {out}")
 
+    latest = store.latest_run()
+    from guardmeter.report.manifest import write_manifest
+    write_manifest(
+        out.parent,
+        run_id=latest.run_id if latest else None,
+        dataset_sha=latest.dataset_sha if latest else None,
+        git_commit=latest.git_commit if latest else None,
+    )
+
     if open_browser:
         import webbrowser
         webbrowser.open(out.as_uri())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# guardmeter verify-report
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command("verify-report")
+@click.argument("report_dir", default="report", required=False)
+def verify_report(report_dir: str) -> None:
+    """Recompute report hashes against MANIFEST.json; exit 1 on any mismatch."""
+    from guardmeter.report.manifest import verify_manifest
+
+    ok, problems = verify_manifest(report_dir)
+    if ok:
+        click.echo(f"✅ Report integrity verified: {report_dir}")
+        return
+    click.echo(f"❌ Report integrity check FAILED for {report_dir}:")
+    for p in problems:
+        click.echo(f"  - {p}")
+    sys.exit(1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

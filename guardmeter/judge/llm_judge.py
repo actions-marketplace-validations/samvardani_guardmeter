@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 
 from guardmeter.core.guard import GuardResult
+from guardmeter.core.redact import redact
 from guardmeter.judge.base import Judge, JudgeVerdict
 from guardmeter.judge.prompts import SAFETY_JUDGE_SYSTEM_PROMPT
 
@@ -157,7 +158,7 @@ class LLMJudge(Judge):
                 try:
                     verdicts[idx] = future.result()
                 except Exception as exc:  # noqa: BLE001 (intentional resilience boundary)
-                    logger.warning("Judge failed on sample %d: %s", idx, exc)
+                    logger.warning("Judge failed on sample %d: %s", idx, redact(str(exc)))
                     verdicts[idx] = None
                     errors += 1
         successful = [v for v in verdicts if v is not None]
