@@ -1,7 +1,9 @@
 name: Release
 on:
   push:
-    tags: ["v*"]
+    tags:
+      - "v*"
+      - "sea-guard-v*"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -9,7 +11,14 @@ jobs:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with: { python-version: "3.11" }
-      - run: pip install build && python -m build
+      - run: pip install build
+      - name: Build guardmeter (repo root)
+        if: startsWith(github.ref_name, 'v')
+        run: python -m build
+      - name: Build sea-guard tombstone
+        if: startsWith(github.ref_name, 'sea-guard-v')
+        working-directory: legacy/sea-guard
+        run: python -m build --outdir "$GITHUB_WORKSPACE/dist"
       - uses: actions/upload-artifact@v4
         with: { name: dist, path: dist/ }
   publish:
