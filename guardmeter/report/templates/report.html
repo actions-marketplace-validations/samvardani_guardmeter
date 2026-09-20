@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>GuardBench Report — {{ run_id }}</title>
+  <title>GuardMeter Report — {{ run_id }}</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
@@ -63,7 +63,7 @@
       <circle cx="60" cy="78" r="2" fill="#22d3ee" opacity="0.4"/>
       <polyline points="44,60 56,72 76,48" fill="none" stroke="url(#nb-cg)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" filter="url(#nb-glow)"/>
     </svg>
-    <h1 style="margin:0"><span style="color:#0b1120;font-weight:700">Guard</span><span style="color:#06b6d4;font-weight:700">Bench</span> Evaluation Report</h1>
+    <h1 style="margin:0"><span style="color:#0b1120;font-weight:700">Guard</span><span style="color:#06b6d4;font-weight:700">Meter</span> Evaluation Report</h1>
   </div>
   <div class="meta">
     Run: <b>{{ run_id }}</b> · Samples: <b>{{ total_samples }}</b> · Dataset SHA: <b>{{ dataset_sha[:12] }}</b>
@@ -224,7 +224,7 @@
       Informational aid for your own documentation — not a compliance certification or legal assessment.
     </p>
     <table>
-      <tr><th>Framework</th><th>Requirement</th><th>How GuardBench Addresses It</th></tr>
+      <tr><th>Framework</th><th>Requirement</th><th>How GuardMeter Addresses It</th></tr>
       <tr>
         <td>EU AI Act Art. 9</td>
         <td>Risk management system for high-risk AI</td>
@@ -248,7 +248,7 @@
     </table>
   </div>
 
-  <div class="footer">GuardBench {{ version }} · Run {{ run_id }}</div>
+  <div class="footer">GuardMeter {{ version }} · Run {{ run_id }}</div>
 </div>
 
 <script>

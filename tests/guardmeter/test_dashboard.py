@@ -92,7 +92,7 @@ class TestDashboardSingleRun:
         content = out.read_text(encoding="utf-8")
         assert "<html" in content.lower()
         assert "</html>" in content.lower()
-        assert "sea-guard Dashboard" in content
+        assert "GuardMeter Dashboard" in content
 
 
     def test_escapes_xss_in_candidate_name(self, sample_records, regex_enhanced, tmp_path):

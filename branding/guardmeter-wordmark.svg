@@ -80,7 +80,7 @@
         font-size="30"
         font-weight="700"
         letter-spacing="-0.8"
-        fill="#22d3ee">Bench</text>
+        fill="#22d3ee">Meter</text>
 
   <!-- Tagline — aligned with "Guard" x -->
   <text x="74" y="60"
