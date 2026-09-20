@@ -4,6 +4,7 @@ import { html, toast } from "/static/components/ui.js";
 import { initTheme, toggleTheme, currentTheme } from "/static/theme.js";
 import { OverviewPage } from "/static/pages/overview.js";
 import { RunPage } from "/static/pages/run.js";
+import { GatePage } from "/static/pages/gate.js";
 
 initTheme();
 
@@ -25,7 +26,7 @@ function parseRoute() {
 }
 
 // Registry filled in by later page modules; overview is built in.
-export const PAGES = { overview: OverviewPage, run: RunPage };
+export const PAGES = { overview: OverviewPage, run: RunPage, gate: GatePage };
 
 function Stub({ title }) {
   return html`<main class="container" style="padding:24px 24px 48px">
