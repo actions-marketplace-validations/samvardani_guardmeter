@@ -124,6 +124,21 @@ class ReportGenerator:
         strict_base_slices = _slice_rows(results.baseline_slices.get("strict", {}))
         strict_cand_slices = _slice_rows(results.candidate_slices.get("strict", {}))
 
+        # Attack-type family (single-dimension slices keyed by (attack_type,))
+        def _attack_rows(slices_dict: Dict) -> List[dict]:
+            rows = []
+            for key in sorted(slices_dict.keys(), key=lambda k: str(k[0])):
+                b = slices_dict[key]
+                rows.append({
+                    "attack_type": key[0] if len(key) > 0 and key[0] is not None else "—",
+                    "n": b.tp + b.fp + b.tn + b.fn,
+                    "recall": b.recall,
+                    "fpr": b.fpr,
+                })
+            return rows
+
+        strict_cand_attack = _attack_rows(results.candidate_attack_slices.get("strict", {}))
+
         # Latency arrays for Chart.js: real per-sample latencies (one value per sample)
         base_latencies = [s.baseline_latency_ms for s in results.sample_results]
         cand_latencies = [s.candidate_latency_ms for s in results.sample_results]
@@ -148,6 +163,7 @@ class ReportGenerator:
             lenient_cand=lenient_cand,
             strict_base_slices=strict_base_slices,
             strict_cand_slices=strict_cand_slices,
+            strict_cand_attack=strict_cand_attack,
             sample_results=results.sample_results[:200],  # cap at 200 for performance
             has_judge=has_judge,
             base_latencies_json=_safe_json(base_latencies),
@@ -233,6 +249,18 @@ class DashboardGenerator:
                 })
             return rows
 
+        def attack_list(slices_dict: Dict[Tuple, MetricsBundle]) -> List[dict]:
+            rows = []
+            for key in sorted(slices_dict.keys(), key=lambda k: str(k[0])):
+                b = slices_dict[key]
+                rows.append({
+                    "attack_type": key[0] if len(key) > 0 and key[0] is not None else "—",
+                    "n": b.tp + b.fp + b.tn + b.fn,
+                    "recall": b.recall,
+                    "fpr": b.fpr,
+                })
+            return rows
+
         try:
             dt = datetime.datetime.fromisoformat(results.timestamp.replace("Z", "+00:00"))
             date_str = dt.strftime("%Y-%m-%d %H:%M UTC")
@@ -263,6 +291,7 @@ class DashboardGenerator:
                 "candidate": bundle_dict(strict_cand),
                 "baseline_slices": slices_list(results.baseline_slices.get("strict", {})),
                 "candidate_slices": slices_list(results.candidate_slices.get("strict", {})),
+                "candidate_attack_slices": attack_list(results.candidate_attack_slices.get("strict", {})),
             },
             "lenient": {
                 "baseline": bundle_dict(lenient_base),

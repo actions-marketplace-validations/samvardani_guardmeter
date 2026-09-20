@@ -76,6 +76,8 @@ class SQLiteStore(RunStore):
                 "candidate_metrics": data["candidate_metrics"],
                 "baseline_slices": data["baseline_slices"],
                 "candidate_slices": data["candidate_slices"],
+                "baseline_attack_slices": data["baseline_attack_slices"],
+                "candidate_attack_slices": data["candidate_attack_slices"],
                 "mcnemar_p": data["mcnemar_p"],
                 "judge_agreement_rate": data["judge_agreement_rate"],
             }
@@ -211,6 +213,8 @@ class SQLiteStore(RunStore):
             "candidate_metrics": metrics.get("candidate_metrics", {}),
             "baseline_slices": metrics.get("baseline_slices", {}),
             "candidate_slices": metrics.get("candidate_slices", {}),
+            "baseline_attack_slices": metrics.get("baseline_attack_slices", {}),
+            "candidate_attack_slices": metrics.get("candidate_attack_slices", {}),
             "sample_results": self._load_sample_results(run_id),
             "mcnemar_p": metrics.get("mcnemar_p"),
             "judge_agreement_rate": metrics.get("judge_agreement_rate"),

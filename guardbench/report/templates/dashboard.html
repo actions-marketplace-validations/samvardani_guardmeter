@@ -147,6 +147,23 @@
         </div>
       </div>
 
+      <div class="mb-6">
+        <h3 class="text-sm font-semibold text-slate-300 mb-2">Attack Type — Candidate (Strict)</h3>
+        <div class="overflow-x-auto rounded-xl border border-slate-700">
+          <table class="w-full text-xs border-collapse">
+            <thead>
+              <tr>
+                <th class="text-left px-3 py-2">Attack type</th>
+                <th class="text-right px-3 py-2">N</th>
+                <th class="text-right px-3 py-2">Recall</th>
+                <th class="text-right px-3 py-2">FPR</th>
+              </tr>
+            </thead>
+            <tbody id="attack-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div>
         <h3 class="text-sm font-semibold text-slate-300 mb-2">Sample Results (first 200)</h3>
         <div class="overflow-x-auto rounded-xl border border-slate-700">
@@ -371,6 +388,22 @@
             '<td class="px-3 py-1.5 text-right">' + s.n + '</td>' +
             '<td class="px-3 py-1.5 text-right font-mono ' + rCls + '">' + fmt(s.recall) + '</td>' +
             '<td class="px-3 py-1.5 text-right font-mono ' + fCls + '">' + fmt(s.fpr) + '</td>' +
+            '</tr>';
+        }).join('');
+      }
+
+      /* attack-type family (always strict) */
+      var attacks = (run.strict.candidate_attack_slices) || [];
+      var atbody = document.getElementById('attack-tbody');
+      if (!attacks.length) {
+        atbody.innerHTML = '<tr><td colspan="4" class="px-3 py-4 text-center text-slate-500">No attack-type data</td></tr>';
+      } else {
+        atbody.innerHTML = attacks.map(function(s) {
+          return '<tr style="border-bottom:1px solid #0f172a">' +
+            '<td class="px-3 py-1.5">' + esc(s.attack_type) + '</td>' +
+            '<td class="px-3 py-1.5 text-right">' + s.n + '</td>' +
+            '<td class="px-3 py-1.5 text-right font-mono">' + fmt(s.recall) + '</td>' +
+            '<td class="px-3 py-1.5 text-right font-mono">' + fmt(s.fpr) + '</td>' +
             '</tr>';
         }).join('');
       }

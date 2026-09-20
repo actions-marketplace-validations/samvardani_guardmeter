@@ -37,6 +37,9 @@ class GateConfig(BaseModel):
 
     mode: Literal["strict", "lenient"] = "strict"
     global_thresholds: GlobalThresholds = GlobalThresholds()
-    slices: Dict[str, SliceThresholds] = {}   # keys support fnmatch globs, e.g. "*/fa"
+    # Slice override keys support fnmatch globs. A "category/language" key (e.g.
+    # "self_harm/en", "*/fa") targets the category×language family; an
+    # "attack:<glob>" key (e.g. "attack:leetspeak") targets the attack-type family.
+    slices: Dict[str, SliceThresholds] = {}
     comparison: Optional[ComparisonThresholds] = None
     on_failure: Literal["block", "warn"] = "block"

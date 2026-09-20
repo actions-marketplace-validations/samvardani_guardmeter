@@ -78,6 +78,8 @@ class Evaluator:
         cand_metrics = {}
         base_slices = {}
         cand_slices = {}
+        base_attack_slices = {}
+        cand_attack_slices = {}
 
         for pol in policies:
             base_conf = _confusion(base_preds, self.dataset, pol)
@@ -89,6 +91,8 @@ class Evaluator:
             cand_metrics[pol] = compute_metrics(cand_conf, cand_lats)
             base_slices[pol] = compute_slices(base_preds, self.dataset, pol, self.config.slices)
             cand_slices[pol] = compute_slices(cand_preds, self.dataset, pol, self.config.slices)
+            base_attack_slices[pol] = compute_slices(base_preds, self.dataset, pol, ["attack_type"])
+            cand_attack_slices[pol] = compute_slices(cand_preds, self.dataset, pol, ["attack_type"])
 
         # McNemar significance test on primary policy
         try:
@@ -146,6 +150,8 @@ class Evaluator:
             candidate_metrics=cand_metrics,
             baseline_slices=base_slices,
             candidate_slices=cand_slices,
+            baseline_attack_slices=base_attack_slices,
+            candidate_attack_slices=cand_attack_slices,
             sample_results=sample_results,
             mcnemar_p=mcnemar_p,
             judge_agreement_rate=judge_agreement_rate,

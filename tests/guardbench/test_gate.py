@@ -50,6 +50,36 @@ class TestFailCase:
         assert any("recall" in f for f in result.failures)
 
 
+class TestAttackTypeSlices:
+    def test_attack_override_applied_to_attack_family(self, sample_records, regex_enhanced):
+        """An 'attack:<type>' override gates the matching attack-type slice."""
+        from guardbench.gate.schema import SliceThresholds
+        results = _run(sample_records, regex_enhanced)
+        assert "benign_adjacent" in {k[0] for k in results.candidate_attack_slices["strict"]}
+        config = GateConfig(
+            global_thresholds=GlobalThresholds(
+                min_recall=0.0, max_fpr=1.0, max_latency_p99_ms=100000, min_f1=0.0,
+            ),
+            # benign_adjacent recall is 0.5 in the fixture; 0.9 must trip the gate.
+            slices={"attack:benign_adjacent": SliceThresholds(min_recall=0.9)},
+        )
+        result = GateChecker(config).check(results)
+        assert not result.passed
+        assert any(f.startswith("attack:benign_adjacent") for f in result.failures)
+
+    def test_attack_family_not_gated_without_override(self, sample_records, regex_enhanced):
+        """Attack slices are opt-in: no 'attack:' override → they never fail the gate."""
+        results = _run(sample_records, regex_enhanced)
+        config = GateConfig(
+            global_thresholds=GlobalThresholds(
+                min_recall=0.0, max_fpr=1.0, max_latency_p99_ms=100000, min_f1=0.0,
+            ),
+        )
+        result = GateChecker(config).check(results)
+        assert result.passed
+        assert not any(f.startswith("attack:") for f in result.failures)
+
+
 class TestFnmatch:
     def test_wildcard_matches_language(self, sample_records, regex_enhanced):
         """'*/fa' pattern should match 'violence/fa' but not 'violence/en'."""

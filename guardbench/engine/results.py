@@ -56,9 +56,12 @@ class EvalResults:
     # Metrics keyed by policy: {"strict": MetricsBundle, "lenient": MetricsBundle}
     baseline_metrics: Dict[str, MetricsBundle] = field(default_factory=dict)
     candidate_metrics: Dict[str, MetricsBundle] = field(default_factory=dict)
-    # Slices keyed by policy → (dim_value, ...) → MetricsBundle
+    # Slices keyed by policy → (category, language) → MetricsBundle
     baseline_slices: Dict[str, Dict[str, MetricsBundle]] = field(default_factory=dict)
     candidate_slices: Dict[str, Dict[str, MetricsBundle]] = field(default_factory=dict)
+    # Parallel attack-type family, keyed by policy → (attack_type,) → MetricsBundle
+    baseline_attack_slices: Dict[str, Dict[str, MetricsBundle]] = field(default_factory=dict)
+    candidate_attack_slices: Dict[str, Dict[str, MetricsBundle]] = field(default_factory=dict)
     sample_results: List[SampleResult] = field(default_factory=list)
     mcnemar_p: Optional[float] = None
     judge_agreement_rate: Optional[float] = None
@@ -85,6 +88,8 @@ class EvalResults:
             "candidate_metrics": {k: _bundle_to_dict(v) for k, v in self.candidate_metrics.items()},
             "baseline_slices": slices_to_dict(self.baseline_slices),
             "candidate_slices": slices_to_dict(self.candidate_slices),
+            "baseline_attack_slices": slices_to_dict(self.baseline_attack_slices),
+            "candidate_attack_slices": slices_to_dict(self.candidate_attack_slices),
             "sample_results": [
                 {"text": s.text, "label": s.label, "category": s.category,
                  "language": s.language, "baseline_pred": s.baseline_pred,
@@ -122,6 +127,8 @@ class EvalResults:
         obj.candidate_metrics = {k: _bundle_from_dict(v) for k, v in d.get("candidate_metrics", {}).items()}
         obj.baseline_slices = slices_from_dict(d.get("baseline_slices", {}))
         obj.candidate_slices = slices_from_dict(d.get("candidate_slices", {}))
+        obj.baseline_attack_slices = slices_from_dict(d.get("baseline_attack_slices", {}))
+        obj.candidate_attack_slices = slices_from_dict(d.get("candidate_attack_slices", {}))
         obj.sample_results = [
             SampleResult(
                 text=s["text"], label=s["label"], category=s["category"],

@@ -17,6 +17,22 @@ def test_evaluator_returns_eval_results(sample_records, regex_baseline, regex_en
     assert isinstance(results, EvalResults)
 
 
+def test_attack_slices_keyed_by_attack_type(sample_records, regex_enhanced):
+    """The evaluator computes a parallel attack-type slice family."""
+    ev = Evaluator(regex_enhanced, regex_enhanced, sample_records, EvalConfig())
+    results = ev.run()
+    attack = results.candidate_attack_slices.get("strict", {})
+    assert attack, "expected attack-type slices"
+    # Every key is a single-element (attack_type,) tuple.
+    assert all(len(k) == 1 for k in attack)
+    attack_types = {k[0] for k in attack}
+    expected = {r.attack_type for r in sample_records}
+    assert attack_types == expected
+    # Category×language family is unchanged (2-tuples).
+    cat = results.candidate_slices.get("strict", {})
+    assert all(len(k) == 2 for k in cat)
+
+
 def test_run_id_is_uuid(sample_records, regex_enhanced):
     """run_id should be a valid UUID string."""
     ev = Evaluator(regex_enhanced, regex_enhanced, sample_records, EvalConfig())

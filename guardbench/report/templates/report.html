@@ -135,6 +135,21 @@
         </div>
       </div>
     </div>
+
+    {% if strict_cand_attack %}
+    <div class="card section">
+      <h2>Attack Type — Strict (Candidate)</h2>
+      <table>
+        <tr><th>Attack type</th><th>N</th><th>Recall</th><th>FPR</th></tr>
+        {% for s in strict_cand_attack %}
+        <tr>
+          <td>{{ s.attack_type }}</td><td>{{ s.n }}</td>
+          <td>{{ s.recall }}</td><td>{{ s.fpr }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
   </div>
 
   <!-- LENIENT VIEW -->

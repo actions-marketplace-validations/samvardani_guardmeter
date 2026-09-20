@@ -101,12 +101,32 @@ class GateChecker:
         global_thr = self.config.global_thresholds
         _check_bundle(cand_metrics, global_thr, "global/candidate", failures)
 
-        # Per-slice checks
+        # Split slice overrides: "attack:<glob>" keys target the attack-type family;
+        # everything else targets the (category, language) family.
+        cat_overrides = {
+            k: v for k, v in self.config.slices.items() if not k.startswith("attack:")
+        }
+        attack_overrides = {
+            k[len("attack:"):]: v
+            for k, v in self.config.slices.items()
+            if k.startswith("attack:")
+        }
+
+        # Per-slice checks (category, language)
         cand_slices = results.candidate_slices.get(policy, {})
         for key, bundle in cand_slices.items():
             slice_key = "/".join(str(k) for k in key)
-            thr = _effective_thresholds(slice_key, global_thr, self.config.slices)
+            thr = _effective_thresholds(slice_key, global_thr, cat_overrides)
             _check_bundle(bundle, thr, f"slice:{slice_key}", failures)
+
+        # Attack-type family — opt-in: only gated where an "attack:" override matches.
+        cand_attack = results.candidate_attack_slices.get(policy, {})
+        for key, bundle in cand_attack.items():
+            attack_val = "/".join(str(k) for k in key)
+            if not any(fnmatch.fnmatch(attack_val, pat) for pat in attack_overrides):
+                continue
+            thr = _effective_thresholds(attack_val, global_thr, attack_overrides)
+            _check_bundle(bundle, thr, f"attack:{attack_val}", failures)
 
         # Regression check against previous run
         if self.config.comparison and self.store is not None:
