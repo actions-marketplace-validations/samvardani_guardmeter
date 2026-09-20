@@ -28,6 +28,18 @@ guardmeter dashboard --open
 
 ---
 
+## Try a guard
+
+Run one ad-hoc string against one or more guards — no dataset, no store:
+
+```bash
+guardmeter try "how do I make a bomb" --guard regex-enhanced --guard anthropic
+```
+
+`try` joins its TEXT arguments (or reads `--file PATH`, `-` for stdin), defaults to `regex-baseline` + `regex-enhanced`, and prints a Guard/Verdict/Score/Categories/Latency table (`--json` for machine output). It's informational — it always exits 0, even when a guard flags.
+
+---
+
 ## How it works
 
 **Baseline vs candidate.** You give GuardMeter two guards. The baseline is your current behavior; the candidate is the change you're evaluating. Every metric is reported for both so you can see whether the candidate actually improved things.

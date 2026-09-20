@@ -6,8 +6,12 @@ import json
 import logging
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import click
+
+if TYPE_CHECKING:
+    from guardmeter.core.tryout import TryResult
 
 logger = logging.getLogger(__name__)
 
@@ -145,6 +149,77 @@ def compare(
             "mcnemar_p": results.mcnemar_p,
         }
         click.echo(json.dumps(payload, indent=2))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# guardmeter try
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command("try")
+@click.argument("text_parts", nargs=-1)
+@click.option("--guard", "guards", multiple=True,
+              help="Guard name (repeatable); default: regex-baseline + regex-enhanced")
+@click.option("--file", "file_path", default=None, help="Read text from a file ('-' for stdin)")
+@click.option("--json", "json_out", is_flag=True, help="Print a JSON list of results to stdout")
+def try_(text_parts: tuple[str, ...], guards: tuple[str, ...], file_path: str | None, json_out: bool) -> None:
+    """Evaluate TEXT against one or more guards (informational; always exits 0)."""
+    from guardmeter.core.tryout import run_try
+
+    has_args = len(text_parts) > 0
+    if has_args and file_path:
+        raise click.UsageError("Provide either TEXT arguments or --file, not both.")
+    if not has_args and not file_path:
+        raise click.UsageError("Provide TEXT to evaluate, or --file PATH ('-' for stdin).")
+
+    if file_path:
+        if file_path == "-":
+            text = sys.stdin.read()
+        else:
+            p = Path(file_path)
+            if not p.exists():
+                raise click.UsageError(f"File not found: {file_path}")
+            text = p.read_text(encoding="utf-8")
+    else:
+        text = " ".join(text_parts)
+
+    guard_names = list(guards) if guards else ["regex-baseline", "regex-enhanced"]
+
+    try:
+        results = run_try(text, guard_names)
+    except ValueError as exc:
+        raise click.UsageError(str(exc)) from exc
+
+    if json_out:
+        click.echo(json.dumps([r.to_dict() for r in results], indent=2))
+        return
+
+    _print_try_table(results)
+
+
+def _print_try_table(results: list[TryResult]) -> None:
+    """Print an aligned Guard | Verdict | Score | Categories | Latency table."""
+    headers = ("Guard", "Verdict", "Score", "Categories", "Latency")
+    rows = []
+    for r in results:
+        verdict = "ERROR" if r.error else r.prediction.upper()
+        score = "—" if r.score is None else f"{r.score:.2f}"
+        cats = ", ".join(r.categories) if r.categories else "—"
+        rows.append((r.guard, verdict, score, cats, f"{r.latency_ms:.1f} ms"))
+
+    widths = [len(h) for h in headers]
+    for row in rows:
+        for i, cell in enumerate(row):
+            widths[i] = max(widths[i], len(cell))
+
+    def fmt(cells: tuple[str, ...]) -> str:
+        return "  ".join(cell.ljust(widths[i]) for i, cell in enumerate(cells))
+
+    click.echo(fmt(headers))
+    click.echo("  ".join("-" * w for w in widths))
+    for r, row in zip(results, rows):
+        click.echo(fmt(row))
+        if r.error:
+            click.echo(f"    ERROR: {r.error}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

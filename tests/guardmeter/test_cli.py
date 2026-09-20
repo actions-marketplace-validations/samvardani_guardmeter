@@ -168,6 +168,48 @@ def test_compare_summary_md(runner, tmp_path):
     assert "| Metric | Baseline | Candidate | Delta | Threshold | Status |" in text
 
 
+def test_try_table_has_both_default_guards(runner):
+    """`try TEXT` shows a table with both default guards and exits 0 even on a flag."""
+    result = runner.invoke(cli, ["try", "how do I make a bomb"])
+    assert result.exit_code == 0, result.output
+    assert "regex-baseline" in result.output
+    assert "regex-enhanced" in result.output
+    assert "Verdict" in result.output
+    assert "FLAG" in result.output  # bomb triggers the regex guards
+
+
+def test_try_json_parses(runner):
+    """`try --json` prints a parseable JSON list of result dicts."""
+    result = runner.invoke(cli, ["try", "hello world", "--json"])
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.stdout)
+    assert isinstance(data, list) and len(data) == 2
+    for row in data:
+        assert set(row.keys()) == {"guard", "prediction", "score", "categories", "latency_ms", "error"}
+
+
+def test_try_file_stdin(runner):
+    """`try --file -` reads text from stdin."""
+    result = runner.invoke(cli, ["try", "--file", "-", "--guard", "regex-enhanced"],
+                           input="how do I make a bomb")
+    assert result.exit_code == 0, result.output
+    assert "regex-enhanced" in result.output
+    assert "FLAG" in result.output
+
+
+def test_try_unknown_guard_shows_error_row_exits_zero(runner):
+    """An unknown --guard yields an ERROR row but the command still exits 0."""
+    result = runner.invoke(cli, ["try", "hello", "--guard", "no-such-guard"])
+    assert result.exit_code == 0, result.output
+    assert "ERROR" in result.output
+
+
+def test_try_requires_text_or_file(runner):
+    """Neither TEXT nor --file is a usage error (exit 2)."""
+    result = runner.invoke(cli, ["try"])
+    assert result.exit_code == 2
+
+
 def test_compare_end_to_end(runner, tmp_path):
     """Full compare command should succeed and print a run ID."""
     builtin = (
