@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.8.0] - 2026-09-20
+### Added
+- **`hijack_rate` metric**: the fraction of samples a guard failed to produce a
+  structured verdict for (was hijacked into replying in prose). Computed overall
+  and per slice; surfaced in `compare` (text + `--json`), the HTML report cards,
+  and the dashboard run KPIs.
+- **`max_hijack_rate`** optional gate threshold (global and per-slice).
+- **`--concurrency`** on `guardmeter compare`: guard calls run in a thread pool
+  (default 4 when either guard is remote/LLM, else 1) with results kept in input
+  order. Rate-limit errors retry with exponential backoff (up to 3×).
+### Changed
+- **LLM adapters fail closed by default (behaviour change).** The `anthropic`
+  adapter now forces a structured verdict via tool use (was prose JSON, which
+  the agentic dataset hijacked into silent passes); the `openai` adapter is now a
+  chat classifier with function calling (was the Moderation API). Both frame the
+  sample as untrusted data in `<sample_to_classify>` tags, and a missing/
+  unparseable verdict becomes `flag` (marked `hijacked`) instead of `pass`. A
+  constructor flag `on_parse_failure="pass"` restores raw-model measurement. API
+  errors propagate to the evaluator's retry/fail-closed handling rather than
+  being swallowed as a pass; a missing API key raises a clear error.
+
 ## [0.7.1] - 2026-09-20
 ### Fixed
 - `guardmeter dataset fetch agentic-v1` now also downloads `gate.agentic.json`
