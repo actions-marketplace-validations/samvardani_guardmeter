@@ -220,6 +220,7 @@
     let trendsBuilt = false;
 
     /* ── helpers ── */
+    function esc(s){return String(s).replace(/[&<>"']/g,function(c){return ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c];});}
     function fmt(v, dec) {
       dec = dec !== undefined ? dec : 4;
       if (v === null || v === undefined) return '—';
@@ -285,10 +286,10 @@
         tr.style.cursor = 'pointer';
         tr.style.borderBottom = '1px solid #1e293b';
         tr.innerHTML =
-          '<td class="px-3 py-2 font-mono text-xs text-slate-300">' + r.run_id.slice(0,8) + '</td>' +
-          '<td class="px-3 py-2 text-slate-400 text-xs whitespace-nowrap">' + r.date + '</td>' +
-          '<td class="px-3 py-2 text-slate-300 text-xs">' + r.baseline_name + '</td>' +
-          '<td class="px-3 py-2 text-slate-300 text-xs">' + r.candidate_name + '</td>' +
+          '<td class="px-3 py-2 font-mono text-xs text-slate-300">' + esc(r.run_id.slice(0,8)) + '</td>' +
+          '<td class="px-3 py-2 text-slate-400 text-xs whitespace-nowrap">' + esc(r.date) + '</td>' +
+          '<td class="px-3 py-2 text-slate-300 text-xs">' + esc(r.baseline_name) + '</td>' +
+          '<td class="px-3 py-2 text-slate-300 text-xs">' + esc(r.candidate_name) + '</td>' +
           '<td class="px-3 py-2 text-right font-mono text-xs">' + fmt(c.f1) + '</td>' +
           '<td class="px-3 py-2 text-right font-mono text-xs">' + fmt(c.recall) + '</td>' +
           '<td class="px-3 py-2 text-right font-mono text-xs">' + fmt(c.fpr) + '</td>' +
@@ -365,8 +366,8 @@
           var rCls = s.recall < 0.55 ? 'fail-cell' : 'pass-cell';
           var fCls = s.fpr > 0.05   ? 'fail-cell' : 'pass-cell';
           return '<tr style="border-bottom:1px solid #0f172a">' +
-            '<td class="px-3 py-1.5">' + s.category + '</td>' +
-            '<td class="px-3 py-1.5">' + s.language + '</td>' +
+            '<td class="px-3 py-1.5">' + esc(s.category) + '</td>' +
+            '<td class="px-3 py-1.5">' + esc(s.language) + '</td>' +
             '<td class="px-3 py-1.5 text-right">' + s.n + '</td>' +
             '<td class="px-3 py-1.5 text-right font-mono ' + rCls + '">' + fmt(s.recall) + '</td>' +
             '<td class="px-3 py-1.5 text-right font-mono ' + fCls + '">' + fmt(s.fpr) + '</td>' +
@@ -378,10 +379,10 @@
       var samples = run.sample_results || [];
       document.getElementById('samples-tbody').innerHTML = samples.map(function(s) {
         return '<tr style="border-bottom:1px solid #0f172a">' +
-          '<td class="px-3 py-1 text-slate-300 max-w-xs">' + trunc(s.text) + '</td>' +
-          '<td class="px-3 py-1 font-mono" style="' + labelClass(s.label) + '">' + s.label + '</td>' +
-          '<td class="px-3 py-1 text-slate-400">' + s.category + '</td>' +
-          '<td class="px-3 py-1 text-slate-400">' + s.language + '</td>' +
+          '<td class="px-3 py-1 text-slate-300 max-w-xs">' + esc(trunc(s.text)) + '</td>' +
+          '<td class="px-3 py-1 font-mono" style="' + labelClass(s.label) + '">' + esc(s.label) + '</td>' +
+          '<td class="px-3 py-1 text-slate-400">' + esc(s.category) + '</td>' +
+          '<td class="px-3 py-1 text-slate-400">' + esc(s.language) + '</td>' +
           '<td class="px-3 py-1">' + predBadge(s.baseline_pred) + '</td>' +
           '<td class="px-3 py-1">' + predBadge(s.candidate_pred) + '</td>' +
           '</tr>';
@@ -465,7 +466,7 @@
         return;
       }
       RUNS.forEach(function(r) {
-        var opt = '<option value="' + r.run_id + '">' + r.run_id.slice(0,8) + '  ·  ' + r.date + '</option>';
+        var opt = '<option value="' + esc(r.run_id) + '">' + esc(r.run_id.slice(0,8)) + '  ·  ' + esc(r.date) + '</option>';
         a.innerHTML += opt;
         b.innerHTML += opt;
       });
@@ -521,8 +522,8 @@
         '<table class="w-full text-sm border-collapse">' +
         '<thead><tr>' +
           '<th class="text-left px-3 py-2 text-xs">Metric</th>' +
-          '<th class="text-right px-3 py-2 text-xs">Run A (' + aId.slice(0,8) + ')</th>' +
-          '<th class="text-right px-3 py-2 text-xs">Run B (' + bId.slice(0,8) + ')</th>' +
+          '<th class="text-right px-3 py-2 text-xs">Run A (' + esc(aId.slice(0,8)) + ')</th>' +
+          '<th class="text-right px-3 py-2 text-xs">Run B (' + esc(bId.slice(0,8)) + ')</th>' +
           '<th class="text-right px-3 py-2 text-xs">Delta (B − A)</th>' +
         '</tr></thead>' +
         '<tbody>' + rows + '</tbody>' +

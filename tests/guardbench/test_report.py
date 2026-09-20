@@ -66,6 +66,19 @@ def test_report_latency_arrays_match_sample_count(sample_records, regex_enhanced
     assert len(cand) == n
 
 
+def test_report_escapes_xss_in_candidate_name(sample_records, regex_enhanced, tmp_path):
+    """A malicious guard name must be HTML-escaped, not rendered as live markup."""
+    payload = "<img src=x onerror=alert(1)>"
+    ev = Evaluator(regex_enhanced, regex_enhanced, sample_records, EvalConfig())
+    results = ev.run()
+    results.candidate_name = payload
+    out = tmp_path / "index.html"
+    ReportGenerator(results).build(out)
+    content = out.read_text(encoding="utf-8")
+    assert "&lt;img" in content
+    assert "<img" not in content
+
+
 def test_report_auto_names_output(sample_records, regex_enhanced, tmp_path):
     """When output_path is None, report is written to report/index.html."""
     import os

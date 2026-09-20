@@ -8,7 +8,7 @@ import logging
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
-from jinja2 import Environment, PackageLoader
+from jinja2 import Environment, PackageLoader, select_autoescape
 
 from guardbench import __version__
 from guardbench.engine.metrics import MetricsBundle
@@ -17,6 +17,30 @@ from guardbench.report.charts import threshold_sweep_data
 from guardbench.store.base import RunStore
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_json(obj: Any) -> str:
+    """Serialise to JSON safe for embedding in an inline <script> block.
+
+    Unicode-escapes ``<``, ``>`` and ``&`` so no string value can terminate the
+    script element (``</script>``) or otherwise inject raw markup into the page.
+    JSON.parse restores the original characters at runtime, and the dashboard
+    still HTML-escapes them via esc() before writing to innerHTML.
+    """
+    return (
+        json.dumps(obj)
+        .replace("&", "\\u0026")
+        .replace("<", "\\u003c")
+        .replace(">", "\\u003e")
+    )
+
+
+def _make_env() -> Environment:
+    """Jinja2 environment with HTML autoescaping enabled for report templates."""
+    return Environment(
+        loader=PackageLoader("guardbench.report", "templates"),
+        autoescape=select_autoescape(["html"]),
+    )
 
 _DEFAULT_GATE = {
     "global_thresholds": {"min_recall": 0.55, "max_fpr": 0.05}
@@ -78,7 +102,7 @@ class ReportGenerator:
         output_path = Path(output_path)
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
-        env = Environment(loader=PackageLoader("guardbench.report", "templates"))
+        env = _make_env()
         template = env.get_template("report.html")
 
         results = self.results
@@ -126,10 +150,10 @@ class ReportGenerator:
             strict_cand_slices=strict_cand_slices,
             sample_results=results.sample_results[:200],  # cap at 200 for performance
             has_judge=has_judge,
-            base_latencies_json=json.dumps(base_latencies),
-            cand_latencies_json=json.dumps(cand_latencies),
+            base_latencies_json=_safe_json(base_latencies),
+            cand_latencies_json=_safe_json(cand_latencies),
             sweep_data=bool(sweep),
-            sweep_data_json=json.dumps(sweep),
+            sweep_data_json=_safe_json(sweep),
         )
 
         output_path.write_text(html, encoding="utf-8")
@@ -164,10 +188,10 @@ class DashboardGenerator:
             except Exception as exc:
                 logger.warning("Dashboard: failed to load run %s: %s", run_id, exc)
 
-        env = Environment(loader=PackageLoader("guardbench.report", "templates"))
+        env = _make_env()
         template = env.get_template("dashboard.html")
         html = template.render(
-            runs_json=json.dumps(runs_data),
+            runs_json=_safe_json(runs_data),
             generated_at=datetime.datetime.now(datetime.timezone.utc).strftime(
                 "%Y-%m-%d %H:%M UTC"
             ),

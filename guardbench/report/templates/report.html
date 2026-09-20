@@ -189,7 +189,7 @@
       <tr><th>Text</th><th>Label</th><th>Category</th><th>Lang</th><th>Baseline</th><th>Candidate</th>{% if has_judge %}<th>Judge</th>{% endif %}</tr>
       {% for s in sample_results %}
       <tr>
-        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.text|e }}</td>
+        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.text }}</td>
         <td>{{ s.label }}</td>
         <td>{{ s.category }}</td>
         <td>{{ s.language }}</td>
@@ -234,9 +234,9 @@
 </div>
 
 <script>
-const baseLatencies = {{ base_latencies_json }};
-const candLatencies = {{ cand_latencies_json }};
-const sweepData = {{ sweep_data_json }};
+const baseLatencies = {{ base_latencies_json | safe }};
+const candLatencies = {{ cand_latencies_json | safe }};
+const sweepData = {{ sweep_data_json | safe }};
 
 function latencyBuckets(lats) {
   if (!lats.length) return {labels:[], data:[]};

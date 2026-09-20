@@ -97,6 +97,25 @@ class TestDashboardSingleRun:
         assert "sea-guard Dashboard" in content
 
 
+    def test_escapes_xss_in_candidate_name(self, sample_records, regex_enhanced, tmp_path):
+        """A malicious guard name must never appear as live markup in the output."""
+        payload = "<img src=x onerror=alert(1)>"
+        store = _make_store(tmp_path)
+        results = _run_eval(sample_records, regex_enhanced)
+        results.candidate_name = payload
+        store.save_run(results)
+
+        gen = DashboardGenerator(store)
+        out = tmp_path / "dash.html"
+        gen.build(out)
+        content = out.read_text(encoding="utf-8")
+        # Embedded JSON unicode-escapes '<', so no raw active markup is emitted.
+        assert "<img" not in content
+        # The esc() helper exists and is applied to guard names before innerHTML.
+        assert "function esc(" in content
+        assert "esc(r.candidate_name)" in content
+
+
 class TestDashboardMultipleRuns:
     def test_contains_all_run_ids(self, sample_records, regex_enhanced, tmp_path):
         store = _make_store(tmp_path)
