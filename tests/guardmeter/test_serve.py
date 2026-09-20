@@ -98,6 +98,38 @@ def test_dashboard_route(base_url):
     assert "Overview" in body  # the dashboard's Overview tab
 
 
+def test_static_css_served(base_url):
+    status, headers, body = _get(base_url + "/static/styles.css")
+    assert status == 200
+    assert headers["Content-Type"].startswith("text/css")
+    assert "--accent" in body  # design tokens present
+
+
+def test_static_js_module_served(base_url):
+    status, headers, _ = _get(base_url + "/static/theme.js")
+    assert status == 200
+    assert "javascript" in headers["Content-Type"]
+
+
+def test_read_static_rejects_traversal():
+    from guardmeter.serve.server import read_static
+    assert read_static("../server.py") is None
+    assert read_static("/etc/passwd") is None
+    assert read_static("styles.css") is not None
+
+
+def test_styleguide_route(base_url):
+    status, _, body = _get(base_url + "/styleguide")
+    assert status == 200
+    assert "Style Guide" in body
+
+
+def test_chart_js_served_via_fallback(base_url):
+    status, headers, _ = _get(base_url + "/static/chart.umd.min.js")
+    assert status == 200
+    assert "javascript" in headers["Content-Type"]
+
+
 def test_csp_header_value(base_url):
     _, headers, _ = _get(base_url + "/")
     assert headers["Content-Security-Policy"] == (

@@ -52,6 +52,42 @@ def _playground_html() -> str:
     ).read_text(encoding="utf-8")
 
 
+_STATIC_TYPES = {
+    ".css": "text/css; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".html": "text/html; charset=utf-8",
+    ".json": "application/json",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".txt": "text/plain; charset=utf-8",
+    ".map": "application/json",
+}
+
+
+def _static_dir() -> Path:
+    return Path(str(importlib.resources.files("guardmeter.serve"))) / "static"
+
+
+def read_static(name: str) -> tuple[bytes, str] | None:
+    """Return (bytes, content_type) for a file under serve/static, or None.
+
+    Rejects path traversal. chart.umd.min.js falls back to the copy already
+    vendored under report/static so it isn't duplicated.
+    """
+    if not name or name.startswith("/") or ".." in name.split("/"):
+        return None
+    base = _static_dir().resolve()
+    target = (base / name).resolve()
+    ctype = _STATIC_TYPES.get(target.suffix, "application/octet-stream")
+    if (target == base or base in target.parents) and target.is_file():
+        return target.read_bytes(), ctype
+    if name == "chart.umd.min.js":
+        alt = Path(str(importlib.resources.files("guardmeter.report"))) / "static" / name
+        if alt.is_file():
+            return alt.read_bytes(), _STATIC_TYPES[".js"]
+    return None
+
+
 def _render_dashboard() -> str:
     """Rebuild the dashboard from the default store and return its HTML."""
     from guardmeter.report.generator import DashboardGenerator
@@ -142,6 +178,18 @@ class PlaygroundHandler(http.server.BaseHTTPRequestHandler):
             self._send_html(200, _playground_html())
         elif path == "/dashboard":
             self._send_html(200, _render_dashboard())
+        elif path == "/styleguide":
+            found = read_static("styleguide.html")
+            if found:
+                self._send_html(200, found[0].decode("utf-8"))
+            else:
+                self._send_json(404, {"error": "not found"})
+        elif path.startswith("/static/"):
+            found = read_static(path[len("/static/"):])
+            if found:
+                self._send(200, found[0], found[1])
+            else:
+                self._send_json(404, {"error": "not found"})
         elif path == "/api/guards":
             from guardmeter.core.registry import list_guards
             self._send_json(200, {"guards": list_guards(), "default": self._default_guards()})

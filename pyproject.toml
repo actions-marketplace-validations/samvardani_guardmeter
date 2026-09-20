@@ -59,7 +59,7 @@ include = ["guardmeter*"]
 [tool.setuptools.package-data]
 "guardmeter.report.templates" = ["*.html"]
 "guardmeter.report" = ["static/*.js", "static/*.txt"]
-"guardmeter.serve" = ["templates/*.html"]
+"guardmeter.serve" = ["templates/*.html", "static/*", "static/**"]
 "guardmeter.data.builtin" = ["*.csv", "*.jsonl"]
 
 [tool.pytest.ini_options]

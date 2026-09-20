@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <title>GuardMeter · Style Guide</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="30" height="30" aria-hidden="true">
+        <path d="M60 8 L100 24 L100 62 Q100 90 60 112 Q20 90 20 62 L20 24 Z" fill="#0f2744" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round"/>
+        <polyline points="44,60 56,72 76,48" fill="none" stroke="#22d3ee" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="wm"><span style="color:var(--text)">Guard</span><span style="color:var(--accent)">Meter</span> <span class="muted" style="font-weight:500">Style Guide</span></span>
+    </div>
+    <button class="btn secondary" id="theme-btn" aria-label="Toggle colour theme">Toggle theme</button>
+  </header>
+
+  <main class="container" style="padding-top:24px;padding-bottom:48px">
+    <h2>Buttons</h2>
+    <div class="row wrap center">
+      <button class="btn primary">Primary</button>
+      <button class="btn secondary">Secondary</button>
+      <button class="btn ghost">Ghost</button>
+      <button class="btn danger">Danger</button>
+      <button class="btn" disabled>Disabled</button>
+    </div>
+
+    <h2 style="margin-top:32px">Inputs</h2>
+    <div class="grid" style="grid-template-columns:1fr 1fr;max-width:640px">
+      <input class="input" placeholder="Text input">
+      <select class="select"><option>Select…</option><option>regex-enhanced</option></select>
+      <label class="check"><input type="checkbox" checked> Checkbox</label>
+      <input type="range" min="0" max="1" step="0.01" value="0.55" aria-label="Threshold">
+    </div>
+
+    <h2 style="margin-top:32px">Chips</h2>
+    <div class="row wrap center">
+      <span class="chip ok">✓ PASS</span>
+      <span class="chip danger">✗ FAIL</span>
+      <span class="chip warn">warn</span>
+      <span class="chip neutral">neutral</span>
+    </div>
+
+    <h2 style="margin-top:32px">KPI cards</h2>
+    <div class="grid" style="grid-template-columns:repeat(3,1fr)">
+      <div class="card kpi"><span class="label">Candidate F1</span><span class="value">0.8535</span><span class="delta up">▲ +0.01</span></div>
+      <div class="card kpi"><span class="label">Recall</span><span class="value">0.7444</span><span class="delta down">▼ -0.02</span></div>
+      <div class="card kpi"><span class="label">FPR</span><span class="value">0.0000</span><span class="muted">—</span></div>
+    </div>
+
+    <h2 style="margin-top:32px">Table</h2>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th class="sortable" aria-sort="descending">Run</th><th>Candidate</th><th>F1</th><th>Gate</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">9df3f5ef</td><td>regex-enhanced</td><td class="mono">0.8535</td><td><span class="chip ok">PASS</span></td></tr>
+          <tr><td class="mono">4e15e745</td><td>regex-baseline</td><td class="mono">0.5827</td><td><span class="chip danger">FAIL</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2 style="margin-top:32px">Tabs</h2>
+    <div class="tabs">
+      <button class="active">Overview</button><button>Run</button><button>Gate</button>
+    </div>
+
+    <h2 style="margin-top:32px">Empty state / Skeleton / Tooltip</h2>
+    <div class="grid" style="grid-template-columns:1fr 1fr">
+      <div class="card empty">No runs yet — run <code>guardmeter compare</code>.</div>
+      <div class="card"><div class="skeleton" style="width:70%"></div><div class="skeleton" style="width:40%;margin-top:8px"></div></div>
+    </div>
+    <p style="margin-top:16px"><span class="tooltip" data-tip="This is a tooltip">Hover me</span></p>
+
+    <h2 style="margin-top:32px">Toast (static)</h2>
+    <div class="toast ok" style="max-width:280px">Saved gate.json</div>
+  </main>
+
+  <script type="module">
+    import { initTheme, toggleTheme } from "/static/theme.js";
+    initTheme();
+    document.getElementById("theme-btn").addEventListener("click", toggleTheme);
+  </script>
+</body>
+</html>
