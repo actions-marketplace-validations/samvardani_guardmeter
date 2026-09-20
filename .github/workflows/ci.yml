@@ -7,13 +7,17 @@ on:
     branches: [main]
 
 jobs:
-  guardmeter:
+  test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
       - name: Install guardmeter
         run: pip install -e ".[dev]"
       - name: Lint (ruff)
@@ -21,7 +25,17 @@ jobs:
       - name: Type check (mypy)
         run: mypy guardmeter
       - name: Run tests
-        run: pytest tests/guardmeter/ --cov=guardmeter -q
+        run: pytest tests/guardmeter/ --cov=guardmeter --cov-fail-under=80 -q
+
+  demo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install guardmeter
+        run: pip install -e ".[dev]"
       - name: Compare guards
         run: guardmeter compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
       - name: Generate report
