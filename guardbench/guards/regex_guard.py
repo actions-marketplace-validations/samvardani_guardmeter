@@ -191,5 +191,26 @@ class RegexGuard(Guard):
         )
 
 
-# Self-register so `get_guard("regex")` works after importing this module
+class RegexBaselineGuard(RegexGuard):
+    """RegexGuard pinned to the 'baseline' profile (thin wrapper for the registry)."""
+
+    name = "regex-baseline"
+
+    def __init__(self, threshold: Optional[float] = None) -> None:
+        super().__init__("baseline", threshold)
+
+
+class RegexEnhancedGuard(RegexGuard):
+    """RegexGuard pinned to the 'enhanced' profile (thin wrapper for the registry)."""
+
+    name = "regex-enhanced"
+
+    def __init__(self, threshold: Optional[float] = None) -> None:
+        super().__init__("enhanced", threshold)
+
+
+# Self-register so `get_guard("regex")` works after importing this module.
+# "regex" stays as an alias of the enhanced profile for backward compatibility.
 register("regex", RegexGuard)
+register("regex-baseline", RegexBaselineGuard)
+register("regex-enhanced", RegexEnhancedGuard)

@@ -19,6 +19,23 @@ def _get_store(store_path: Optional[str] = None):
     return SQLiteStore(db_path=store_path)
 
 
+def _import_builtin_guards() -> None:
+    """Import all built-in guard modules so they self-register by name.
+
+    Optional adapters (openai, llamaguard) raise ImportError lazily in their
+    constructors, not at import, so importing the modules is safe; we wrap in a
+    try/except anyway in case a module-level dependency is ever added.
+    """
+    import importlib
+
+    import guardbench.guards.regex_guard  # noqa: F401
+    for mod in ("openai_moderation", "llamaguard"):
+        try:
+            importlib.import_module(f"guardbench.guards.{mod}")
+        except ImportError:
+            pass  # optional dependency not installed
+
+
 def _load_gate_config(config_path: str):
     """Load a GateConfig from a JSON file.
 
@@ -87,7 +104,7 @@ def compare(
     from guardbench.engine.evaluator import EvalConfig, Evaluator
 
     # Import built-in guards to trigger self-registration
-    import guardbench.guards.regex_guard  # noqa: F401
+    _import_builtin_guards()
 
     click.echo(f"Loading dataset: {dataset}")
     records = load_dataset(dataset)
@@ -424,8 +441,8 @@ def init() -> None:
 def _resolve_guard(name: str):
     """Resolve a guard by registry name or dotted class path."""
     # Import built-in guards first
-    import guardbench.guards.regex_guard  # noqa: F401
-    from guardbench.core.registry import get_guard, list_guards
+    _import_builtin_guards()
+    from guardbench.core.registry import get_guard
 
     if "." in name:
         # Dotted module path: e.g. mypackage.guards.MyGuard

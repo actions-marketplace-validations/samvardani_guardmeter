@@ -35,7 +35,7 @@ Dataset → [Baseline Guard] ─┐
 
 ```bash
 pip install sea-guard
-guardbench compare --baseline regex --candidate openai --dataset dataset/sample.csv
+guardbench compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
 guardbench report --run latest --open
 guardbench gate --config gate.json   # exits 1 if safety regresses
 ```
@@ -90,8 +90,8 @@ pip install sea-guard
 cd your-project
 guardbench init                    # creates config.yaml, gate.json, sample dataset
 guardbench compare \
-  --baseline regex \
-  --candidate openai \
+  --baseline regex-baseline \
+  --candidate regex-enhanced \
   --dataset dataset/sample.csv
 guardbench report --run latest --open
 guardbench gate --config gate.json
@@ -154,7 +154,7 @@ register("my-guard", MyGuard)
 
 Then run:
 ```bash
-guardbench compare --baseline regex --candidate my-guard --dataset data.csv
+guardbench compare --baseline regex-baseline --candidate my-guard --dataset data.csv
 ```
 
 ---
@@ -168,7 +168,7 @@ Add to your GitHub Actions workflow:
   run: pip install sea-guard
 
 - name: Run safety evaluation
-  run: guardbench compare --baseline regex --candidate ${{ env.CANDIDATE_GUARD }} --dataset dataset/eval.csv
+  run: guardbench compare --baseline regex-baseline --candidate ${{ env.CANDIDATE_GUARD }} --dataset dataset/eval.csv
 
 - name: Build report
   run: guardbench report --run latest
@@ -233,11 +233,15 @@ guardbench/
 
 ## Supported Guards
 
-| Guard | Install | Notes |
-|-------|---------|-------|
-| `regex` | built-in | Rule-based, fast, Farsi support, leetspeak normalization |
-| `openai` | `pip install sea-guard[llm]` | OpenAI Moderation API |
-| `llamaguard` | `pip install sea-guard[hf]` | Llama Guard 3 via HuggingFace or API endpoint |
+### Built-in guards
+
+| Name | Requirements | Notes |
+|------|--------------|-------|
+| `regex-baseline` | built-in | Simple keyword-matching profile — the weak baseline to compare against |
+| `regex-enhanced` | built-in | Expanded patterns, obfuscation detection, Farsi coverage, slice thresholds |
+| `regex` | built-in | Alias of `regex-enhanced` (kept for backward compatibility) |
+| `openai` | `pip install sea-guard[llm]` + `OPENAI_API_KEY` | OpenAI Moderation API |
+| `llamaguard` | HuggingFace `transformers` or an HTTP endpoint | Llama Guard 3 (local pipeline or Groq/Fireworks/Together/OpenAI-compatible API) |
 | Custom | built-in | Subclass `Guard`, register, use immediately |
 
 ---

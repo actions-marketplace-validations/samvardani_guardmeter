@@ -95,3 +95,33 @@ def test_registry_contains_regex():
     from guardbench.core.registry import list_guards
     import guardbench.guards.regex_guard  # noqa: F401
     assert "regex" in list_guards()
+
+
+def test_regex_baseline_resolves_to_baseline_profile():
+    """get_guard('regex-baseline') must instantiate the baseline profile."""
+    from guardbench.core.registry import get_guard
+    import guardbench.guards.regex_guard  # noqa: F401
+    assert get_guard("regex-baseline").profile == "baseline"
+
+
+def test_regex_enhanced_resolves_to_enhanced_profile():
+    """get_guard('regex-enhanced') must instantiate the enhanced profile."""
+    from guardbench.core.registry import get_guard
+    import guardbench.guards.regex_guard  # noqa: F401
+    assert get_guard("regex-enhanced").profile == "enhanced"
+
+
+def test_regex_alias_resolves_to_enhanced_profile():
+    """'regex' stays an alias of the enhanced profile for backward compatibility."""
+    from guardbench.core.registry import get_guard
+    import guardbench.guards.regex_guard  # noqa: F401
+    assert get_guard("regex").profile == "enhanced"
+
+
+def test_builtin_guards_import_registers_optional_adapters():
+    """After _import_builtin_guards(), the optional 'openai' adapter resolves by name."""
+    pytest.importorskip("openai")
+    from guardbench.cli.main import _import_builtin_guards
+    from guardbench.core.registry import list_guards
+    _import_builtin_guards()
+    assert "openai" in list_guards()

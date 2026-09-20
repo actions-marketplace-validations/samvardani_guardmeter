@@ -19,8 +19,10 @@ jobs:
       - name: Run tests
         run: pytest tests/guardbench/ --cov=guardbench -q
       - name: Compare guards
-        run: guardbench compare --baseline regex --candidate regex --dataset dataset/sample.csv
+        run: guardbench compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
       - name: Generate report
         run: guardbench report --run latest
+      - name: Build dashboard
+        run: guardbench dashboard --no-open
       - name: Run CI gate
         run: guardbench gate --config gate.json --run latest
