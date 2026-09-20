@@ -1,27 +1,27 @@
-<p align="center"><img src="https://raw.githubusercontent.com/samvardani/GuardBench/main/branding/guardbench-wordmark.svg" alt="GuardBench" width="440"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/samvardani/guardmeter/main/branding/guardmeter-wordmark.svg" alt="GuardMeter" width="440"/></p>
 
-<p align="center"><img src="https://raw.githubusercontent.com/samvardani/GuardBench/main/docs/images/dashboard.png" alt="GuardBench dashboard" width="800"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/samvardani/guardmeter/main/docs/images/dashboard.png" alt="GuardMeter dashboard" width="800"/></p>
 
-# sea-guard — AI Safety Guard Evaluation Framework
+# GuardMeter — AI Safety Guard Evaluation Framework
 
-[![CI](https://github.com/samvardani/GuardBench/actions/workflows/guardbench-eval.yml/badge.svg)](https://github.com/samvardani/GuardBench/actions)
-[![PyPI](https://img.shields.io/pypi/v/sea-guard)](https://pypi.org/project/sea-guard/)
+[![CI](https://github.com/samvardani/guardmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/samvardani/guardmeter/actions)
+[![PyPI](https://img.shields.io/pypi/v/guardmeter)](https://pypi.org/project/guardmeter/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-sea-guard compares two content-safety guards — a **baseline** and a **candidate** — on a labeled dataset and produces per-slice metrics, an HTML report, an interactive dashboard, and a pass/fail CI gate. It's for developers and ML engineers who ship a safety classifier and need to catch regressions — per category, language, and attack type — before they merge.
+GuardMeter compares two content-safety guards — a **baseline** and a **candidate** — on a labeled dataset and produces per-slice metrics, an HTML report, an interactive dashboard, and a pass/fail CI gate. It's for developers and ML engineers who ship a safety classifier and need to catch regressions — per category, language, and attack type — before they merge.
 
 ---
 
 ## 30-second demo
 
-On a fresh `pip install sea-guard`, these commands run verbatim:
+On a fresh `pip install guardmeter`, these commands run verbatim:
 
 ```bash
-guardbench init
-guardbench compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
-guardbench gate --config gate.json --run latest
-guardbench dashboard --open
+guardmeter init
+guardmeter compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
+guardmeter gate --config gate.json --run latest
+guardmeter dashboard --open
 ```
 
 `init` writes `gate.json` and `dataset/sample.csv` into the current directory. `compare` evaluates both guards and stores the run. `gate` checks the latest run against `gate.json` and exits non-zero on failure. `dashboard` builds `report/dashboard.html` (`--open` launches your browser; omit it or pass `--no-open` in CI).
@@ -30,11 +30,11 @@ guardbench dashboard --open
 
 ## How it works
 
-**Baseline vs candidate.** You give sea-guard two guards. The baseline is your current behavior; the candidate is the change you're evaluating. Every metric is reported for both so you can see whether the candidate actually improved things.
+**Baseline vs candidate.** You give GuardMeter two guards. The baseline is your current behavior; the candidate is the change you're evaluating. Every metric is reported for both so you can see whether the candidate actually improved things.
 
 **Strict vs lenient policy.** Each dataset row is labeled `benign`, `borderline`, or `unsafe`. Under the **strict** policy a `borderline` row counts as something the guard *should* flag (positive); under the **lenient** policy `borderline` counts as benign (negative). Both policies are always computed; the dashboard has a toggle, and the gate/McNemar test use strict by default.
 
-**Slices.** Aggregate numbers hide regressions. sea-guard computes recall, FPR, precision, F1 and latency for every `(category × language)` slice, and separately for every `attack_type` slice, so a drop confined to (say) Farsi violence or leetspeak-obfuscated prompts is visible.
+**Slices.** Aggregate numbers hide regressions. GuardMeter computes recall, FPR, precision, F1 and latency for every `(category × language)` slice, and separately for every `attack_type` slice, so a drop confined to (say) Farsi violence or leetspeak-obfuscated prompts is visible.
 
 **Significance and confidence.** A McNemar test on the paired predictions tells you whether the baseline↔candidate difference is real or noise. Recall and FPR come with Wilson score confidence intervals so small slices aren't over-interpreted.
 
@@ -42,7 +42,7 @@ guardbench dashboard --open
 
 ## CI gate
 
-`gate.json` is a machine-readable safety policy you check into version control. `guardbench gate` loads a stored run and fails the build if any threshold is breached.
+`gate.json` is a machine-readable safety policy you check into version control. `guardmeter gate` loads a stored run and fails the build if any threshold is breached.
 
 ```json
 {
@@ -79,14 +79,14 @@ The per-slice overrides in the shipped `gate.json` reflect the known limits of t
 GitHub Actions:
 
 ```yaml
-- name: Install sea-guard
-  run: pip install sea-guard
+- name: Install guardmeter
+  run: pip install guardmeter
 - name: Evaluate
-  run: guardbench compare --baseline regex-baseline --candidate ${{ env.CANDIDATE_GUARD }} --dataset dataset/sample.csv
+  run: guardmeter compare --baseline regex-baseline --candidate ${{ env.CANDIDATE_GUARD }} --dataset dataset/sample.csv
 - name: Report
-  run: guardbench report --run latest
+  run: guardmeter report --run latest
 - name: Safety gate
-  run: guardbench gate --config gate.json --run latest   # exits 1 on regression
+  run: guardmeter gate --config gate.json --run latest   # exits 1 on regression
 - name: Upload report
   uses: actions/upload-artifact@v4
   with:
@@ -103,14 +103,14 @@ GitHub Actions:
 | `regex-baseline` | built-in | Simple keyword-matching profile — the weak baseline to compare against |
 | `regex-enhanced` | built-in | Expanded patterns, obfuscation detection, Farsi coverage |
 | `regex` | built-in | Alias of `regex-enhanced` (kept for backward compatibility) |
-| `openai` | `pip install sea-guard[llm]` + `OPENAI_API_KEY` | OpenAI Moderation API (experimental — see below) |
+| `openai` | `pip install guardmeter[llm]` + `OPENAI_API_KEY` | OpenAI Moderation API (experimental — see below) |
 | `llamaguard` | HuggingFace `transformers` or an HTTP endpoint | Llama Guard 3, local pipeline or hosted API (experimental — see below) |
 
 ### Write your own guard
 
 ```python
-from guardbench.core.guard import Guard, GuardResult
-from guardbench.core.registry import register
+from guardmeter.core.guard import Guard, GuardResult
+from guardmeter.core.registry import register
 
 class MyGuard(Guard):
     name = "my-guard"
@@ -128,9 +128,9 @@ register("my-guard", MyGuard)  # now usable as --candidate my-guard
 
 ## Dashboard & report
 
-`guardbench report --run latest` writes an HTML report for a single run (baseline vs candidate cards with Wilson CIs, category×language and attack-type slice tables, a real candidate threshold-sweep chart, and per-sample latency charts). It also mentions an informational regulatory mapping — see the note under *Experimental*.
+`guardmeter report --run latest` writes an HTML report for a single run (baseline vs candidate cards with Wilson CIs, category×language and attack-type slice tables, a real candidate threshold-sweep chart, and per-sample latency charts). It also mentions an informational regulatory mapping — see the note under *Experimental*.
 
-`guardbench dashboard` builds an interactive multi-run dashboard (`report/dashboard.html`), also auto-rebuilt on every `report`. Four tabs:
+`guardmeter dashboard` builds an interactive multi-run dashboard (`report/dashboard.html`), also auto-rebuilt on every `report`. Four tabs:
 
 - **Overview** — run history table with F1, recall, FPR, McNemar p-value and gate badges. Click a row to drill in.
 - **Run Detail** — baseline vs candidate metric cards, category×language and attack-type slice tables, and a sample-results table (first 200 rows). Strict/Lenient toggle.
@@ -143,9 +143,9 @@ register("my-guard", MyGuard)  # now usable as --candidate my-guard
 
 These features work but require API keys or extra dependencies and have limited automated test coverage. Treat them as advisory:
 
-- **LLM-as-judge** (`guardbench/judge/`) — uses Claude or an OpenAI model as a second opinion on predictions. Available through the Python API only (no CLI subcommand); needs a provider API key.
-- **`openai` guard** — calls the OpenAI Moderation API; needs `sea-guard[llm]` and `OPENAI_API_KEY`.
-- **`llamaguard` guard** — runs Llama Guard 3 via a local `transformers` pipeline or an HTTP endpoint; needs `sea-guard[hf]` or a hosted endpoint and key.
+- **LLM-as-judge** (`guardmeter/judge/`) — uses Claude or an OpenAI model as a second opinion on predictions. Available through the Python API only (no CLI subcommand); needs a provider API key.
+- **`openai` guard** — calls the OpenAI Moderation API; needs `guardmeter[llm]` and `OPENAI_API_KEY`.
+- **`llamaguard` guard** — runs Llama Guard 3 via a local `transformers` pipeline or an HTTP endpoint; needs `guardmeter[hf]` or a hosted endpoint and key.
 - **Regulatory mapping (informational).** The HTML report includes a table mapping a run's metrics to regulatory themes (e.g. EU AI Act articles, NIST AI RMF). It is an informational aid for your own documentation, **not** a compliance certification or legal assessment.
 
 ---
@@ -156,9 +156,9 @@ These features work but require API keys or extra dependencies and have limited 
 python3.13 -m venv .venv
 source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
-ruff check guardbench tests
-mypy guardbench
-pytest tests/guardbench/ -q
+ruff check guardmeter tests
+mypy guardmeter
+pytest tests/guardmeter/ -q
 ```
 
 > **Note:** macOS users with Homebrew Python must use a virtual environment (Homebrew enforces PEP 668).
@@ -168,6 +168,8 @@ pytest tests/guardbench/ -q
 ## Not affiliated with
 
 This project is unrelated to the JRC "GuardBench" toxicity-benchmark library at [github.com/AmenRa/guardbench](https://github.com/AmenRa/guardbench). Same name, different project.
+
+Formerly published as `sea-guard` (versions 0.1–0.2, import name `guardbench`). Renamed in 0.3.0 to avoid confusion with the unrelated JRC GuardBench benchmark.
 
 ---
 
@@ -183,9 +185,9 @@ MIT — see [LICENSE](LICENSE).
 
 Logo assets are in the `branding/` directory.
 
-- `guardbench-logo.svg` — shield mark (favicon, PyPI, GitHub avatar)
-- `guardbench-wordmark.svg` — full lockup with tagline
-- `guardbench-social-card.svg` — 1280×640 OG image for GitHub social preview
+- `guardmeter-logo.svg` — shield mark (favicon, PyPI, GitHub avatar)
+- `guardmeter-wordmark.svg` — full lockup with tagline
+- `guardmeter-social-card.svg` — 1280×640 OG image for GitHub social preview
 
 ---
 

@@ -1,12 +1,12 @@
-# GuardBench — Claude Code Project Memory
+# GuardMeter — Claude Code Project Memory
 
 ## What this project is
 AI safety guard evaluation framework. Compares a baseline guard vs a candidate guard
 on labeled datasets. Outputs per-slice metrics, HTML report, and CI gate (pass/fail).
 
 ## Package being built
-- Source of truth: `guardbench/` package (refactored from `src/`)
-- CLI entry point: `guardbench` (via click)
+- Source of truth: `guardmeter/` package (refactored from `src/`)
+- CLI entry point: `guardmeter` (via click)
 - Install: `pip install -e ".[dev]"`
 
 ## Key architectural decisions
@@ -21,7 +21,7 @@ on labeled datasets. Outputs per-slice metrics, HTML report, and CI gate (pass/f
 - src/runner/run_compare.py → Evaluator class
 - src/report/build_report.py → ReportGenerator class
 - src/runner/ci_gate.py → GateChecker class
-- templates/report.html → guardbench/report/templates/report.html
+- templates/report.html → guardmeter/report/templates/report.html
 
 ## Do not delete src/ until Phase 9 tests pass
 
@@ -32,5 +32,5 @@ on labeled datasets. Outputs per-slice metrics, HTML report, and CI gate (pass/f
 - run_compare.py imports guards by hardcoded path — the whole point of Phase 2 is to fix this
 
 ## Tests location
-- New guardbench tests live in `tests/guardbench/`
-- Run with: `pytest tests/guardbench/ --cov=guardbench`
+- New guardmeter tests live in `tests/guardmeter/`
+- Run with: `pytest tests/guardmeter/ --cov=guardmeter`

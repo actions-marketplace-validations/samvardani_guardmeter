@@ -287,7 +287,7 @@ datasets_raw/train.csv
 datasets_raw/test.csv
 datasets_raw/jigsaw-toxic-comment-classification-challenge.zip
 
-# GuardBench generated outputs
+# GuardMeter generated outputs
 **/.DS_Store
 *.backup.py
 *.egg-info/
@@ -301,7 +301,7 @@ report/ci_summary.json
 report/*.csv
 assets/latency_*.png
 
-# Un-ignore guardbench package subdirectories that match ignored patterns
-!guardbench/report/
-!guardbench/report/**
-guardbench/report/__pycache__/
+# Un-ignore guardmeter package subdirectories that match ignored patterns
+!guardmeter/report/
+!guardmeter/report/**
+guardmeter/report/__pycache__/
