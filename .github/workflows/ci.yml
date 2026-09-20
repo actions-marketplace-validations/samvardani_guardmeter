@@ -1,4 +1,4 @@
-name: GuardBench CI
+name: CI
 
 on:
   push:
@@ -7,26 +7,26 @@ on:
     branches: [main]
 
 jobs:
-  guardbench:
+  guardmeter:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
-      - name: Install guardbench
+      - name: Install guardmeter
         run: pip install -e ".[dev]"
       - name: Lint (ruff)
-        run: ruff check guardbench tests
+        run: ruff check guardmeter tests
       - name: Type check (mypy)
-        run: mypy guardbench
+        run: mypy guardmeter
       - name: Run tests
-        run: pytest tests/guardbench/ --cov=guardbench -q
+        run: pytest tests/guardmeter/ --cov=guardmeter -q
       - name: Compare guards
-        run: guardbench compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
+        run: guardmeter compare --baseline regex-baseline --candidate regex-enhanced --dataset dataset/sample.csv
       - name: Generate report
-        run: guardbench report --run latest
+        run: guardmeter report --run latest
       - name: Build dashboard
-        run: guardbench dashboard --no-open
+        run: guardmeter dashboard --no-open
       - name: Run CI gate
-        run: guardbench gate --config gate.json --run latest
+        run: guardmeter gate --config gate.json --run latest
