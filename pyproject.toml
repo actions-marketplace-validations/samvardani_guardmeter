@@ -1,6 +1,6 @@
 [project]
 name = "sea-guard"
-version = "0.1.0"
+version = "0.2.0"
 description = "GuardBench — open-source AI safety guard evaluation framework"
 requires-python = ">=3.9"
 dependencies = [
