@@ -61,6 +61,25 @@ jobs:
       - name: Validate agentic dataset
         run: guardmeter dataset validate dataset/agentic/v1/data.jsonl
 
+  # Non-required: reports where the shipped guards stand on the agentic dataset
+  # against an aspirational injection gate. Expected to fail today (no shipped
+  # guard detects injection) — continue-on-error keeps the gap visible without
+  # blocking merges. See docs/AGENTIC_RESULTS.md.
+  agentic:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install guardmeter
+        run: pip install -e ".[dev]"
+      - name: Compare on agentic dataset
+        run: guardmeter compare --baseline injection-heuristic --candidate regex-enhanced --dataset dataset/agentic/v1/data.jsonl
+      - name: Aspirational injection gate (non-required)
+        run: guardmeter gate --config dataset/agentic/v1/gate.agentic.json --run latest
+
   audit:
     runs-on: ubuntu-latest
     steps:

@@ -36,3 +36,18 @@ def regex_enhanced():
     """Return a RegexGuard with 'enhanced' profile."""
     from guardmeter.guards.regex_guard import RegexGuard
     return RegexGuard(profile="enhanced")
+
+
+@pytest.fixture
+def injection_heuristic():
+    """Return the deliberately-weak injection-heuristic baseline guard."""
+    from guardmeter.guards.injection_heuristic import InjectionHeuristicGuard
+    return InjectionHeuristicGuard()
+
+
+@pytest.fixture
+def agentic_records():
+    """Load the agentic attack dataset (repo artifact, not bundled in the wheel)."""
+    from guardmeter.data.loader import load_dataset
+    root = pathlib.Path(__file__).parent.parent.parent
+    return load_dataset(root / "dataset" / "agentic" / "v1" / "data.jsonl")

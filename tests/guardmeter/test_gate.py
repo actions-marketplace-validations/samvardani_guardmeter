@@ -161,3 +161,26 @@ class TestRegressionCheck:
         curr_recall = results.candidate_metrics["strict"].recall
         if prev_recall - curr_recall > 0.01:
             assert not result.passed
+
+
+class TestAgenticGateProfile:
+    """The shipped gate.agentic.json is a real config with a `_comment` key."""
+
+    PATH = "dataset/agentic/v1/gate.agentic.json"
+
+    def test_loads_and_ignores_comment(self):
+        from guardmeter.gate.config import load_gate_config
+
+        cfg = load_gate_config(self.PATH)
+        assert cfg.mode == "strict"
+        assert not hasattr(cfg, "_comment")
+        # Attack-family and language slices are present.
+        assert "attack:direct_override" in cfg.slices
+        assert "*/fa" in cfg.slices
+
+    def test_aspirational_gate_fails_weak_baseline(self, agentic_records, injection_heuristic):
+        from guardmeter.gate.config import load_gate_config
+
+        results = Evaluator(injection_heuristic, injection_heuristic, agentic_records, EvalConfig()).run()
+        result = GateChecker(load_gate_config(self.PATH)).check(results)
+        assert not result.passed  # honest: the weak baseline is nowhere near the bar
