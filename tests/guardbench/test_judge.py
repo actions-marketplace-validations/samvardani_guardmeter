@@ -146,3 +146,26 @@ class TestLLMJudgeInit:
         msg = j._build_user_message("test text", gr)
         assert "test text" in msg
         assert "flag" in msg
+
+
+class TestEvaluateBatchErrors:
+    def test_api_error_is_not_agreement(self):
+        """A judge API error must record a None verdict and count as an error, not agrees=True."""
+        from guardbench.judge.llm_judge import LLMJudge
+
+        j = LLMJudge(rate_rps=0)  # no rate-limit sleeping in tests
+
+        def _boom(text, guard_result):
+            raise RuntimeError("api down")
+
+        j.evaluate = _boom  # mock the client call path to always raise
+
+        texts = ["a", "b", "c"]
+        guard_results = [GuardResult(prediction="flag", score=0.9, latency_ms=1) for _ in texts]
+        summary = j.evaluate_batch(texts, guard_results)
+
+        assert summary.errors == 3
+        assert summary.verdicts == [None, None, None]
+        assert summary.agreement_rate is None
+        # Critically, no error was silently turned into agreement.
+        assert all(v is None or v.agrees is not True for v in summary.verdicts)

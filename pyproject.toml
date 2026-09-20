@@ -29,7 +29,6 @@ dependencies = [
 [project.optional-dependencies]
 llm = ["openai", "anthropic"]
 hf = ["datasets", "transformers"]
-pdf = ["weasyprint"]
 dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",

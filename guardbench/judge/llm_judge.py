@@ -6,6 +6,7 @@ import json
 import logging
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from typing import List, Optional
 
 from guardbench.core.guard import GuardResult
@@ -15,6 +16,21 @@ from guardbench.judge.prompts import SAFETY_JUDGE_SYSTEM_PROMPT
 logger = logging.getLogger(__name__)
 
 _DEFAULT_RATE_RPS = 1.0  # requests per second
+
+
+@dataclass
+class BatchJudgeSummary:
+    """Result of a batch judge run.
+
+    ``verdicts`` is index-aligned with the input; entries are ``None`` where the
+    judge API call failed. ``errors`` counts those failures so callers never
+    mistake an API error for judge agreement. ``agreement_rate`` is computed over
+    successful verdicts only (``None`` when there are none).
+    """
+
+    verdicts: List[Optional[JudgeVerdict]]
+    errors: int
+    agreement_rate: Optional[float]
 
 
 class LLMJudge(Judge):
@@ -124,9 +140,14 @@ class LLMJudge(Judge):
         texts: List[str],
         guard_results: List[GuardResult],
         max_workers: int = 4,
-    ) -> List[JudgeVerdict]:
-        """Evaluate multiple texts in parallel (respecting rate limit per worker)."""
-        verdicts: List[JudgeVerdict | None] = [None] * len(texts)
+    ) -> BatchJudgeSummary:
+        """Evaluate multiple texts in parallel (respecting rate limit per worker).
+
+        A judge API error is recorded as a ``None`` verdict and counted in
+        ``errors`` — it is never silently converted into agreement.
+        """
+        verdicts: List[Optional[JudgeVerdict]] = [None] * len(texts)
+        errors = 0
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(self.evaluate, text, gr): idx
@@ -138,8 +159,11 @@ class LLMJudge(Judge):
                     verdicts[idx] = future.result()
                 except Exception as exc:
                     logger.warning("Judge failed on sample %d: %s", idx, exc)
-                    verdicts[idx] = JudgeVerdict(
-                        agrees=True, confidence=0.0,
-                        reasoning=f"Error: {exc}", suggested_label="benign"
-                    )
-        return [v for v in verdicts if v is not None]
+                    verdicts[idx] = None
+                    errors += 1
+        successful = [v for v in verdicts if v is not None]
+        agreement_rate = (
+            round(sum(1 for v in successful if v.agrees) / len(successful), 4)
+            if successful else None
+        )
+        return BatchJudgeSummary(verdicts=verdicts, errors=errors, agreement_rate=agreement_rate)

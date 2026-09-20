@@ -87,17 +87,14 @@ def cli() -> None:
 @click.option("--baseline", default="regex", show_default=True, help="Guard name or dotted class path")
 @click.option("--candidate", required=True, help="Guard name or dotted class path")
 @click.option("--dataset", required=True, type=click.Path(exists=True), help="CSV or JSONL dataset path")
-@click.option("--policy", default="strict", show_default=True, help="strict | lenient")
 @click.option("--store", "store_path", default=None, help="Override DB path")
 def compare(
     baseline: str,
     candidate: str,
     dataset: str,
-    policy: str,
     store_path: Optional[str],
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
-    from guardbench.core.registry import get_guard
     from guardbench.data.loader import load_dataset
     from guardbench.engine.evaluator import EvalConfig, Evaluator
 
@@ -112,7 +109,8 @@ def compare(
     base_guard = _resolve_guard(baseline)
     cand_guard = _resolve_guard(candidate)
 
-    config = EvalConfig(policy=policy)
+    # Both strict and lenient metrics are always computed; McNemar uses strict.
+    config = EvalConfig()
     evaluator = Evaluator(base_guard, cand_guard, records, config)
 
     click.echo("Running evaluation …")
@@ -138,22 +136,18 @@ def compare(
 
 @cli.command()
 @click.option("--run", "run_id", default="latest", show_default=True, help="run_id or 'latest'")
-@click.option("--compare", "compare_id", default=None, help="run_id to diff against")
-@click.option("--format", "fmt", default="html", show_default=True, help="html | pdf")
 @click.option("--output", "output_path", default=None, help="Output path (auto-named if omitted)")
 @click.option("--open", "open_browser", is_flag=True, help="Open report in browser after building")
 @click.option("--config", "cfg_path", default=None, help="gate.json path for threshold colour-coding")
 @click.option("--store", "store_path", default=None, help="Override DB path")
 def report(
     run_id: str,
-    compare_id: Optional[str],
-    fmt: str,
     output_path: Optional[str],
     open_browser: bool,
     cfg_path: Optional[str],
     store_path: Optional[str],
 ) -> None:
-    """Generate an HTML (or PDF) report for a stored run."""
+    """Generate an HTML report for a stored run."""
     from guardbench.report.generator import ReportGenerator
 
     store = _get_store(store_path)
@@ -196,13 +190,11 @@ def report(
 @cli.command()
 @click.option("--config", "cfg_path", default="gate.json", show_default=True, help="gate.json path")
 @click.option("--run", "run_id", default="latest", show_default=True, help="run_id or 'latest'")
-@click.option("--compare", "compare_id", default=None, help="Compare against this run_id for regression")
 @click.option("--output", "output_path", default="report/ci_summary.md", show_default=True, help="Output md path")
 @click.option("--store", "store_path", default=None, help="Override DB path")
 def gate(
     cfg_path: str,
     run_id: str,
-    compare_id: Optional[str],
     output_path: str,
     store_path: Optional[str],
 ) -> None:

@@ -1,4 +1,4 @@
-"""Miscellaneous coverage tests for auto_tune, io_utils, significance, text_norm."""
+"""Miscellaneous coverage tests for io_utils, significance, text_norm."""
 
 from __future__ import annotations
 
@@ -26,24 +26,6 @@ class TestTextNorm:
 
     def test_empty_string(self):
         assert normalize("") == ""
-
-
-class TestAutoTune:
-    def test_auto_tune_returns_dict(self, sample_records, regex_enhanced):
-        from guardbench.report.auto_tune import auto_tune
-        ev = Evaluator(regex_enhanced, regex_enhanced, sample_records, EvalConfig())
-        results = ev.run()
-        tuned = auto_tune(results, target_fpr=0.01)
-        assert isinstance(tuned, dict)
-
-    def test_auto_tune_keys_match_slices(self, sample_records, regex_enhanced):
-        from guardbench.report.auto_tune import auto_tune
-        ev = Evaluator(regex_enhanced, regex_enhanced, sample_records, EvalConfig())
-        results = ev.run()
-        tuned = auto_tune(results, policy="strict")
-        slices = results.candidate_slices.get("strict", {})
-        expected_keys = {"/".join(str(k) for k in key) for key in slices}
-        assert set(tuned.keys()) == expected_keys
 
 
 class TestSignificance:
