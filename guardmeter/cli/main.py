@@ -21,18 +21,11 @@ def _get_store(store_path: str | None = None):
 def _import_builtin_guards() -> None:
     """Import all built-in guard modules so they self-register by name.
 
-    Optional adapters (openai, llamaguard) raise ImportError lazily in their
-    constructors, not at import, so importing the modules is safe; we wrap in a
-    try/except anyway in case a module-level dependency is ever added.
+    Thin delegate to ``guardmeter.core.registry.import_builtin_guards`` — kept
+    for backward compatibility with existing call sites and tests.
     """
-    import importlib
-
-    import guardmeter.guards.regex_guard  # noqa: F401
-    for mod in ("openai_moderation", "llamaguard", "anthropic_guard"):
-        try:
-            importlib.import_module(f"guardmeter.guards.{mod}")
-        except ImportError:
-            pass  # optional dependency not installed
+    from guardmeter.core.registry import import_builtin_guards
+    import_builtin_guards()
 
 
 def _load_gate_config(config_path: str):

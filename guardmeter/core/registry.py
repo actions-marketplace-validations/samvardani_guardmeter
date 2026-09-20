@@ -34,8 +34,28 @@ def get_guard(name: str, **kwargs: object) -> Guard:
 
 def list_guards() -> list[str]:
     """Return a sorted list of all registered guard names."""
+    import_builtin_guards()
     _load_entry_points()
     return sorted(_REGISTRY.keys())
+
+
+def import_builtin_guards() -> None:
+    """Import all built-in guard modules so they self-register by name.
+
+    Optional adapters (openai, anthropic, llamaguard) raise ImportError lazily
+    in their constructors, not at import, so importing the modules is safe; the
+    loop is wrapped in try/except anyway in case a module-level dependency is
+    ever added. This lives here (not in the CLI) so the server and other
+    non-click callers can trigger registration too.
+    """
+    import importlib
+
+    import guardmeter.guards.regex_guard  # noqa: F401
+    for mod in ("openai_moderation", "llamaguard", "anthropic_guard"):
+        try:
+            importlib.import_module(f"guardmeter.guards.{mod}")
+        except ImportError:
+            pass  # optional dependency not installed
 
 
 def _load_entry_points() -> None:
