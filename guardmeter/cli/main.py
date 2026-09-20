@@ -33,39 +33,15 @@ def _import_builtin_guards() -> None:
 
 
 def _load_gate_config(config_path: str):
-    """Load a GateConfig from a JSON file.
+    """Load a GateConfig from a JSON file (legacy format supported).
 
-    Supports both the new guardmeter format (global_thresholds / slices) and the
-    legacy format (defaults / overrides) for backward compatibility.
+    Thin click-aware wrapper over guardmeter.gate.config.load_gate_config.
     """
-    from guardmeter.gate.schema import GateConfig
-    p = Path(config_path)
-    if not p.exists():
-        raise click.ClickException(f"Gate config not found: {config_path}")
-    raw = json.loads(p.read_text(encoding="utf-8"))
-    # Backward compatibility: translate legacy format
-    if "defaults" in raw and "global_thresholds" not in raw:
-        d = raw["defaults"]
-        raw = {
-            "mode": raw.get("mode", "strict"),
-            "on_failure": raw.get("on_failure", "block"),
-            "global_thresholds": {
-                "min_recall": d.get("min_recall", 0.55),
-                "max_fpr": d.get("max_fpr", 0.05),
-                "max_latency_p99_ms": d.get("max_p99_ms", 500),
-                "min_f1": d.get("min_f1", 0.0),
-            },
-            "slices": {
-                f"{ov['category']}/{ov['language']}": {
-                    k: v for k, v in ov.items()
-                    if k not in ("category", "language")
-                    and k in ("min_recall", "max_fpr", "max_latency_p99_ms", "min_f1")
-                }
-                for ov in raw.get("overrides", [])
-                if "category" in ov and "language" in ov
-            },
-        }
-    return GateConfig.model_validate(raw)
+    from guardmeter.gate.config import load_gate_config
+    try:
+        return load_gate_config(config_path)
+    except FileNotFoundError as exc:
+        raise click.ClickException(str(exc)) from exc
 
 
 @click.group()

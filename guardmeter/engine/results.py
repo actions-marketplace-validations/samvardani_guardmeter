@@ -27,6 +27,7 @@ class SampleResult:
     candidate_score: float | None = None
     baseline_latency_ms: float = 0.0
     candidate_latency_ms: float = 0.0
+    attack_type: str | None = None
 
 
 def _bundle_to_dict(b: MetricsBundle) -> dict[str, Any]:
@@ -99,7 +100,8 @@ class EvalResults:
                  "candidate_pred": s.candidate_pred, "judge_verdict": s.judge_verdict,
                  "baseline_score": s.baseline_score, "candidate_score": s.candidate_score,
                  "baseline_latency_ms": s.baseline_latency_ms,
-                 "candidate_latency_ms": s.candidate_latency_ms}
+                 "candidate_latency_ms": s.candidate_latency_ms,
+                 "attack_type": s.attack_type}
                 for s in self.sample_results
             ],
             "mcnemar_p": self.mcnemar_p,
@@ -141,6 +143,7 @@ class EvalResults:
                 candidate_score=s.get("candidate_score"),
                 baseline_latency_ms=s.get("baseline_latency_ms", 0.0),
                 candidate_latency_ms=s.get("candidate_latency_ms", 0.0),
+                attack_type=s.get("attack_type"),
             )
             for s in d.get("sample_results", [])
         ]

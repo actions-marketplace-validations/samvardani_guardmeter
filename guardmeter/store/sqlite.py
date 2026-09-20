@@ -82,7 +82,16 @@ class SQLiteStore(RunStore):
             ):
                 if col not in existing:
                     conn.execute(f"ALTER TABLE sample_results ADD COLUMN {col} REAL")
+            if "attack_type" not in existing:
+                conn.execute("ALTER TABLE sample_results ADD COLUMN attack_type TEXT")
+            # Migrate runs table for user tag/note metadata.
+            run_cols = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
+            for col in ("tag", "note"):
+                if col not in run_cols:
+                    conn.execute(f"ALTER TABLE runs ADD COLUMN {col} TEXT")
             conn.commit()
+
+    _RUN_COLS = "run_id, timestamp, dataset_sha, git_commit, baseline, candidate, metrics_json"
 
     def save_run(self, results: EvalResults) -> None:
         """Persist an EvalResults to the SQLite store."""
@@ -101,7 +110,7 @@ class SQLiteStore(RunStore):
         )
         with closing(self._connect()) as conn:
             conn.execute(
-                "INSERT OR REPLACE INTO runs VALUES (?,?,?,?,?,?,?)",
+                f"INSERT OR REPLACE INTO runs ({self._RUN_COLS}) VALUES (?,?,?,?,?,?,?)",
                 (
                     results.run_id,
                     results.timestamp,
@@ -113,7 +122,10 @@ class SQLiteStore(RunStore):
                 ),
             )
             conn.executemany(
-                "INSERT INTO sample_results VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO sample_results (run_id, row_idx, text, label, category, language, "
+                "baseline_pred, candidate_pred, baseline_score, candidate_score, "
+                "baseline_latency_ms, candidate_latency_ms, attack_type) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 [
                     (
                         results.run_id, i,
@@ -121,6 +133,7 @@ class SQLiteStore(RunStore):
                         s.baseline_pred, s.candidate_pred,
                         s.baseline_score, s.candidate_score,
                         s.baseline_latency_ms, s.candidate_latency_ms,
+                        s.attack_type,
                     )
                     for i, s in enumerate(results.sample_results)
                 ],
@@ -132,7 +145,7 @@ class SQLiteStore(RunStore):
         """Retrieve an EvalResults by run_id. Raises KeyError if not found."""
         with closing(self._connect()) as conn:
             row = conn.execute(
-                "SELECT * FROM runs WHERE run_id=?", (run_id,)
+                f"SELECT {self._RUN_COLS} FROM runs WHERE run_id=?", (run_id,)
             ).fetchone()
         if row is None:
             raise KeyError(f"Run '{run_id}' not found in store")
@@ -142,31 +155,61 @@ class SQLiteStore(RunStore):
         """Return summary dicts for the most recent runs, newest first."""
         with closing(self._connect()) as conn:
             rows = conn.execute(
-                "SELECT run_id, timestamp, baseline, candidate, metrics_json "
+                "SELECT run_id, timestamp, dataset_sha, baseline, candidate, tag, note, metrics_json "
                 "FROM runs ORDER BY timestamp DESC LIMIT ?",
                 (limit,),
             ).fetchall()
         summaries = []
-        for run_id, ts, baseline, candidate, metrics_json in rows:
+        for run_id, ts, dataset_sha, baseline, candidate, tag, note, metrics_json in rows:
             metrics = json.loads(metrics_json) if metrics_json else {}
             cand_strict = (metrics.get("candidate_metrics") or {}).get("strict", {})
             summaries.append(
                 {
                     "run_id": run_id,
                     "timestamp": ts,
+                    "dataset_sha": dataset_sha,
                     "baseline": baseline,
                     "candidate": candidate,
+                    "tag": tag,
+                    "note": note,
                     "recall": cand_strict.get("recall"),
                     "fpr": cand_strict.get("fpr"),
+                    "f1": cand_strict.get("f1"),
+                    "mcnemar_p": metrics.get("mcnemar_p"),
                 }
             )
         return summaries
+
+    def delete_run(self, run_id: str) -> bool:
+        """Delete a run and its samples. Returns True if a run was removed."""
+        with closing(self._connect()) as conn:
+            cur = conn.execute("DELETE FROM runs WHERE run_id=?", (run_id,))
+            conn.execute("DELETE FROM sample_results WHERE run_id=?", (run_id,))
+            conn.commit()
+            return cur.rowcount > 0
+
+    def update_run_meta(self, run_id: str, tag: str | None = None, note: str | None = None) -> bool:
+        """Update the tag and/or note for a run. Returns True if the run exists."""
+        sets, params = [], []
+        if tag is not None:
+            sets.append("tag=?")
+            params.append(tag)
+        if note is not None:
+            sets.append("note=?")
+            params.append(note)
+        if not sets:
+            return True
+        params.append(run_id)
+        with closing(self._connect()) as conn:
+            cur = conn.execute(f"UPDATE runs SET {', '.join(sets)} WHERE run_id=?", params)
+            conn.commit()
+            return cur.rowcount > 0
 
     def latest_run(self) -> EvalResults | None:
         """Return the most recently saved EvalResults, or None if empty."""
         with closing(self._connect()) as conn:
             row = conn.execute(
-                "SELECT * FROM runs ORDER BY timestamp DESC LIMIT 1"
+                f"SELECT {self._RUN_COLS} FROM runs ORDER BY timestamp DESC LIMIT 1"
             ).fetchone()
         if row is None:
             return None
@@ -194,7 +237,8 @@ class SQLiteStore(RunStore):
         with closing(self._connect()) as conn:
             rows = conn.execute(
                 "SELECT text, label, category, language, baseline_pred, candidate_pred, "
-                "baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms "
+                "baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms, "
+                "attack_type "
                 "FROM sample_results WHERE run_id=? ORDER BY row_idx",
                 (run_id,),
             ).fetchall()
@@ -210,9 +254,11 @@ class SQLiteStore(RunStore):
                 "candidate_score": candidate_score,
                 "baseline_latency_ms": baseline_latency_ms if baseline_latency_ms is not None else 0.0,
                 "candidate_latency_ms": candidate_latency_ms if candidate_latency_ms is not None else 0.0,
+                "attack_type": attack_type,
             }
             for (text, label, category, language, baseline_pred, candidate_pred,
-                 baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms) in rows
+                 baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms,
+                 attack_type) in rows
         ]
 
     def _row_to_results(self, row: tuple[Any, ...]) -> EvalResults:

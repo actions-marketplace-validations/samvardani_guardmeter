@@ -24,6 +24,8 @@ import webbrowser
 from pathlib import Path
 from typing import Any, cast
 
+from guardmeter.serve.jobs import JobManager
+
 logger = logging.getLogger(__name__)
 
 # Cap on POST body size (the try-out text itself is further capped by run_try).
@@ -101,13 +103,15 @@ def _render_dashboard() -> str:
 
 
 class PlaygroundServer(http.server.ThreadingHTTPServer):
-    """ThreadingHTTPServer carrying config and per-IP rate-limit state."""
+    """ThreadingHTTPServer carrying config, rate-limit state, and the job manager."""
 
     daemon_threads = True
     default_guards: list[str]        # set per-instance in create_server()
     token: str | None                # optional Bearer token for /api/*
+    store_path: str | None           # SQLite path override (None → default store)
     rate_buckets: dict[str, tuple[float, float]]
     rate_lock: threading.Lock
+    jobs: JobManager
 
 
 class PlaygroundHandler(http.server.BaseHTTPRequestHandler):
@@ -168,71 +172,142 @@ class PlaygroundHandler(http.server.BaseHTTPRequestHandler):
             retry = math.ceil((1.0 - tokens) / RATE_REFILL)
             return False, max(retry, 1)
 
+    # ── request helpers ─────────────────────────────────────────────────────
+    def _api_gate(self) -> bool:
+        """Enforce auth for /api/* routes; sends 401 and returns False if denied."""
+        if not self._authorized():
+            self._send_json(401, {"error": "unauthorized"})
+            return False
+        return True
+
+    def _read_json(self) -> Any:
+        """Read and parse a JSON body; sends 413/400 and returns None on failure."""
+        length = int(self.headers.get("Content-Length") or 0)
+        raw = self.rfile.read(length)
+        if length > MAX_BODY_BYTES or len(raw) > MAX_BODY_BYTES:
+            self._send_json(413, {"error": "request body too large"})
+            return None
+        try:
+            return json.loads(raw.decode("utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            self._send_json(400, {"error": "invalid JSON"})
+            return None
+
+    def _store(self) -> Any:
+        from guardmeter.store.sqlite import SQLiteStore
+        return SQLiteStore(db_path=getattr(self.server, "store_path", None))
+
+    def _int(self, params: dict[str, list[str]], key: str, default: int) -> int:
+        try:
+            return int(params.get(key, [str(default)])[0])
+        except (ValueError, TypeError):
+            return default
+
+    def _one(self, params: dict[str, list[str]], key: str, default: str = "") -> str:
+        return params.get(key, [default])[0]
+
     # ── routing ─────────────────────────────────────────────────────────────
     def do_GET(self) -> None:
-        path = urllib.parse.urlparse(self.path).path
-        if path.startswith("/api/") and not self._authorized():
-            self._send_json(401, {"error": "unauthorized"})
+        parsed = urllib.parse.urlparse(self.path)
+        path = parsed.path
+        params = urllib.parse.parse_qs(parsed.query)
+        if path.startswith("/api/") and not self._api_gate():
             return
+        seg = [s for s in path.split("/") if s]
+
         if path == "/":
             self._send_html(200, _playground_html())
         elif path == "/dashboard":
             self._send_html(200, _render_dashboard())
         elif path == "/styleguide":
             found = read_static("styleguide.html")
-            if found:
-                self._send_html(200, found[0].decode("utf-8"))
-            else:
-                self._send_json(404, {"error": "not found"})
+            self._send_html(200, found[0].decode("utf-8")) if found else self._send_json(404, {"error": "not found"})
         elif path.startswith("/static/"):
             found = read_static(path[len("/static/"):])
-            if found:
-                self._send(200, found[0], found[1])
-            else:
-                self._send_json(404, {"error": "not found"})
+            self._send(200, found[0], found[1]) if found else self._send_json(404, {"error": "not found"})
         elif path == "/api/guards":
             from guardmeter.core.registry import list_guards
             self._send_json(200, {"guards": list_guards(), "default": self._default_guards()})
+        elif path == "/api/gate":
+            from guardmeter.serve.api import current_gate_config
+            cfg = current_gate_config()
+            self._send_json(200, cfg.model_dump() if cfg else {})
+        elif path == "/api/runs":
+            from guardmeter.serve.api import runs_payload
+            self._send_json(200, runs_payload(
+                self._store(), limit=self._int(params, "limit", 100),
+                guard=self._one(params, "guard"), dataset=self._one(params, "dataset"),
+                q=self._one(params, "q")))
+        elif path == "/api/datasets":
+            from guardmeter.serve.api import datasets_list
+            self._send_json(200, {"datasets": datasets_list()})
+        elif len(seg) == 4 and seg[:2] == ["api", "datasets"] and seg[3] == "stats":
+            from guardmeter.serve.api import dataset_stats
+            stats = dataset_stats(seg[2])
+            self._send_json(200, stats) if stats else self._send_json(404, {"error": "not found"})
+        elif len(seg) == 4 and seg[:2] == ["api", "datasets"] and seg[3] == "rows":
+            from guardmeter.serve.api import dataset_rows
+            rows = dataset_rows(seg[2], q=self._one(params, "q"),
+                                offset=self._int(params, "offset", 0), limit=self._int(params, "limit", 100))
+            self._send_json(200, rows) if rows else self._send_json(404, {"error": "not found"})
+        elif len(seg) == 3 and seg[:2] == ["api", "jobs"]:
+            job = cast("PlaygroundServer", self.server).jobs.get(seg[2])
+            self._send_json(200, job) if job else self._send_json(404, {"error": "not found"})
+        elif len(seg) >= 3 and seg[:2] == ["api", "runs"]:
+            self._run_subroute_get(seg, params)
+        else:
+            self._send_json(404, {"error": "not found"})
+
+    def _run_subroute_get(self, seg: list[str], params: dict[str, list[str]]) -> None:
+        run_id = seg[2]
+        try:
+            results = self._store().get_run(run_id)
+        except KeyError:
+            self._send_json(404, {"error": "run not found"})
+            return
+        if len(seg) == 3:
+            self._send_json(200, results.to_dict())
+        elif len(seg) == 4 and seg[3] == "samples":
+            from guardmeter.serve.api import samples_payload
+            self._send_json(200, samples_payload(
+                results, filt=self._one(params, "filter", "all"), q=self._one(params, "q"),
+                offset=self._int(params, "offset", 0), limit=self._int(params, "limit", 100)))
+        elif len(seg) == 4 and seg[3] == "export.csv":
+            from guardmeter.serve.api import run_csv
+            self._send(200, run_csv(results).encode("utf-8"), "text/csv; charset=utf-8",
+                       extra_headers={"Content-Disposition": f'attachment; filename="{run_id}.csv"'})
         else:
             self._send_json(404, {"error": "not found"})
 
     def do_POST(self) -> None:
         path = urllib.parse.urlparse(self.path).path
-        if path != "/api/try":
+        if not self._api_gate():
+            return
+        if path == "/api/try":
+            self._post_try()
+        elif path == "/api/compare":
+            self._post_compare()
+        elif path == "/api/gate/evaluate":
+            self._post_gate_evaluate()
+        else:
             self._send_json(404, {"error": "not found"})
-            return
-        if not self._authorized():
-            self._send_json(401, {"error": "unauthorized"})
-            return
 
+    def _post_try(self) -> None:
         ok, retry_after = self._rate_ok()
         if not ok:
             self._send_json(429, {"error": "rate limit exceeded"},
                             extra_headers={"Retry-After": str(retry_after)})
             return
-
-        length = int(self.headers.get("Content-Length") or 0)
-        # Read the (loopback-only) body, then reject if it exceeds the cap, so
-        # the client reliably receives the 413 rather than a reset mid-send.
-        raw = self.rfile.read(length)
-        if length > MAX_BODY_BYTES or len(raw) > MAX_BODY_BYTES:
-            self._send_json(413, {"error": "request body too large"})
-            return
-
-        try:
-            data = json.loads(raw.decode("utf-8"))
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            self._send_json(400, {"error": "invalid JSON"})
+        data = self._read_json()
+        if data is None:
             return
         if not isinstance(data, dict) or not isinstance(data.get("text"), str) or not data["text"]:
             self._send_json(400, {"error": "missing 'text'"})
             return
-
         guards = data.get("guards") or self._default_guards()
         if not isinstance(guards, list) or not all(isinstance(g, str) for g in guards):
             self._send_json(400, {"error": "'guards' must be a list of strings"})
             return
-
         from guardmeter.core.tryout import run_try
         try:
             results = run_try(data["text"], guards)
@@ -241,19 +316,109 @@ class PlaygroundHandler(http.server.BaseHTTPRequestHandler):
             return
         self._send_json(200, [r.to_dict() for r in results])
 
+    def _post_compare(self) -> None:
+        ok, retry_after = self._rate_ok()
+        if not ok:
+            self._send_json(429, {"error": "rate limit exceeded"},
+                            extra_headers={"Retry-After": str(retry_after)})
+            return
+        data = self._read_json()
+        if data is None:
+            return
+        if not isinstance(data, dict) or not all(isinstance(data.get(k), str) and data.get(k)
+                                                 for k in ("baseline", "candidate", "dataset")):
+            self._send_json(400, {"error": "baseline, candidate and dataset are required"})
+            return
+        jobs = cast("PlaygroundServer", self.server).jobs
+        job_id = jobs.start_compare(self._store(), data["baseline"], data["candidate"], data["dataset"])
+        self._send_json(202, {"job_id": job_id})
+
+    def _post_gate_evaluate(self) -> None:
+        data = self._read_json()
+        if data is None:
+            return
+        gate = data.get("gate") if isinstance(data, dict) else None
+        run_id = data.get("run_id") if isinstance(data, dict) else None
+        if not isinstance(gate, dict) or not isinstance(run_id, str):
+            self._send_json(400, {"error": "'gate' (object) and 'run_id' are required"})
+            return
+        try:
+            results = self._store().get_run(run_id)
+        except KeyError:
+            self._send_json(404, {"error": "run not found"})
+            return
+        from guardmeter.serve.api import gate_evaluate
+        try:
+            self._send_json(200, gate_evaluate(gate, results))
+        except (ValueError, TypeError) as exc:
+            self._send_json(400, {"error": f"invalid gate: {exc}"})
+
+    def do_DELETE(self) -> None:
+        path = urllib.parse.urlparse(self.path).path
+        if not self._api_gate():
+            return
+        seg = [s for s in path.split("/") if s]
+        if len(seg) == 3 and seg[:2] == ["api", "runs"]:
+            removed = self._store().delete_run(seg[2])
+            self._send_json(200 if removed else 404, {"deleted": removed})
+        else:
+            self._send_json(404, {"error": "not found"})
+
+    def do_PATCH(self) -> None:
+        path = urllib.parse.urlparse(self.path).path
+        if not self._api_gate():
+            return
+        seg = [s for s in path.split("/") if s]
+        if len(seg) == 3 and seg[:2] == ["api", "runs"]:
+            data = self._read_json()
+            if data is None:
+                return
+            if not isinstance(data, dict):
+                self._send_json(400, {"error": "expected a JSON object"})
+                return
+            ok = self._store().update_run_meta(seg[2], tag=data.get("tag"), note=data.get("note"))
+            self._send_json(200 if ok else 404, {"updated": ok})
+        else:
+            self._send_json(404, {"error": "not found"})
+
+    def do_PUT(self) -> None:
+        path = urllib.parse.urlparse(self.path).path
+        if not self._api_gate():
+            return
+        if path == "/api/gate":
+            data = self._read_json()
+            if data is None:
+                return
+            gate = data.get("gate") if isinstance(data, dict) else None
+            if not isinstance(gate, dict):
+                self._send_json(400, {"error": "'gate' object required"})
+                return
+            from guardmeter.serve.api import write_gate
+            try:
+                write_gate(gate)
+            except (ValueError, TypeError) as exc:
+                self._send_json(400, {"error": f"invalid gate: {exc}"})
+                return
+            self._send_json(200, {"saved": True})
+        else:
+            self._send_json(404, {"error": "not found"})
+
 
 def create_server(
     host: str,
     port: int,
     default_guards: list[str] | None = None,
     token: str | None = None,
+    store_path: str | None = None,
 ) -> PlaygroundServer:
     """Create (but do not start) a PlaygroundServer. Port 0 picks a free port."""
     httpd = PlaygroundServer((host, port), PlaygroundHandler)
     httpd.default_guards = list(default_guards) if default_guards else list(_DEFAULT_GUARDS)
     httpd.token = token
+    httpd.store_path = store_path
     httpd.rate_buckets = {}
     httpd.rate_lock = threading.Lock()
+    httpd.jobs = JobManager()
     return httpd
 
 

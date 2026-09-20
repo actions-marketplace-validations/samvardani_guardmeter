@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -38,13 +39,25 @@ class Evaluator:
         dataset: list[DatasetRecord],
         config: EvalConfig | None = None,
         judge: Any = None,
+        on_progress: Callable[[int, int], None] | None = None,
     ) -> None:
-        """Initialise with two guards, a dataset, optional config, and optional judge."""
+        """Initialise with two guards, a dataset, optional config, judge, progress cb."""
         self.baseline = baseline
         self.candidate = candidate
         self.dataset = dataset
         self.config = config or EvalConfig()
         self.judge = judge
+        self.on_progress = on_progress
+
+    def _predict_all(self, guard: Guard, texts: list[str], done: int, total: int) -> list[Any]:
+        """Predict all texts; report progress per item when a callback is set."""
+        if self.on_progress is None:
+            return guard.batch_predict(texts)
+        preds = []
+        for i, text in enumerate(texts):
+            preds.append(guard.predict(text))
+            self.on_progress(done + i + 1, total)
+        return preds
 
     def run(self) -> EvalResults:
         """Run the full evaluation and return EvalResults."""
@@ -60,13 +73,12 @@ class Evaluator:
 
         texts = [r.text for r in self.dataset]
 
+        total_steps = 2 * len(texts)
         logger.info("Running baseline (%s) on %d samples", self.baseline.name, len(texts))
-        base_preds = self.baseline.batch_predict(
-            texts,  # metadata passed per-record below if needed
-        )
+        base_preds = self._predict_all(self.baseline, texts, 0, total_steps)
 
         logger.info("Running candidate (%s) on %d samples", self.candidate.name, len(texts))
-        cand_preds = self.candidate.batch_predict(texts)
+        cand_preds = self._predict_all(self.candidate, texts, len(texts), total_steps)
 
         # Compute metrics for both policies
         policies = ["strict"]
@@ -116,6 +128,7 @@ class Evaluator:
                     candidate_score=pred_c.score,
                     baseline_latency_ms=pred_b.latency_ms,
                     candidate_latency_ms=pred_c.latency_ms,
+                    attack_type=rec.attack_type,
                 )
             )
 
