@@ -65,7 +65,8 @@ def _is_positive(label: str) -> bool:
 
 
 def samples_payload(results: EvalResults, filt: str = "all", q: str = "",
-                    offset: int = 0, limit: int = 100) -> dict[str, Any]:
+                    offset: int = 0, limit: int = 100,
+                    category: str = "", language: str = "", attack: str = "") -> dict[str, Any]:
     """Filter/paginate a run's per-sample results."""
     rows = []
     for s in results.sample_results:
@@ -76,6 +77,12 @@ def samples_payload(results: EvalResults, filt: str = "all", q: str = "",
         if filt == "mismatch" and s.baseline_pred == s.candidate_pred:
             continue
         if filt == "disagree" and s.judge_verdict != "disagree":
+            continue
+        if category and s.category != category:
+            continue
+        if language and s.language != language:
+            continue
+        if attack and (s.attack_type or "") != attack:
             continue
         if q:
             hay = " ".join(str(v or "") for v in

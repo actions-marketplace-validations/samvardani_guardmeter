@@ -259,7 +259,9 @@ class PlaygroundHandler(http.server.BaseHTTPRequestHandler):
             from guardmeter.serve.api import samples_payload
             self._send_json(200, samples_payload(
                 results, filt=self._one(params, "filter", "all"), q=self._one(params, "q"),
-                offset=self._int(params, "offset", 0), limit=self._int(params, "limit", 100)))
+                offset=self._int(params, "offset", 0), limit=self._int(params, "limit", 100),
+                category=self._one(params, "category"), language=self._one(params, "language"),
+                attack=self._one(params, "attack")))
         elif len(seg) == 4 and seg[3] == "export.csv":
             from guardmeter.serve.api import run_csv
             self._send(200, run_csv(results).encode("utf-8"), "text/csv; charset=utf-8",

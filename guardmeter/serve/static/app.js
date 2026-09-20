@@ -3,6 +3,7 @@ import { render, Component } from "/static/preact.module.js";
 import { html, toast } from "/static/components/ui.js";
 import { initTheme, toggleTheme, currentTheme } from "/static/theme.js";
 import { OverviewPage } from "/static/pages/overview.js";
+import { RunPage } from "/static/pages/run.js";
 
 initTheme();
 
@@ -24,7 +25,7 @@ function parseRoute() {
 }
 
 // Registry filled in by later page modules; overview is built in.
-export const PAGES = { overview: OverviewPage };
+export const PAGES = { overview: OverviewPage, run: RunPage };
 
 function Stub({ title }) {
   return html`<main class="container" style="padding:24px 24px 48px">
