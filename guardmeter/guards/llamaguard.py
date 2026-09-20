@@ -34,6 +34,8 @@ class LlamaGuardAdapter(Guard):
         self.api_key = api_key
         self._pipeline: Any = None
         self._http_client: Any = None
+        # Remote only in HTTP mode; a local transformers pipeline is not.
+        self.is_remote = endpoint is not None
 
         if endpoint:
             self._init_http()

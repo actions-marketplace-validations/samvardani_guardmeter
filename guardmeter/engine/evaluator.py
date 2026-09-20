@@ -5,18 +5,63 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import time
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from typing import Any
 
-from guardmeter.core.guard import Guard
+from guardmeter.core.guard import Guard, GuardResult
 from guardmeter.core.io_utils import git_commit_sha, hash_content, new_run_id
+from guardmeter.core.redact import redact
 from guardmeter.data.schema import DatasetRecord
 from guardmeter.engine.metrics import compute_metrics, compute_slices, count_hijacked
 from guardmeter.engine.results import EvalResults, SampleResult
 from guardmeter.engine.significance import mcnemar_test
 
 logger = logging.getLogger(__name__)
+
+_RATE_LIMIT_MARKERS = ("rate limit", "ratelimit", "429", "too many requests")
+
+
+def _is_rate_limit(exc: BaseException) -> bool:
+    """Heuristically detect a rate-limit error across SDKs (by type name or message)."""
+    if "ratelimit" in type(exc).__name__.lower():
+        return True
+    msg = str(exc).lower()
+    return any(m in msg for m in _RATE_LIMIT_MARKERS)
+
+
+def call_with_retry(
+    guard: Guard,
+    text: str,
+    context: str | None,
+    *,
+    max_retries: int = 3,
+    backoff_base: float = 0.5,
+    sleep: Callable[[float], None] = time.sleep,
+) -> GuardResult:
+    """Call ``guard.predict`` with exponential backoff on rate-limit errors.
+
+    Retries a rate-limited call up to ``max_retries`` times (sleeping
+    ``backoff_base * 2**attempt`` seconds). Any error that survives retries — or
+    any non-rate-limit error — is turned into a fail-closed result with
+    ``metadata["error"]`` set (redacted). It never silently passes.
+    """
+    attempt = 0
+    while True:
+        try:
+            return guard.predict(text, context=context)
+        except Exception as exc:  # noqa: BLE001 (resilience boundary: never abort a run)
+            if _is_rate_limit(exc) and attempt < max_retries:
+                sleep(backoff_base * (2 ** attempt))
+                attempt += 1
+                continue
+            safe = redact(str(exc))
+            logger.warning("guard %r call failed (fail-closed): %s", guard.name, safe)
+            return GuardResult(
+                prediction="flag", score=0.5, latency_ms=0, metadata={"error": safe},
+            )
 
 
 @dataclass
@@ -27,6 +72,7 @@ class EvalConfig:
     slices: list[str] = field(default_factory=lambda: ["category", "language"])
     run_id: str | None = None  # auto-generated UUID if None
     include_lenient: bool = True  # also compute lenient-policy metrics
+    concurrency: int = 1  # >1 evaluates guard calls in a thread pool
 
 
 class Evaluator:
@@ -52,18 +98,36 @@ class Evaluator:
     def _predict_all(self, guard: Guard, records: list[DatasetRecord], done: int, total: int) -> list[Any]:
         """Predict all records; pass per-record context and report progress.
 
-        Batch fast-path only when no record carries context and no progress
-        callback is set; otherwise predict per record so ``meta["context"]``
-        reaches the guard.
+        Batch fast-path only when there is no context, no progress callback, and
+        no concurrency; otherwise predict per record (through the retry wrapper)
+        so ``meta["context"]`` reaches the guard. Results stay in input order
+        regardless of completion order.
         """
         has_context = any(r.context for r in records)
-        if self.on_progress is None and not has_context:
+        # Fast batch path only for local guards with no context/progress/concurrency;
+        # remote guards always go through call_with_retry (rate-limit handling).
+        if (self.on_progress is None and not has_context
+                and self.config.concurrency <= 1 and not guard.is_remote):
             return guard.batch_predict([r.text for r in records])
-        preds = []
-        for i, rec in enumerate(records):
-            preds.append(guard.predict(rec.text, context=rec.context))
-            if self.on_progress is not None:
-                self.on_progress(done + i + 1, total)
+
+        preds: list[Any] = [None] * len(records)
+
+        def work(i: int, rec: DatasetRecord) -> tuple[int, GuardResult]:
+            return i, call_with_retry(guard, rec.text, rec.context)
+
+        if self.config.concurrency > 1:
+            with ThreadPoolExecutor(max_workers=self.config.concurrency) as ex:
+                futures = [ex.submit(work, i, rec) for i, rec in enumerate(records)]
+                for n, fut in enumerate(as_completed(futures)):
+                    i, res = fut.result()
+                    preds[i] = res
+                    if self.on_progress is not None:
+                        self.on_progress(done + n + 1, total)
+        else:
+            for i, rec in enumerate(records):
+                preds[i] = call_with_retry(guard, rec.text, rec.context)
+                if self.on_progress is not None:
+                    self.on_progress(done + i + 1, total)
         return preds
 
     def run(self) -> EvalResults:

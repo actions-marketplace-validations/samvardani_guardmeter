@@ -62,6 +62,8 @@ def cli() -> None:
 @click.option("--store", "store_path", default=None, help="Override DB path")
 @click.option("--json", "json_out", is_flag=True, help="Print a JSON summary to stdout (human text goes to stderr)")
 @click.option("--summary-md", "summary_md", default=None, help="Write a Markdown step-summary table to this path")
+@click.option("--concurrency", type=int, default=None,
+              help="Parallel guard calls (default: 4 if either guard is a remote/LLM guard, else 1)")
 def compare(
     baseline: str,
     candidate: str,
@@ -69,6 +71,7 @@ def compare(
     store_path: str | None,
     json_out: bool,
     summary_md: str | None,
+    concurrency: int | None,
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
     from guardmeter.data.loader import load_dataset
@@ -90,10 +93,12 @@ def compare(
     cand_guard = _resolve_guard(candidate)
 
     # Both strict and lenient metrics are always computed; McNemar uses strict.
-    config = EvalConfig()
+    if concurrency is None:
+        concurrency = 4 if (base_guard.is_remote or cand_guard.is_remote) else 1
+    config = EvalConfig(concurrency=max(1, concurrency))
     evaluator = Evaluator(base_guard, cand_guard, records, config)
 
-    _log("Running evaluation …")
+    _log(f"Running evaluation … (concurrency={config.concurrency})")
     results = evaluator.run()
 
     store = _get_store(store_path)

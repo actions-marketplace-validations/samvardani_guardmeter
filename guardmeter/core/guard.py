@@ -23,6 +23,9 @@ class Guard(ABC):
 
     name: str = "unnamed"
     version: str = "0.0.0"
+    # True for guards that make a network call per prediction (LLM adapters).
+    # The evaluator/CLI default to concurrent evaluation for these.
+    is_remote: bool = False
 
     @abstractmethod
     def predict(self, text: str, **meta: Any) -> GuardResult:

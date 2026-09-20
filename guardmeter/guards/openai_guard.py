@@ -78,6 +78,7 @@ class OpenAIGuard(Guard):
 
     name: str = "openai"
     version: str = "2.0.0"
+    is_remote: bool = True
 
     def __init__(
         self,
