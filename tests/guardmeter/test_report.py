@@ -79,6 +79,20 @@ def test_report_escapes_xss_in_candidate_name(sample_records, regex_enhanced, tm
     assert "<img" not in content
 
 
+def test_report_is_offline(sample_records, regex_enhanced, tmp_path):
+    """The report must render fully offline: no CDN, no Tailwind, vendored Chart.js."""
+    ev = Evaluator(regex_enhanced, regex_enhanced, sample_records, EvalConfig())
+    results = ev.run()
+    out = tmp_path / "index.html"
+    ReportGenerator(results).build(out)
+    content = out.read_text(encoding="utf-8")
+    assert "cdn." not in content
+    assert "tailwindcss" not in content
+    assert "Chart" in content
+    assert 'src="http' not in content
+    assert '//cdn' not in content
+
+
 def test_report_auto_names_output(sample_records, regex_enhanced, tmp_path):
     """When output_path is None, report is written to report/index.html."""
     import os

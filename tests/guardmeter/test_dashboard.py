@@ -114,6 +114,40 @@ class TestDashboardSingleRun:
         assert "esc(r.candidate_name)" in content
 
 
+class TestDashboardOffline:
+    def test_no_cdn_no_tailwind_has_chart(self, sample_records, regex_enhanced, tmp_path):
+        """The dashboard must render fully offline: no CDN, no Tailwind, vendored Chart.js."""
+        store = _make_store(tmp_path)
+        results = _run_eval(sample_records, regex_enhanced)
+        store.save_run(results)
+
+        gen = DashboardGenerator(store)
+        out = tmp_path / "dash.html"
+        gen.build(out)
+        content = out.read_text(encoding="utf-8")
+
+        assert "cdn." not in content
+        assert "tailwindcss" not in content
+        assert "Chart" in content  # the vendored library is inlined
+        # No external resource loads.
+        assert 'src="http' not in content
+        assert '//cdn' not in content
+
+    def test_sample_filter_and_mismatch_controls_present(self, sample_records, regex_enhanced, tmp_path):
+        """The dashboard exposes a sample text filter and a mismatches-only checkbox."""
+        store = _make_store(tmp_path)
+        results = _run_eval(sample_records, regex_enhanced)
+        store.save_run(results)
+
+        gen = DashboardGenerator(store)
+        out = tmp_path / "dash.html"
+        gen.build(out)
+        content = out.read_text(encoding="utf-8")
+        assert 'id="sample-filter"' in content
+        assert 'id="mismatch-only"' in content
+        assert "function renderSamples(" in content
+
+
 class TestDashboardMultipleRuns:
     def test_contains_all_run_ids(self, sample_records, regex_enhanced, tmp_path):
         store = _make_store(tmp_path)

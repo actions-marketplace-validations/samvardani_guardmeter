@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import datetime
+import functools
+import importlib.resources
 import json
 import logging
 from pathlib import Path
@@ -17,6 +19,18 @@ from guardmeter.report.charts import threshold_sweep_data
 from guardmeter.store.base import RunStore
 
 logger = logging.getLogger(__name__)
+
+
+@functools.lru_cache(maxsize=1)
+def _chartjs() -> str:
+    """Return the vendored Chart.js source, read once and cached.
+
+    Bundling the library inline keeps reports and dashboards fully offline —
+    they render as audit artifacts with no network access.
+    """
+    return (
+        importlib.resources.files("guardmeter.report") / "static" / "chart.umd.min.js"
+    ).read_text(encoding="utf-8")
 
 
 def _safe_json(obj: Any) -> str:
@@ -159,6 +173,7 @@ class ReportGenerator:
             candidate_name=results.candidate_name,
             mcnemar_p=results.mcnemar_p,
             version=__version__,
+            chartjs=_chartjs(),
             strict_base=strict_base,
             strict_cand=strict_cand,
             lenient_base=lenient_base,
@@ -213,6 +228,7 @@ class DashboardGenerator:
             generated_at=datetime.datetime.now(datetime.UTC).strftime(
                 "%Y-%m-%d %H:%M UTC"
             ),
+            chartjs=_chartjs(),
         )
         output_path.write_text(html, encoding="utf-8")
         logger.info("Dashboard written to %s", output_path)
