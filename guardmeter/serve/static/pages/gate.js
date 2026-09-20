@@ -1,7 +1,8 @@
 // Gate editor: edit thresholds on the left, live pass/fail preview on the right.
 import { Component } from "/static/preact.module.js";
 import { api } from "/static/api.js";
-import { html, fmt, shortId, GateChip, toast } from "/static/components/ui.js";
+import { html, fmt, shortId, toast } from "/static/components/ui.js";
+import { SLICE_FIELDS, serializeGate, unknownSliceFields } from "/static/components/gatemodel.js";
 
 const DEFAULT_GATE = {
   mode: "strict",
@@ -52,22 +53,11 @@ export class GatePage extends Component {
     } catch (e) { this.setState({ evalResult: { error: e.message } }); }
   }
 
-  cleanGate() {
-    // Drop empty slice-override fields before sending.
-    const g = structuredClone(this.state.gate);
-    const slices = {};
-    for (const [key, ov] of Object.entries(g.slices || {})) {
-      const kept = {};
-      for (const [k, v] of Object.entries(ov)) if (v !== "" && v !== null && v !== undefined) kept[k] = Number(v);
-      if (key) slices[key] = kept;
-    }
-    g.slices = slices;
-    return g;
-  }
+  cleanGate() { return serializeGate(this.state.gate); }
 
   setGlobal(field, value) { this.state.gate.global_thresholds[field] = value === "" ? "" : Number(value); this.changed(); }
   setMeta(field, value) { this.state.gate[field] = value; this.changed(); }
-  addSlice() { this.state.gate.slices[""] = { min_recall: "", max_fpr: "" }; this.changed(); }
+  addSlice() { this.state.gate.slices[""] = {}; this.changed(); }
   renameSlice(oldKey, newKey) {
     const s = this.state.gate.slices; const v = s[oldKey]; delete s[oldKey]; s[newKey] = v; this.changed();
   }
@@ -137,6 +127,7 @@ export class GatePage extends Component {
     const snapshot = !!window.__SNAPSHOT__;
     const failures = (evalResult && evalResult.failures) || [];
     const wouldPass = evalResult && !evalResult.error ? evalResult.passed : null;
+    const unknown = unknownSliceFields(gate);
 
     return html`<main class="container" style="padding:24px 24px 48px">
       <h2>Gate editor</h2>
@@ -160,15 +151,20 @@ export class GatePage extends Component {
           ${this.numRow("min_f1", "min_f1")}
           ${this.numRow("max_latency_p99_ms", "max_latency_p99_ms", 1000, 1, false)}
 
-          <div class="section-title">Per-slice overrides</div>
+          <div class="section-title">Per-slice overrides <span class="muted" style="text-transform:none;font-weight:400">(blank = inherit)</span></div>
+          ${unknown.length > 0 && html`<div class="chip warn" style="display:block;margin-bottom:8px;white-space:normal">
+            Loaded policy has fields this editor doesn't show: ${unknown.join(", ")} — they are preserved on save.</div>`}
           <datalist id="slice-keys">${sliceKeys.map((k) => html`<option value=${k}></option>`)}</datalist>
+          <div class="row center muted" style="gap:6px;font-size:11px;margin-bottom:4px">
+            <span style="width:150px">slice key</span>
+            ${SLICE_FIELDS.map((f) => html`<span style="width:78px">${f.replace("min_", "").replace("max_", "").replace("_p99_ms", " p99")}</span>`)}
+            <span style="width:24px"></span>
+          </div>
           ${Object.entries(gate.slices).map(([key, ov]) => html`<div class="row center" style="gap:6px;margin-bottom:6px">
             <input class="input" list="slice-keys" style="width:150px" placeholder="category/lang" value=${key}
               onChange=${(e) => this.renameSlice(key, e.target.value)}/>
-            <input class="input" style="width:90px" type="number" step="0.01" placeholder="recall" value=${ov.min_recall ?? ""}
-              onInput=${(e) => this.setSliceField(key, "min_recall", e.target.value)}/>
-            <input class="input" style="width:90px" type="number" step="0.01" placeholder="fpr" value=${ov.max_fpr ?? ""}
-              onInput=${(e) => this.setSliceField(key, "max_fpr", e.target.value)}/>
+            ${SLICE_FIELDS.map((f) => html`<input class="input" style="width:78px" type="number" step="0.01"
+              placeholder="—" value=${ov[f] ?? ""} onInput=${(e) => this.setSliceField(key, f, e.target.value)}/>`)}
             <button class="btn ghost icon" aria-label="Remove override" onClick=${() => this.removeSlice(key)}>✕</button>
           </div>`)}
           <button class="btn ghost" onClick=${() => this.addSlice()}>＋ Add override</button>
