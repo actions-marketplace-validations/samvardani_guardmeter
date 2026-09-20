@@ -202,6 +202,8 @@ class MyGuard(Guard):
 register("my-guard", MyGuard)  # now usable as --candidate my-guard
 ```
 
+`predict` receives per-record metadata via `**meta`. In particular `meta["context"]` (a string or `None`) carries prior turns or the surrounding document for multi-turn and indirect-injection datasets — context-aware guards should use it; simple guards may ignore it.
+
 ---
 
 ## Datasets

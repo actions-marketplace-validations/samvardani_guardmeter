@@ -49,14 +49,21 @@ class Evaluator:
         self.judge = judge
         self.on_progress = on_progress
 
-    def _predict_all(self, guard: Guard, texts: list[str], done: int, total: int) -> list[Any]:
-        """Predict all texts; report progress per item when a callback is set."""
-        if self.on_progress is None:
-            return guard.batch_predict(texts)
+    def _predict_all(self, guard: Guard, records: list[DatasetRecord], done: int, total: int) -> list[Any]:
+        """Predict all records; pass per-record context and report progress.
+
+        Batch fast-path only when no record carries context and no progress
+        callback is set; otherwise predict per record so ``meta["context"]``
+        reaches the guard.
+        """
+        has_context = any(r.context for r in records)
+        if self.on_progress is None and not has_context:
+            return guard.batch_predict([r.text for r in records])
         preds = []
-        for i, text in enumerate(texts):
-            preds.append(guard.predict(text))
-            self.on_progress(done + i + 1, total)
+        for i, rec in enumerate(records):
+            preds.append(guard.predict(rec.text, context=rec.context))
+            if self.on_progress is not None:
+                self.on_progress(done + i + 1, total)
         return preds
 
     def run(self) -> EvalResults:
@@ -75,10 +82,10 @@ class Evaluator:
 
         total_steps = 2 * len(texts)
         logger.info("Running baseline (%s) on %d samples", self.baseline.name, len(texts))
-        base_preds = self._predict_all(self.baseline, texts, 0, total_steps)
+        base_preds = self._predict_all(self.baseline, self.dataset, 0, total_steps)
 
         logger.info("Running candidate (%s) on %d samples", self.candidate.name, len(texts))
-        cand_preds = self._predict_all(self.candidate, texts, len(texts), total_steps)
+        cand_preds = self._predict_all(self.candidate, self.dataset, len(texts), total_steps)
 
         # Compute metrics for both policies
         policies = ["strict"]
@@ -92,6 +99,11 @@ class Evaluator:
         base_attack_slices = {}
         cand_attack_slices = {}
 
+        # The attack slice family uses attack_family when the dataset provides it
+        # (the agentic dataset), else attack_type (sample.csv). They coincide on
+        # the agentic dataset where attack_type == attack_family.
+        attack_dim = "attack_family" if any(r.attack_family for r in self.dataset) else "attack_type"
+
         for pol in policies:
             base_conf = _confusion(base_preds, self.dataset, pol)
             cand_conf = _confusion(cand_preds, self.dataset, pol)
@@ -102,8 +114,8 @@ class Evaluator:
             cand_metrics[pol] = compute_metrics(cand_conf, cand_lats)
             base_slices[pol] = compute_slices(base_preds, self.dataset, pol, self.config.slices)
             cand_slices[pol] = compute_slices(cand_preds, self.dataset, pol, self.config.slices)
-            base_attack_slices[pol] = compute_slices(base_preds, self.dataset, pol, ["attack_type"])
-            cand_attack_slices[pol] = compute_slices(cand_preds, self.dataset, pol, ["attack_type"])
+            base_attack_slices[pol] = compute_slices(base_preds, self.dataset, pol, [attack_dim])
+            cand_attack_slices[pol] = compute_slices(cand_preds, self.dataset, pol, [attack_dim])
 
         # McNemar significance test on primary policy
         try:

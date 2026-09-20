@@ -23,6 +23,13 @@ _FIELD_ALIASES = {
     "language": {"language", "lang"},
     "source": {"source"},
     "attack_type": {"attack_type", "attack"},
+    "context": {"context"},
+    "attack_family": {"attack_family", "family"},
+    "attack_technique": {"attack_technique", "technique"},
+    "target": {"target"},
+    "review_status": {"review_status"},
+    "id": {"id"},
+    "notes": {"notes", "note"},
 }
 
 

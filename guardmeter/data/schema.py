@@ -21,7 +21,13 @@ CATEGORY_VOCABULARY: list[str] = [
 
 
 class DatasetRecord(BaseModel):
-    """A single labelled evaluation sample."""
+    """A single labelled evaluation sample.
+
+    The optional context/attack_* /target/provenance fields support agentic and
+    indirect-injection datasets; all default to None so simpler datasets (e.g.
+    sample.csv) load unchanged. ``context`` holds prior turns or the surrounding
+    document and is passed to guards via ``meta["context"]``.
+    """
 
     text: str
     label: Literal["benign", "borderline", "unsafe"]
@@ -29,3 +35,11 @@ class DatasetRecord(BaseModel):
     language: str = "en"
     source: str = "unknown"
     attack_type: str | None = None
+    # Agentic-dataset extensions (all optional).
+    context: str | None = None
+    attack_family: str | None = None
+    attack_technique: str | None = None
+    target: str | None = None  # override | exfiltrate | tool_action | persona | none
+    review_status: str | None = None
+    id: str | None = None
+    notes: str | None = None

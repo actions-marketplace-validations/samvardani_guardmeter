@@ -100,14 +100,23 @@ class AnthropicGuard(Guard):
         self.model = model
 
     def predict(self, text: str, **meta: Any) -> GuardResult:
-        """Classify a single text via the Anthropic API and return a GuardResult."""
+        """Classify a single text via the Anthropic API and return a GuardResult.
+
+        When ``meta["context"]`` is provided (prior turns or a surrounding
+        document, e.g. for indirect/multi-turn injections), it is included in
+        the prompt so the model can judge the message in context.
+        """
         start = time.perf_counter()
+        context = meta.get("context")
+        user_content = (
+            f"Preceding context:\n{context}\n\nMessage to classify:\n{text}" if context else text
+        )
         try:
             response = self._client.messages.create(
                 model=self.model,
                 max_tokens=256,
                 system=_SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": text}],
+                messages=[{"role": "user", "content": user_content}],
             )
             raw = _extract_text(response)
         except Exception as exc:  # noqa: BLE001 (never raise mid-evaluation)

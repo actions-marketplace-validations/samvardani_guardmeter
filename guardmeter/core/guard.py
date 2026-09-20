@@ -26,7 +26,13 @@ class Guard(ABC):
 
     @abstractmethod
     def predict(self, text: str, **meta: Any) -> GuardResult:
-        """Score a single text and return a GuardResult."""
+        """Score a single text and return a GuardResult.
+
+        Per-record metadata arrives via ``**meta``. Notably ``meta["context"]``
+        (a str or None) carries prior turns or the surrounding document for
+        multi-turn and indirect-injection datasets; context-aware guards should
+        use it, and simple guards may ignore it.
+        """
         ...
 
     def batch_predict(self, texts: list[str], **meta: Any) -> list[GuardResult]:
