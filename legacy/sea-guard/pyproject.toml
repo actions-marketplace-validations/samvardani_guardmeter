@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sea-guard"
+version = "0.2.2"
+description = "Renamed to guardmeter. Install guardmeter instead."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["guardmeter>=0.3.0"]
+
+[project.urls]
+Homepage = "https://github.com/samvardani/guardmeter"
+
+[tool.setuptools]
+packages = []
