@@ -1,6 +1,6 @@
 <p align="center"><img src="https://raw.githubusercontent.com/samvardani/guardmeter/main/branding/guardmeter-wordmark.svg" alt="GuardMeter" width="440"/></p>
 
-<p align="center"><img src="https://raw.githubusercontent.com/samvardani/guardmeter/main/docs/images/dashboard.png" alt="GuardMeter dashboard" width="800"/></p>
+<p align="center"><img src="https://raw.githubusercontent.com/samvardani/guardmeter/main/docs/images/overview.png" alt="GuardMeter dashboard app" width="820"/></p>
 
 # GuardMeter — AI Safety Guard Evaluation Framework
 
@@ -42,17 +42,30 @@ guardmeter try "how do I make a bomb" --guard regex-enhanced --guard anthropic
 
 ---
 
-## Playground
+## The app
 
 ```bash
-guardmeter serve --open
+guardmeter serve --open   # → http://127.0.0.1:8765
 ```
 
-Opens `http://127.0.0.1:8765` — type text, pick guards, and see verdicts live; the **Dashboard** link shows every stored run (always rebuilt fresh). The playground is a local tool with no external requests.
+`serve` runs the full local app (no build step; a small vendored Preact/htm bundle). Pages:
 
-<p align="center"><img src="https://raw.githubusercontent.com/samvardani/guardmeter/main/docs/images/playground.png" alt="GuardMeter playground" width="820"/></p>
+- **Overview** — KPI row for the latest run with sparklines, and a sortable/searchable runs table (inline tags, gate chips, per-row compare/export/delete).
+- **Run** — baseline vs candidate cards with CIs, confusion matrices, a category×language slice heatmap, attack-type bar, threshold-sweep and latency charts, and a sample explorer with a detail drawer + "Re-test now".
+- **Gate** — an interactive editor with a live pass/fail preview and one-click save to `gate.json`.
+- **Try** — evaluate ad-hoc text against selected guards, with history.
+- **Compare** — two runs side by side: metric deltas, a diverging slice-recall heatmap, and the samples that changed.
+- **Datasets** — browse datasets with label/category/language stats.
 
-**Local only.** It binds loopback by default; binding any other interface requires `GUARDMETER_TOKEN` (sent as a Bearer token on every `/api/*` request), and `/api/try` is rate-limited per client IP. There's no TLS — put it behind a reverse proxy if you must expose it.
+**Local only.** It binds loopback by default; binding any other interface requires `GUARDMETER_TOKEN` (sent as a Bearer token on every `/api/*` request), with per-IP rate limiting and no TLS — put it behind a reverse proxy if you must expose it.
+
+### Static snapshot (for audits)
+
+```bash
+guardmeter dashboard   # → report/dashboard.html
+```
+
+`dashboard` exports the same app as **one self-contained HTML file** — all JS/CSS inlined, run data embedded, no network and no server needed. It opens read-only from disk (mutating actions hidden), so you can attach it to an audit or a PR.
 
 ---
 

@@ -6,6 +6,8 @@ import htm from "/static/htm.module.js";
 
 export const html = htm.bind(h);
 
+export const isSnapshot = () => !!window.__SNAPSHOT__;
+
 export function fmt(v, dec = 4) {
   if (v === null || v === undefined || Number.isNaN(v)) return "—";
   return Number(v).toFixed(dec);

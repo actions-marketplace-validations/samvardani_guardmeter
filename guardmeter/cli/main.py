@@ -262,12 +262,12 @@ def report(
         import webbrowser
         webbrowser.open(out.as_uri())
 
-    # Auto-rebuild dashboard so it always reflects the latest run
+    # Auto-rebuild the dashboard snapshot so it always reflects the latest run
     try:
-        from guardmeter.report.generator import DashboardGenerator
-        dash = DashboardGenerator(store, gate_config=gate_config)
-        dash_path = dash.build()
-        click.echo(f"Dashboard updated at {dash_path}")
+        from guardmeter.serve.snapshot import build_snapshot
+        dash_path = out.parent / "dashboard.html"
+        dash_path.write_text(build_snapshot(store), encoding="utf-8")
+        click.echo(f"Dashboard snapshot updated at {dash_path}")
     except Exception as _dash_exc:  # noqa: BLE001 (intentional resilience boundary)
         logger.debug("Dashboard auto-build failed: %s", _dash_exc)
 
@@ -491,19 +491,18 @@ def dashboard(
     store_path: str | None,
     open_browser: bool,
 ) -> None:
-    """Build an interactive multi-run dashboard and open it in the browser."""
-    from guardmeter.report.generator import DashboardGenerator
+    """Export the read-only, self-contained dashboard snapshot (single HTML file)."""
+    from guardmeter.serve.snapshot import build_snapshot
 
     store = _get_store(store_path)
+    # cfg_path is accepted for backwards compatibility; the snapshot reads the
+    # gate policy from ./gate.json so its Gate column matches the live app.
+    _ = cfg_path
 
-    gate_config = None
-    if cfg_path:
-        gate_config = _load_gate_config(cfg_path).model_dump()
-
-    out = Path(output_path) if output_path else None
-    gen = DashboardGenerator(store, gate_config=gate_config)
-    out = gen.build(out)
-    click.echo(f"Dashboard written to {out}")
+    out = Path(output_path) if output_path else Path("report") / "dashboard.html"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(build_snapshot(store), encoding="utf-8")
+    click.echo(f"Dashboard snapshot written to {out}")
 
     latest = store.latest_run()
     from guardmeter.report.manifest import write_manifest

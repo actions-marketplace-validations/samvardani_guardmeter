@@ -1,7 +1,7 @@
 // Overview page: KPI row (latest run) + filterable, sortable runs table.
 import { Component } from "/static/preact.module.js";
 import { api } from "/static/api.js";
-import { html, fmt, fmtP, shortId, GateChip, KpiCard, toast } from "/static/components/ui.js";
+import { html, fmt, fmtP, shortId, GateChip, KpiCard, toast, isSnapshot } from "/static/components/ui.js";
 
 export class OverviewPage extends Component {
   state = { runs: [], loading: true, q: "", guard: "", sortKey: "timestamp", sortDir: "desc",
@@ -156,7 +156,9 @@ guardmeter serve --open</pre>
             ${rows.map((r) => html`<tr key=${r.run_id} style="cursor:pointer"
                 onClick=${(e) => { if (!e.target.closest(".rowactions,.tagcell")) props.navigate("/run/" + r.run_id); }}>
               <td class="muted" style="white-space:nowrap">${(r.timestamp || "").replace("T", " ").slice(0, 16)}</td>
-              <td class="tagcell">${editing === r.run_id
+              <td class="tagcell">${isSnapshot()
+                ? html`<span class="chip neutral">${r.tag || "—"}</span>`
+                : editing === r.run_id
                 ? html`<input class="input" style="width:110px" autofocus value=${r.tag || ""}
                     onBlur=${(e) => this.saveTag(r.run_id, e.target.value)}
                     onKeyDown=${(e) => e.key === "Enter" && this.saveTag(r.run_id, e.target.value)}/>`
@@ -171,9 +173,9 @@ guardmeter serve --open</pre>
               <td class="rowactions" style="white-space:nowrap">
                 <button class="btn ghost icon" title="Compare" aria-label="Compare with"
                   onClick=${() => props.navigate("/compare?a=" + r.run_id)}>⇄</button>
-                <a class="btn ghost icon" title="Export CSV" href=${api.exportCsvUrl(r.run_id)}>⬇</a>
-                <button class="btn ghost icon" title="Delete" aria-label="Delete run"
-                  onClick=${() => this.setState({ confirmDelete: r.run_id })}>🗑</button>
+                ${!isSnapshot() && html`<a class="btn ghost icon" title="Export CSV" href=${api.exportCsvUrl(r.run_id)}>⬇</a>`}
+                ${!isSnapshot() && html`<button class="btn ghost icon" title="Delete" aria-label="Delete run"
+                  onClick=${() => this.setState({ confirmDelete: r.run_id })}>🗑</button>`}
               </td>
             </tr>`)}
           </tbody>

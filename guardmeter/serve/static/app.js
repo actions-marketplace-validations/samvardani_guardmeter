@@ -14,12 +14,23 @@ initTheme();
 
 // ── routing ──────────────────────────────────────────────────────────────
 export function navigate(path) {
-  if (path !== location.pathname + location.search) history.pushState({}, "", path);
+  // In the offline snapshot (file://) pushState throws, so use hash routing.
+  if (window.__SNAPSHOT__) {
+    if ("#" + path !== location.hash) location.hash = path;      // fires hashchange → re-route
+    else window.dispatchEvent(new Event("gm:navigate"));
+    return;
+  }
+  try {
+    if (path !== location.pathname + location.search) history.pushState({}, "", path);
+  } catch (_e) { /* non-http origin — fall back to a plain re-render */ }
   window.dispatchEvent(new Event("gm:navigate"));
 }
 
 function parseRoute() {
-  const path = location.pathname;
+  // Honour a hash route first so the offline snapshot (opened from file://)
+  // is deep-linkable, e.g. snap.html#/run/<id>. Live serve uses the pathname.
+  const hash = location.hash && location.hash.length > 1 ? location.hash.slice(1) : "";
+  const path = (hash ? hash.split("?")[0] : location.pathname);
   const run = path.match(/^\/run\/(.+)$/);
   if (run) return { name: "run", id: decodeURIComponent(run[1]) };
   if (path === "/gate") return { name: "gate" };
@@ -98,12 +109,14 @@ class App extends Component {
   };
   componentDidMount() {
     window.addEventListener("popstate", this.onRoute);
+    window.addEventListener("hashchange", this.onRoute);
     window.addEventListener("gm:navigate", this.onRoute);
     window.addEventListener("gm:newEval", this.onNewEval);
     window.addEventListener("keydown", this.onKey);
   }
   componentWillUnmount() {
     window.removeEventListener("popstate", this.onRoute);
+    window.removeEventListener("hashchange", this.onRoute);
     window.removeEventListener("gm:navigate", this.onRoute);
     window.removeEventListener("gm:newEval", this.onNewEval);
     window.removeEventListener("keydown", this.onKey);

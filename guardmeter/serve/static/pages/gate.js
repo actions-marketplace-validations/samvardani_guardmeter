@@ -45,7 +45,7 @@ export class GatePage extends Component {
   }
 
   async evaluate() {
-    if (!this.state.runId || !this.state.gate) return;
+    if (window.__SNAPSHOT__ || !this.state.runId || !this.state.gate) return;
     try {
       const evalResult = await api.evaluateGate(this.cleanGate(), this.state.runId);
       this.setState({ evalResult });
@@ -112,6 +112,26 @@ export class GatePage extends Component {
     </div>`;
   }
 
+  preview(runId, runs, evalResult, wouldPass, failures) {
+    return html`
+      <div class="row between center"><h3 style="margin:0">Live preview</h3>
+        <select class="select" style="width:auto" value=${runId}
+          onChange=${(e) => this.setState({ runId: e.target.value }, () => { this.loadSliceKeys(); this.evaluate(); })}>
+          ${runs.map((r) => html`<option value=${r.run_id}>${shortId(r.run_id)} · ${r.candidate}</option>`)}
+        </select></div>
+      ${!runId ? html`<div class="empty">No runs to preview against.</div>` : evalResult && evalResult.error
+        ? html`<div class="empty">${evalResult.error}</div>`
+        : html`<div>
+          <p style="margin:12px 0">${wouldPass === null ? html`<span class="chip neutral">…</span>`
+            : wouldPass ? html`<span class="chip ok">Would PASS</span>`
+            : html`<span class="chip danger">Would FAIL (${failures.length})</span>`}</p>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Scope</th><th>Metric</th><th>Value</th><th>Threshold</th></tr></thead>
+            <tbody>${failures.length ? failures.map((f, i) => html`<tr key=${i}>
+              <td>${f.scope}</td><td>${f.metric}</td><td class="mono">${fmt(f.value)}</td><td class="mono">${fmt(f.threshold)}</td></tr>`)
+              : html`<tr><td colspan="4" class="empty">All checked scopes pass 🎉</td></tr>`}</tbody></table></div>
+        </div>`}`;
+  }
+
   render(_, { gate, runs, runId, sliceKeys, evalResult, showDiff, saving }) {
     if (!gate) return html`<main class="container" style="padding:24px"><div class="skeleton" style="height:200px"></div></main>`;
     const snapshot = !!window.__SNAPSHOT__;
@@ -155,22 +175,9 @@ export class GatePage extends Component {
         </div>
 
         <div class="card">
-          <div class="row between center"><h3 style="margin:0">Live preview</h3>
-            <select class="select" style="width:auto" value=${runId}
-              onChange=${(e) => this.setState({ runId: e.target.value }, () => { this.loadSliceKeys(); this.evaluate(); })}>
-              ${runs.map((r) => html`<option value=${r.run_id}>${shortId(r.run_id)} · ${r.candidate}</option>`)}
-            </select></div>
-          ${!runId ? html`<div class="empty">No runs to preview against.</div>` : evalResult && evalResult.error
-            ? html`<div class="empty">${evalResult.error}</div>`
-            : html`<div>
-              <p style="margin:12px 0">${wouldPass === null ? html`<span class="chip neutral">…</span>`
-                : wouldPass ? html`<span class="chip ok">Would PASS</span>`
-                : html`<span class="chip danger">Would FAIL (${failures.length})</span>`}</p>
-              <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Scope</th><th>Metric</th><th>Value</th><th>Threshold</th></tr></thead>
-                <tbody>${failures.length ? failures.map((f, i) => html`<tr key=${i}>
-                  <td>${f.scope}</td><td>${f.metric}</td><td class="mono">${fmt(f.value)}</td><td class="mono">${fmt(f.threshold)}</td></tr>`)
-                  : html`<tr><td colspan="4" class="empty">All checked scopes pass 🎉</td></tr>`}</tbody></table></div>
-            </div>`}
+          ${snapshot
+            ? html`<h3>Preview</h3><div class="empty">Live gate preview requires <code>guardmeter serve</code>. This snapshot shows the saved policy read-only.</div>`
+            : this.preview(runId, runs, evalResult, wouldPass, failures)}
           ${!snapshot && html`<div class="row" style="justify-content:flex-end;margin-top:16px">
             <button class="btn primary" onClick=${() => this.setState({ showDiff: true })}>Save gate.json…</button></div>`}
         </div>

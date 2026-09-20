@@ -1,7 +1,7 @@
 // Try page: evaluate ad-hoc text against selected guards, with a live history.
 import { Component } from "/static/preact.module.js";
 import { api } from "/static/api.js";
-import { html, fmt, VerdictChip, toast } from "/static/components/ui.js";
+import { html, fmt, VerdictChip, toast, isSnapshot } from "/static/components/ui.js";
 import { pushHistory, truncate } from "/static/components/history.js";
 
 export class TryPage extends Component {
@@ -65,8 +65,8 @@ export class TryPage extends Component {
           onChange=${() => this.toggle(g)}/> ${g}</label>`)}
       </div>
       <div class="row center" style="gap:12px">
-        <button class="btn primary" disabled=${busy} onClick=${() => this.evaluate()}>${busy ? "Evaluating…" : "Evaluate"}</button>
-        <span class="muted" style="font-size:12px">or press ⌘/Ctrl + Enter</span>
+        <button class="btn primary" disabled=${busy || isSnapshot()} onClick=${() => this.evaluate()}>${busy ? "Evaluating…" : "Evaluate"}</button>
+        <span class="muted" style="font-size:12px">${isSnapshot() ? "Live evaluation requires guardmeter serve." : "or press ⌘/Ctrl + Enter"}</span>
       </div>
       ${this.resultsTable(results)}
 

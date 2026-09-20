@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.6.0] - 2026-09-20
+### Added
+- **The dashboard is now a local app** served by `guardmeter serve`: a
+  no-build Preact/htm SPA (two tiny vendored MIT libs) with Overview (KPIs +
+  sparklines + filterable runs table), Run (confusion matrices, slice heatmap,
+  attack bar, threshold-sweep + latency charts, sample explorer with drawer and
+  Re-test), an interactive Gate editor with live pass/fail preview, Try, a
+  Compare page (metric deltas + delta heatmap + changed samples), and a
+  Datasets browser. Design system with a light/dark theme toggle and a hidden
+  `/styleguide`.
+- Full JSON API on `serve`: runs (with `gate_pass` per run), samples, gate
+  get/evaluate/put, datasets, and background compare jobs. The store gains
+  tag/note columns and per-sample attack_type.
+- `guardmeter dashboard` exports a single self-contained, read-only HTML
+  snapshot (JS/CSS inlined, data embedded) that renders offline for audits.
+### Changed
+- `guardmeter dashboard` now produces the app snapshot (was the old static
+  viewer). Run summaries carry F1, latency p99, and gate_pass.
+### Fixed
+- Try history now renders reliably after every evaluation (0.5.0 could leave
+  the list hidden after the second run); it is driven by a pure, tested model.
+- The live/served dashboard's Gate column now shows PASS/FAIL (computed from
+  the current `gate.json`) instead of "—".
+
 ## [0.5.0] - 2026-09-20
 ### Added
 - `guardmeter try` — evaluate ad-hoc text against one or more guards, as an
