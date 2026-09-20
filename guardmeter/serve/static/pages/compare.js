@@ -3,6 +3,7 @@
 import { Component } from "/static/preact.module.js";
 import { api } from "/static/api.js";
 import { html, fmt, shortId, VerdictChip, toast } from "/static/components/ui.js";
+import { sliceMetricValue } from "/static/components/metrics.js";
 
 function deltaColor(d) {
   if (d === null || d === undefined || Math.abs(d) < 1e-9) return "var(--surface-2)";
@@ -16,7 +17,8 @@ function parseSlices(dict) {
   for (const [k, b] of Object.entries(dict || {})) {
     let cat = "?", lang = "?";
     try { [cat, lang] = JSON.parse(k); } catch (_e) { /* keep */ }
-    out[`${cat}/${lang}`] = { category: cat, language: lang, recall: b.recall };
+    // null recall when the slice has no positives — excluded from the delta scale.
+    out[`${cat}/${lang}`] = { category: cat, language: lang, recall: sliceMetricValue(b, "recall") };
   }
   return out;
 }
@@ -113,7 +115,8 @@ export class ComparePage extends Component {
               ...langs.map((l) => {
                 const key = `${c}/${l}`;
                 const ra = sa[key] && sa[key].recall, rb = sb[key] && sb[key].recall;
-                if (ra == null || rb == null) return html`<div class="cell" style="background:var(--surface-2)">—</div>`;
+                if (ra == null || rb == null) return html`<div class="cell" style="background:var(--surface-2);color:var(--text-muted)"
+                  title=${`${key} · recall undefined in one run (no positives)`}>n/a</div>`;
                 const d = rb - ra;
                 return html`<div class="cell" style=${`background:${deltaColor(d)};color:var(--text)`} title=${key}>${(d > 0 ? "+" : "") + fmt(d, 2)}</div>`;
               }),

@@ -4,6 +4,7 @@ import { Component } from "/static/preact.module.js";
 import { api } from "/static/api.js";
 import { html, fmt, shortId, VerdictChip, toast } from "/static/components/ui.js";
 import { computeSweep, latencyBuckets, heatColor, lineChart, barChart, downloadCanvasPng } from "/static/charts.js";
+import { sliceMetricValue, naReason } from "/static/components/metrics.js";
 
 const isSnapshot = () => !!window.__SNAPSHOT__;
 
@@ -21,11 +22,11 @@ class ChartCanvas extends Component {
 }
 
 function parseSlices(dict) {
-  // {"[\"crime\",\"en\"]": bundle, …} → [{category, language, recall, fpr, n}]
+  // {"[\"crime\",\"en\"]": bundle, …} → [{category, language, bundle, n}]
   return Object.entries(dict || {}).map(([k, b]) => {
     let cat = "?", lang = "?";
     try { [cat, lang] = JSON.parse(k); } catch (_e) { /* keep defaults */ }
-    return { category: cat, language: lang, recall: b.recall, fpr: b.fpr, n: b.tp + b.fp + b.tn + b.fn };
+    return { category: cat, language: lang, bundle: b, n: b.tp + b.fp + b.tn + b.fn };
   });
 }
 
@@ -33,7 +34,7 @@ function parseAttacks(dict) {
   return Object.entries(dict || {}).map(([k, b]) => {
     let name = "?";
     try { [name] = JSON.parse(k); } catch (_e) { /* keep default */ }
-    return { attack: name ?? "—", recall: b.recall, n: b.tp + b.fp + b.tn + b.fn };
+    return { attack: name ?? "—", recall: sliceMetricValue(b, "recall"), n: b.tp + b.fp + b.tn + b.fn };
   });
 }
 
@@ -135,7 +136,9 @@ export class RunPage extends Component {
           ...langs.map((l) => {
             const s = at(c, l);
             if (!s) return html`<div class="cell" style="background:var(--surface-2)">—</div>`;
-            const val = metric === "recall" ? s.recall : s.fpr;
+            const val = sliceMetricValue(s.bundle, metric);
+            if (val === null) return html`<div class="cell" style="background:var(--surface-2);color:var(--text-muted)"
+              title=${`${c}/${l} · ${naReason(metric)}`}>n/a<br/><span style="font-size:10px;opacity:.8">n=${s.n}</span></div>`;
             return html`<div class="cell" style=${`background:${heatColor(val, metric === "fpr")}`}
               title=${`${c}/${l} · n=${s.n}`}
               onClick=${() => this.setFilter({ category: c, language: l })}>${fmt(val, 2)}<br/><span style="font-size:10px;opacity:.8">n=${s.n}</span></div>`;
@@ -151,7 +154,7 @@ export class RunPage extends Component {
     const base = (run.baseline_metrics || {}).strict;
     const sweep = computeSweep(run.sample_results || []);
     const lat = latencyBuckets((run.sample_results || []).map((s) => s.candidate_latency_ms));
-    const attacks = parseAttacks((run.candidate_attack_slices || {}).strict);
+    const attacks = parseAttacks((run.candidate_attack_slices || {}).strict).filter((a) => a.recall !== null);
     const sig = run.mcnemar_p == null ? "McNemar test unavailable."
       : run.mcnemar_p < 0.05
         ? `The baseline→candidate difference is statistically significant (McNemar p = ${run.mcnemar_p < 0.001 ? "<0.001" : run.mcnemar_p.toFixed(3)}).`
