@@ -29,6 +29,8 @@ jobs:
           mkdir -p release-assets
           cp dataset/agentic/v1/data.jsonl release-assets/
           cp dataset/agentic/v1/DATASET_CARD.md release-assets/
+          cp dataset/agentic/v1/gate.agentic.json release-assets/
+          cp dataset/agentic/v1/LICENSE release-assets/
       - uses: actions/upload-artifact@v7
         if: startsWith(github.ref_name, 'v')
         with: { name: release-assets, path: release-assets/ }

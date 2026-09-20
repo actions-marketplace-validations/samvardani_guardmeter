@@ -51,6 +51,15 @@ AGENTIC_V1 = DatasetRelease(
             "012507e611fe1140628dab8bc6502ae312507d448d7dcd12e42b3df135279347",
         ),
         DatasetAsset("DATASET_CARD.md", None),
+        # Recommended gate policy and the dataset licence are frozen with v1.
+        DatasetAsset(
+            "gate.agentic.json",
+            "aae00f9867d7e26df6f4dc3092f92f6af77c1338d0ea0a9fdb6196df2a37225a",
+        ),
+        DatasetAsset(
+            "LICENSE",
+            "ba5ce8f69442c75fc5e314d6e80b76922d76e1a7861d9976654a368bdb29004f",
+        ),
     ),
 )
 

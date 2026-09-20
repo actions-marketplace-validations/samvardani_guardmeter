@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1] - 2026-09-20
+### Fixed
+- `guardmeter dataset fetch agentic-v1` now also downloads `gate.agentic.json`
+  and the dataset `LICENSE` (both sha256-pinned), so a pip-only install can run
+  the recommended gate without cloning the repo. Release workflow attaches both.
+
 ## [0.7.0] - 2026-09-20
 ### Added
 - **Agentic Attack Dataset v1** (`dataset/agentic/v1/`): 421 hand-authored,
