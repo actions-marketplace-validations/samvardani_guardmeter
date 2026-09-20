@@ -209,7 +209,7 @@ register("my-guard", MyGuard)  # now usable as --candidate my-guard
 ## Datasets
 
 - **`dataset/sample.csv`** — the smoke-test set used throughout this README and by `guardmeter init`. Small, balanced across categories and languages; good enough to exercise the pipeline and calibrate a demo gate.
-- **`dataset/prompt_injection_seed.csv`** — a 40-row seed set (English + Farsi) of prompt-injection attempts (direct overrides, poisoned tool/document output, multi-turn setups, and base64/ROT13-encoded instructions) plus benign look-alikes that merely *mention* instructions, prompts, or tools. It's aimed at **agent-facing** guards and is **not** part of the default gate: the built-in regex guards score poorly on it (they aren't designed for injection detection), which is the point — use it to benchmark a real LLM or injection-aware guard.
+- **`dataset/agentic/v1/`** — the **Agentic Attack Dataset v1**: 421 hand-authored, bilingual (English + Farsi) prompt-injection attempts across 8 families (direct override, indirect injection, exfiltration, tool misuse, authority spoof, persona jailbreak, encoded, multi-turn) plus hard benign look-alikes. A research artifact with a [dataset card](dataset/agentic/v1/DATASET_CARD.md); not bundled in the wheel (fetch it with `guardmeter dataset fetch agentic-v1`). The built-in regex guards are expected to score poorly on it — that's the point.
 
 ---
 
