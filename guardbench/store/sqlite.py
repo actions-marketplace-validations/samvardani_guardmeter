@@ -50,9 +50,21 @@ class SQLiteStore(RunStore):
                     category TEXT,
                     language TEXT,
                     baseline_pred TEXT,
-                    candidate_pred TEXT
+                    candidate_pred TEXT,
+                    baseline_score REAL,
+                    candidate_score REAL,
+                    baseline_latency_ms REAL,
+                    candidate_latency_ms REAL
                 )
             """)
+            # Migrate existing databases created before the score/latency columns.
+            existing = {row[1] for row in conn.execute("PRAGMA table_info(sample_results)")}
+            for col in (
+                "baseline_score", "candidate_score",
+                "baseline_latency_ms", "candidate_latency_ms",
+            ):
+                if col not in existing:
+                    conn.execute(f"ALTER TABLE sample_results ADD COLUMN {col} REAL")
             conn.commit()
 
     def save_run(self, results: EvalResults) -> None:
@@ -82,12 +94,14 @@ class SQLiteStore(RunStore):
                 ),
             )
             conn.executemany(
-                "INSERT INTO sample_results VALUES (?,?,?,?,?,?,?,?)",
+                "INSERT INTO sample_results VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
                 [
                     (
                         results.run_id, i,
                         s.text, s.label, s.category, s.language,
                         s.baseline_pred, s.candidate_pred,
+                        s.baseline_score, s.candidate_score,
+                        s.baseline_latency_ms, s.candidate_latency_ms,
                     )
                     for i, s in enumerate(results.sample_results)
                 ],
@@ -160,7 +174,8 @@ class SQLiteStore(RunStore):
         """Read persisted per-sample rows for a run, ordered by row index."""
         with self._connect() as conn:
             rows = conn.execute(
-                "SELECT text, label, category, language, baseline_pred, candidate_pred "
+                "SELECT text, label, category, language, baseline_pred, candidate_pred, "
+                "baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms "
                 "FROM sample_results WHERE run_id=? ORDER BY row_idx",
                 (run_id,),
             ).fetchall()
@@ -172,8 +187,13 @@ class SQLiteStore(RunStore):
                 "language": language,
                 "baseline_pred": baseline_pred,
                 "candidate_pred": candidate_pred,
+                "baseline_score": baseline_score,
+                "candidate_score": candidate_score,
+                "baseline_latency_ms": baseline_latency_ms if baseline_latency_ms is not None else 0.0,
+                "candidate_latency_ms": candidate_latency_ms if candidate_latency_ms is not None else 0.0,
             }
-            for text, label, category, language, baseline_pred, candidate_pred in rows
+            for (text, label, category, language, baseline_pred, candidate_pred,
+                 baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms) in rows
         ]
 
     def _row_to_results(self, row: tuple) -> EvalResults:

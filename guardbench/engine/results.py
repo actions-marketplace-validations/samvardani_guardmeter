@@ -11,7 +11,7 @@ from guardbench.engine.metrics import MetricsBundle
 
 @dataclass
 class SampleResult:
-    """Per-sample result: both guard predictions and optional judge verdict."""
+    """Per-sample result: both guard predictions, scores, latencies, and optional judge verdict."""
 
     text: str
     label: str
@@ -20,6 +20,10 @@ class SampleResult:
     baseline_pred: str  # "pass" | "flag"
     candidate_pred: str  # "pass" | "flag"
     judge_verdict: Optional[str] = None  # "agree" | "disagree" | None
+    baseline_score: Optional[float] = None
+    candidate_score: Optional[float] = None
+    baseline_latency_ms: float = 0.0
+    candidate_latency_ms: float = 0.0
 
 
 def _bundle_to_dict(b: MetricsBundle) -> dict:
@@ -84,7 +88,10 @@ class EvalResults:
             "sample_results": [
                 {"text": s.text, "label": s.label, "category": s.category,
                  "language": s.language, "baseline_pred": s.baseline_pred,
-                 "candidate_pred": s.candidate_pred, "judge_verdict": s.judge_verdict}
+                 "candidate_pred": s.candidate_pred, "judge_verdict": s.judge_verdict,
+                 "baseline_score": s.baseline_score, "candidate_score": s.candidate_score,
+                 "baseline_latency_ms": s.baseline_latency_ms,
+                 "candidate_latency_ms": s.candidate_latency_ms}
                 for s in self.sample_results
             ],
             "mcnemar_p": self.mcnemar_p,
@@ -120,6 +127,10 @@ class EvalResults:
                 text=s["text"], label=s["label"], category=s["category"],
                 language=s["language"], baseline_pred=s["baseline_pred"],
                 candidate_pred=s["candidate_pred"], judge_verdict=s.get("judge_verdict"),
+                baseline_score=s.get("baseline_score"),
+                candidate_score=s.get("candidate_score"),
+                baseline_latency_ms=s.get("baseline_latency_ms", 0.0),
+                candidate_latency_ms=s.get("candidate_latency_ms", 0.0),
             )
             for s in d.get("sample_results", [])
         ]

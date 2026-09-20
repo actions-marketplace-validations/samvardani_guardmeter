@@ -164,11 +164,11 @@
   <!-- Latency Charts -->
   <div class="row section">
     <div class="card">
-      <h2>Latency Distribution (Baseline)</h2>
+      <h2>Per-sample latency (ms) — Baseline</h2>
       <canvas id="latencyBaseline" height="140"></canvas>
     </div>
     <div class="card">
-      <h2>Latency Distribution (Candidate)</h2>
+      <h2>Per-sample latency (ms) — Candidate</h2>
       <canvas id="latencyCandidate" height="140"></canvas>
     </div>
   </div>
@@ -176,7 +176,7 @@
   <!-- Threshold Sweep Chart -->
   {% if sweep_data %}
   <div class="card section">
-    <h2>Threshold Sweep (Candidate)</h2>
+    <h2>Candidate threshold sweep (real scores)</h2>
     <canvas id="thresholdSweep" height="120"></canvas>
   </div>
   {% endif %}

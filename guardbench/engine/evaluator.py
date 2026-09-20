@@ -109,6 +109,10 @@ class Evaluator:
                     language=rec.language,
                     baseline_pred=pred_b.prediction,
                     candidate_pred=pred_c.prediction,
+                    baseline_score=pred_b.score,
+                    candidate_score=pred_c.score,
+                    baseline_latency_ms=pred_b.latency_ms,
+                    candidate_latency_ms=pred_c.latency_ms,
                 )
             )
 

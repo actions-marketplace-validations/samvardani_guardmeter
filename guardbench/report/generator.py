@@ -100,22 +100,9 @@ class ReportGenerator:
         strict_base_slices = _slice_rows(results.baseline_slices.get("strict", {}))
         strict_cand_slices = _slice_rows(results.candidate_slices.get("strict", {}))
 
-        # Latency arrays for Chart.js
-        base_latencies = [s for s in [strict_base.latency_p50, strict_base.latency_p90,
-                                       strict_base.latency_p95, strict_base.latency_p99]
-                          if s > 0]
-        cand_latencies = [s for s in [strict_cand.latency_p50, strict_cand.latency_p90,
-                                       strict_cand.latency_p95, strict_cand.latency_p99]
-                          if s > 0]
-
-        # For richer latency chart, extract from sample results if available
-        if results.sample_results:
-            base_lats_raw = []
-            cand_lats_raw = []
-            # We don't store raw latencies in sample results, use aggregate percentiles
-            # Simulate a distribution from the percentiles
-            base_latencies = _simulate_latencies(strict_base)
-            cand_latencies = _simulate_latencies(strict_cand)
+        # Latency arrays for Chart.js: real per-sample latencies (one value per sample)
+        base_latencies = [s.baseline_latency_ms for s in results.sample_results]
+        cand_latencies = [s.candidate_latency_ms for s in results.sample_results]
 
         sweep = threshold_sweep_data(results)
 
@@ -269,16 +256,3 @@ class DashboardGenerator:
                 for s in results.sample_results[:200]
             ],
         }
-
-
-def _simulate_latencies(bundle: MetricsBundle) -> List[float]:
-    """Create a small list of representative latency values from percentiles."""
-    if bundle.latency_p50 == 0 and bundle.latency_p99 == 0:
-        return []
-    return [
-        bundle.latency_p50,
-        bundle.latency_p90,
-        bundle.latency_p95,
-        bundle.latency_p99,
-        bundle.latency_max,
-    ]

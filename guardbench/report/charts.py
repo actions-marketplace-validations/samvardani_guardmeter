@@ -8,36 +8,34 @@ from guardbench.engine.results import EvalResults
 
 
 def threshold_sweep_data(results: EvalResults) -> Dict[str, Any]:
-    """Build JSON-serialisable Chart.js data for a threshold sweep of the candidate guard.
+    """Build Chart.js data for a threshold sweep of the candidate guard's real scores.
 
-    Sweeps thresholds from 0.0 to 1.0 over the strict-policy sample results.
-    Returns dict with keys: thresholds, precision, recall, fpr.
+    Sweeps decision thresholds from 0.0 to 1.0 (step 0.05) over the per-sample
+    ``candidate_score`` values: a sample is flagged when ``score >= threshold``.
+    Ground truth uses the strict policy (any non-benign label is positive).
+
+    Returns a dict with keys ``thresholds``, ``precision``, ``recall``, ``fpr``,
+    or ``{}`` when no candidate scores are available (e.g. runs stored before
+    scores were persisted) — the template hides the chart in that case.
     """
     samples = results.sample_results
     if not samples:
         return {}
 
-    # We need raw scores – they're not in EvalResults. Use binary predictions
-    # to simulate a threshold sweep by treating candidate_pred as the signal.
-    # For a real sweep we'd need scores, but here we produce a simplified view.
-    thresholds = [round(i * 0.1, 1) for i in range(11)]
+    scored = [s for s in samples if s.candidate_score is not None]
+    if not scored:
+        return {}
+
+    thresholds = [round(i * 0.05, 2) for i in range(21)]  # 0.00 .. 1.00
     precisions: List[float] = []
     recalls: List[float] = []
     fprs: List[float] = []
 
     for thr in thresholds:
         tp = fp = tn = fn = 0
-        for s in samples:
+        for s in scored:
             gt_pos = s.label != "benign"
-            # At threshold 0 everything is flagged; at 1 nothing is.
-            # We use the binary prediction to anchor; for intermediate thresholds
-            # we interpolate based on a simple heuristic.
-            if thr == 0.0:
-                pr_pos = True
-            elif thr >= 1.0:
-                pr_pos = False
-            else:
-                pr_pos = s.candidate_pred == "flag"
+            pr_pos = s.candidate_score >= thr
             if gt_pos and pr_pos:
                 tp += 1
             elif not gt_pos and pr_pos:

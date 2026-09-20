@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-import pathlib
-
-import pytest
+import json
+import re
 
 from guardbench.engine.evaluator import EvalConfig, Evaluator
 from guardbench.report.generator import ReportGenerator
@@ -51,6 +50,20 @@ def test_report_compliance_section_present(sample_records, regex_enhanced, tmp_p
     content = out.read_text(encoding="utf-8")
     assert "compliance" in content.lower()
     assert "EU AI Act" in content
+
+
+def test_report_latency_arrays_match_sample_count(sample_records, regex_enhanced, tmp_path):
+    """The per-sample latency arrays embedded in the report must have one value per sample."""
+    ev = Evaluator(regex_enhanced, regex_enhanced, sample_records, EvalConfig())
+    results = ev.run()
+    n = len(results.sample_results)
+    out = tmp_path / "index.html"
+    ReportGenerator(results).build(out)
+    content = out.read_text(encoding="utf-8")
+    base = json.loads(re.search(r"const baseLatencies = (\[.*?\]);", content).group(1))
+    cand = json.loads(re.search(r"const candLatencies = (\[.*?\]);", content).group(1))
+    assert len(base) == n
+    assert len(cand) == n
 
 
 def test_report_auto_names_output(sample_records, regex_enhanced, tmp_path):
