@@ -317,6 +317,10 @@ def report(
 @click.option("--store", "store_path", default=None, help="Override DB path")
 @click.option("--json", "json_out", is_flag=True, help="Print a JSON result to stdout (human text goes to stderr)")
 @click.option("--summary-md", "summary_md", default=None, help="Write a Markdown step-summary table to this path")
+@click.option("--junit", "junit_path", default=None, help="Write JUnit XML (one testcase per checked scope×metric)")
+@click.option("--webhook", "webhook_url", default=None,
+              help="POST JSON to this URL on failure (else $GUARDMETER_WEBHOOK_URL)")
+@click.option("--report-url", "report_url", default=None, help="Report URL to include in the webhook payload")
 def gate(
     cfg_path: str,
     run_id: str,
@@ -324,10 +328,19 @@ def gate(
     store_path: str | None,
     json_out: bool,
     summary_md: str | None,
+    junit_path: str | None,
+    webhook_url: str | None,
+    report_url: str | None,
 ) -> None:
     """Run the CI gate check. Exits 0 on pass, 1 on failure."""
+    import os
+
     from guardmeter.gate.checker import GateChecker
-    from guardmeter.gate.summary import write_markdown_summary, write_step_summary
+    from guardmeter.gate.summary import (
+        write_junit,
+        write_markdown_summary,
+        write_step_summary,
+    )
 
     # When --json is set, all human-readable text goes to stderr so stdout is pure JSON.
     def _log(msg: str) -> None:
@@ -352,6 +365,22 @@ def gate(
     if summary_md:
         write_step_summary(Path(summary_md), results, config=gate_config, check_result=check_result)
         _log(f"Step summary written to {summary_md}")
+
+    if junit_path:
+        write_junit(Path(junit_path), check_result)
+        _log(f"JUnit XML written to {junit_path}")
+
+    hook = webhook_url or os.environ.get("GUARDMETER_WEBHOOK_URL")
+    if hook and not check_result.passed:
+        from guardmeter.gate.webhook import notify_webhook
+        ok = notify_webhook(hook, {
+            "passed": check_result.passed,
+            "run_id": results.run_id,
+            "failures": [f.to_dict() for f in check_result.structured_failures],
+            "report_url": report_url,
+            "dataset_sha": results.dataset_sha,
+        })
+        _log(f"Webhook {'delivered' if ok else 'failed'}")
 
     if json_out:
         payload = {

@@ -5,6 +5,8 @@
 # GuardMeter — AI Safety Guard Evaluation Framework
 
 [![CI](https://github.com/samvardani/guardmeter/actions/workflows/ci.yml/badge.svg)](https://github.com/samvardani/guardmeter/actions)
+[![CodeQL](https://github.com/samvardani/guardmeter/actions/workflows/codeql.yml/badge.svg)](https://github.com/samvardani/guardmeter/actions/workflows/codeql.yml)
+[![pip-audit](https://img.shields.io/badge/pip--audit-clean-brightgreen)](https://github.com/samvardani/guardmeter/actions/workflows/ci.yml)
 [![PyPI](https://img.shields.io/pypi/v/guardmeter)](https://pypi.org/project/guardmeter/)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
@@ -114,6 +116,22 @@ GitHub Actions:
   with:
     name: safety-report
     path: report/
+```
+
+### CI outputs
+
+`guardmeter gate` emits machine-readable output for wherever your pipeline consumes it:
+
+- `--json` — `{passed, failures:[{scope, metric, value, threshold}], run_id}` on stdout (exit 1 on failure).
+- `--summary-md PATH` — a Metric/Baseline/Candidate/Delta/Threshold/Status table; point it at `$GITHUB_STEP_SUMMARY`.
+- `--junit PATH` — JUnit XML with one testcase per checked scope×metric (renders natively in GitLab/Jenkins).
+- `--webhook URL` (or `$GUARDMETER_WEBHOOK_URL`) — POSTs a JSON notification on failure only; add `--report-url` to include a link.
+
+Publish the JUnit file to GitHub's checks UI with a test reporter:
+
+```yaml
+- uses: dorny/test-reporter@v1
+  with: { name: guardmeter, path: guardmeter-junit.xml, reporter: java-junit }
 ```
 
 ---

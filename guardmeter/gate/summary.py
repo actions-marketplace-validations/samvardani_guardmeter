@@ -1,8 +1,9 @@
-"""CI gate summary writers: Markdown table and JSON summary."""
+"""CI gate summary writers: Markdown table, JSON summary, and JUnit XML."""
 
 from __future__ import annotations
 
 import json
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 from guardmeter.engine.metrics import MetricsBundle
@@ -141,3 +142,37 @@ def write_step_summary(
     ))
 
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def write_junit(output_path: Path, check_result: GateCheckResult) -> None:
+    """Write JUnit XML with one <testcase> per checked scope×metric.
+
+    Test names look like ``self_harm/en :: min_recall``; failures carry the
+    reason (e.g. ``recall 0.4100 < min_recall 0.44``). Renders in GitHub test
+    reporters, GitLab, and Jenkins.
+    """
+    output_path = Path(output_path)
+    if output_path.parent and not output_path.parent.exists():
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    checks = check_result.checks
+    total = len(checks)
+    n_failures = sum(1 for c in checks if not c.passed)
+
+    suites = ET.Element("testsuites", tests=str(total), failures=str(n_failures))
+    suite = ET.SubElement(
+        suites, "testsuite", name="guardmeter",
+        tests=str(total), failures=str(n_failures), time="0",
+    )
+    for check in checks:
+        case = ET.SubElement(
+            suite, "testcase",
+            name=f"{check.scope} :: {check.metric}", classname="guardmeter",
+        )
+        if not check.passed:
+            failure = ET.SubElement(case, "failure", message=check.message)
+            failure.text = check.message
+
+    tree = ET.ElementTree(suites)
+    ET.indent(tree)
+    tree.write(str(output_path), encoding="utf-8", xml_declaration=True)

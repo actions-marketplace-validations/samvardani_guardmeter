@@ -25,11 +25,19 @@ inputs:
     default: "3.12"
   version:
     # Defaults to this repo's current release. Users should pin the action to a
-    # matching tag, e.g. `uses: samvardani/guardmeter@v0.4.0`. Pass `local` to
+    # matching tag, e.g. `uses: samvardani/guardmeter@v0.5.0`. Pass `local` to
     # install the checked-out source instead (used by this repo's own selftest).
     description: guardmeter version to install (PyPI), or "local" to install the checkout
     required: false
     default: "0.4.0"
+  junit:
+    description: Path for the JUnit XML report (always written and uploaded)
+    required: false
+    default: guardmeter-junit.xml
+  webhook-url:
+    description: Optional URL to POST a JSON notification to when the gate fails
+    required: false
+    default: ""
 
 outputs:
   passed:
@@ -83,7 +91,9 @@ runs:
           --config "${{ inputs.gate }}" \
           --run latest \
           --json \
-          --summary-md "$GITHUB_STEP_SUMMARY" > gate-result.json \
+          --summary-md "$GITHUB_STEP_SUMMARY" \
+          --junit "${{ inputs.junit }}" \
+          --webhook "${{ inputs.webhook-url }}" > gate-result.json \
           || echo "failed=1" >> "$GITHUB_ENV"
 
     - name: Set outputs
@@ -104,6 +114,12 @@ runs:
       with:
         name: guardmeter-report
         path: report/
+
+    - uses: actions/upload-artifact@v7
+      if: always()
+      with:
+        name: guardmeter-junit
+        path: ${{ inputs.junit }}
 
     - name: Fail if gate failed
       shell: bash

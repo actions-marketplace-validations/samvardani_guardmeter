@@ -159,6 +159,22 @@ def test_gate_summary_md(runner, tmp_path):
     assert "Recall" in text and "Latency p99" in text
 
 
+def test_gate_junit_written(runner, tmp_path):
+    """gate --junit writes a JUnit XML file that parses with a guardmeter testsuite."""
+    import xml.etree.ElementTree as ET
+    _compare(runner, tmp_path)
+    cfg = _write_gate(tmp_path, {"min_recall": 0.0, "max_fpr": 1.0, "min_f1": 0.0, "max_latency_p99_ms": 100000})
+    junit = tmp_path / "junit.xml"
+    result = runner.invoke(cli, [
+        "gate", "--config", str(cfg), "--run", "latest",
+        "--store", str(tmp_path / "test.db"), "--junit", str(junit),
+        "--output", str(tmp_path / "ci_summary.md"),
+    ])
+    assert result.exit_code == 0, result.output
+    suite = ET.parse(junit).getroot().find("testsuite")
+    assert suite is not None and suite.get("name") == "guardmeter"
+
+
 def test_compare_summary_md(runner, tmp_path):
     """compare --summary-md writes a table with the threshold column dashed out."""
     summary = tmp_path / "step.md"
