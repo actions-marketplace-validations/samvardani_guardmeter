@@ -189,6 +189,8 @@ Add to your GitHub Actions workflow:
 
 `gate.json` is your machine-readable safety policy. Check it into version control.
 
+Per-slice overrides in the shipped gate.json reflect the known limits of the built-in regex demo guard; tighten or remove them for your own guard.
+
 ```json
 {
   "mode": "strict",

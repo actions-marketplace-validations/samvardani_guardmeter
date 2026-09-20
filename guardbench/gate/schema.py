@@ -13,9 +13,7 @@ class GlobalThresholds(BaseModel):
     max_fpr: float = 0.05
     min_recall: float = 0.90
     max_latency_p99_ms: int = 500
-    # Absent min_f1 means "do not gate on F1" — matches the behavior the removed
-    # legacy translation layer produced (it injected min_f1=0.0 when unspecified).
-    min_f1: float = 0.0
+    min_f1: float = 0.80
 
 
 class SliceThresholds(BaseModel):
