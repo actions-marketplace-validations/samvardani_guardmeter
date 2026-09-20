@@ -32,7 +32,7 @@ All dependencies live in `pyproject.toml`. There are no `requirements*.txt` file
 
 ## Adding a guard
 
-Subclass `guardmeter.core.guard.Guard`, implement `classify(text) -> GuardResult`, and register it:
+Subclass `guardmeter.core.guard.Guard`, implement `predict(text, **meta) -> GuardResult`, and register it:
 
 ```python
 from guardmeter.core.registry import register
@@ -40,6 +40,45 @@ register("my-guard", MyGuard)
 ```
 
 Third-party packages can expose guards through the `guardmeter.guards` entry-point group so they resolve by name without any import.
+
+## Contributing rows
+
+The **Agentic Attack Dataset** (`dataset/agentic/v1/`) is frozen: corrections go
+to `v1.1`, breaking changes to `v2`. If you're adding rows to a working dataset,
+follow these rules — `guardmeter dataset validate` enforces most of them and CI
+runs it, so a PR that fails validation won't merge.
+
+**Content rules (non-negotiable):**
+
+- **No working exploits** against real products, no real credentials, no real
+  people, no real company names, no PII, no malware code. Injection text
+  references generic tools only ("the email tool", "the file system").
+- **Author every row fresh.** No copying from public jailbreak collections —
+  licence and provenance would be unclear.
+- **Farsi rows are natural Farsi** written for Farsi speakers — not translations
+  of English rows, and not transliteration.
+- **No template stamping.** Rows within a family must differ in structure,
+  register, length, and framing.
+
+**Schema:** each row needs `id` (unique, `[A-Za-z0-9._-]+`), `text`, `label`
+(`benign` | `borderline` | `unsafe`), `category`, `language`, and — for agentic
+rows — `attack_family`, `attack_technique`, `target`
+(`override`/`exfiltrate`/`tool_action`/`persona`/`none`), and `context` for the
+`multi_turn` and `indirect_injection` families. `benign` rows must have
+`target: none`; `unsafe` rows must not.
+
+**What `validate` checks:** id uniqueness/format, no exact or near-duplicate rows
+within a family (token-set Jaccard ≥ 0.6), language script ratios (fa ≥ 60%
+Arabic script, en < 10%), decoded-payload sanity for the `encoded` family, and
+label/target/context consistency.
+
+```bash
+guardmeter dataset validate path/to/data.jsonl   # must exit 0
+guardmeter dataset stats    path/to/data.jsonl --markdown
+```
+
+Bump the dataset's own `CHANGELOG.md` and `DATASET_CARD.md` composition table in
+the same PR.
 
 ## Releases
 

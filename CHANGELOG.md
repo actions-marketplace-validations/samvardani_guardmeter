@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.7.0] - 2026-09-20
+### Added
+- **Agentic Attack Dataset v1** (`dataset/agentic/v1/`): 421 hand-authored,
+  bilingual prompt-injection attempts (303 English, 118 natively-written Farsi)
+  across 8 families — direct override, indirect injection, exfiltration, tool
+  misuse, authority spoof, persona jailbreak, encoded, multi-turn — plus hard
+  benign look-alikes and borderline cases. Ships with a dataset card, changelog,
+  and CC-BY-4.0 licence. No working exploits, credentials, PII, or real names;
+  generic tool references only. A **repo artifact, not bundled in the wheel**.
+- **`guardmeter dataset fetch agentic-v1`** downloads the dataset (data + card)
+  from the tagged GitHub release assets into `./dataset/agentic/v1/` and verifies
+  the sha256 against a constant baked into the package.
+- **`guardmeter dataset validate/stats/info`**: `validate` enforces unique ids,
+  no exact/near-duplicate rows within a family (token-set Jaccard ≥ 0.6),
+  language script ratios, decoded-payload sanity for the `encoded` family, and
+  label/target/context consistency (exits 1 on any problem). `stats` prints the
+  composition (with `--markdown`); `info` prints rows/sha256/families/version.
+  A CI job runs `validate` on both shipped datasets.
+- **Context-aware records and guards**: `DatasetRecord` gains optional
+  `context`, `attack_family`, `attack_technique`, `target`, `review_status`,
+  `id`, and `notes`. `Guard.predict` receives `meta["context"]` (prior turns or
+  the surrounding document); the anthropic guard uses it. Slice metrics now split
+  by `attack_family` when present.
+- **`injection-heuristic` guard**: a deliberately weak, documented keyword
+  baseline (English-only, surface-string, shallow encoding check) that gives the
+  agentic dataset an honest floor to measure against.
+- **`dataset/agentic/v1/gate.agentic.json`**: an aspirational injection gate
+  (per-family `attack:` slices + a `*/fa` bar), plus `docs/AGENTIC_RESULTS.md`
+  documenting the shipped guards' honest (near-zero) numbers, and a non-required
+  `agentic` CI job that keeps the gap visible without blocking merges.
+
+### Fixed
+- `sample.csv` was polluted by committed `dataset augment` output (exact- and
+  near-duplicate rows, duplicate ids, Farsi rows with an English paraphrase
+  prefix). Deduplicated to 110 clean rows and recalibrated the demo `gate.json`
+  slice thresholds to the honest numbers; the quickstart still passes.
+
 ## [0.6.1] - 2026-09-20
 ### Fixed
 - **Gate editor** no longer hides (and could drop) per-slice `min_f1` and

@@ -180,6 +180,7 @@ release). Outputs: `passed`, `run_id`, `report_path`.
 | `regex-baseline` | built-in | Simple keyword-matching profile — the weak baseline to compare against |
 | `regex-enhanced` | built-in | Expanded patterns, obfuscation detection, Farsi coverage |
 | `regex` | built-in | Alias of `regex-enhanced` (kept for backward compatibility) |
+| `injection-heuristic` | built-in | Deliberately weak keyword baseline for prompt injection — an honest floor for the agentic dataset, not a real detector |
 | `openai` | `pip install guardmeter[llm]` + `OPENAI_API_KEY` | OpenAI Moderation API (experimental — see below) |
 | `anthropic` | `pip install guardmeter[llm]` + `ANTHROPIC_API_KEY` | Claude as a JSON-verdict safety classifier (experimental — see below) |
 | `llamaguard` | HuggingFace `transformers` or an HTTP endpoint | Llama Guard 3, local pipeline or hosted API (experimental — see below) |
@@ -208,8 +209,24 @@ register("my-guard", MyGuard)  # now usable as --candidate my-guard
 
 ## Datasets
 
-- **`dataset/sample.csv`** — the smoke-test set used throughout this README and by `guardmeter init`. Small, balanced across categories and languages; good enough to exercise the pipeline and calibrate a demo gate.
-- **`dataset/agentic/v1/`** — the **Agentic Attack Dataset v1**: 421 hand-authored, bilingual (English + Farsi) prompt-injection attempts across 8 families (direct override, indirect injection, exfiltration, tool misuse, authority spoof, persona jailbreak, encoded, multi-turn) plus hard benign look-alikes. A research artifact with a [dataset card](dataset/agentic/v1/DATASET_CARD.md); not bundled in the wheel (fetch it with `guardmeter dataset fetch agentic-v1`). The built-in regex guards are expected to score poorly on it — that's the point.
+- **`dataset/sample.csv`** — the smoke-test set used throughout this README and by `guardmeter init`. 110 rows, balanced across categories and languages; good enough to exercise the pipeline and calibrate a demo gate.
+- **`dataset/agentic/v1/`** — the **Agentic Attack Dataset v1**: 421 hand-authored, bilingual prompt-injection attempts (303 English, 118 Farsi; Farsi written natively, not translated) across 8 families — direct override, indirect injection, exfiltration, tool misuse, authority spoof, persona jailbreak, encoded, and multi-turn — plus hard benign look-alikes and borderline cases. Every row is authored fresh (no external jailbreak sources), references only generic tools ("the email tool", "the file system"), and contains no working exploits, credentials, or PII. It ships with a [dataset card](dataset/agentic/v1/DATASET_CARD.md), a [changelog](dataset/agentic/v1/CHANGELOG.md), and a CC-BY-4.0 [licence](dataset/agentic/v1/LICENSE).
+
+  It is a **repo artifact, not part of the wheel** — fetch it into `./dataset/agentic/v1/` with `guardmeter dataset fetch agentic-v1` (sha256-verified against a package constant).
+
+  The shipped regex/keyword guards score near zero on it — that's the point. See [docs/AGENTIC_RESULTS.md](docs/AGENTIC_RESULTS.md) for the honest baseline and [`gate.agentic.json`](dataset/agentic/v1/gate.agentic.json) for the bar a real injection guard has to clear.
+
+### Working with a dataset
+
+```bash
+guardmeter dataset validate dataset/agentic/v1/data.jsonl   # schema, dup/near-dup, language, decoded payloads; exits 1 on any problem
+guardmeter dataset stats    dataset/agentic/v1/data.jsonl --markdown   # composition table (family × language × label)
+guardmeter dataset info     dataset/agentic/v1/data.jsonl   # rows, sha256, families, card version
+```
+
+`validate` enforces the invariants that make a dataset usable as a research artifact: unique ids, no exact or near-duplicate rows within a family, sane language script ratios, decoded-payload sanity for the `encoded` family, and label/target/context consistency. Rows without an attack family (e.g. `sample.csv`) skip the family-specific checks. Both shipped datasets pass; CI runs `validate` on each.
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#contributing-rows) to add rows.
 
 ---
 
