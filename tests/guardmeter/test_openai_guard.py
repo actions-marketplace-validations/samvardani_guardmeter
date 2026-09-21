@@ -106,4 +106,4 @@ def test_missing_key_raises(monkeypatch):
 def test_registered_by_name():
     import guardmeter.guards.openai_guard  # noqa: F401
     from guardmeter.core.registry import list_guards
-    assert "openai" in list_guards()
+    assert "openai-chat" in list_guards()

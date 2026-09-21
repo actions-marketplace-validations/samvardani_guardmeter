@@ -1,13 +1,11 @@
-"""OpenAI guard adapter.
+"""OpenAI chat-classifier guard adapter.
 
-A chat-completions safety classifier that forces a structured verdict via
-function calling and the same untrusted-data framing as the Anthropic adapter.
-
-This replaces the previous Moderation-API adapter (0.7 and earlier): the
-Moderation API classifies against OpenAI's fixed taxonomy and cannot judge
-prompt-injection intent or map onto GuardMeter's category vocabulary. The
-chat-based classifier can, and — like the Anthropic adapter — **fails closed**
-when the model returns no usable verdict.
+Registered as ``openai-chat``. A chat-completions safety classifier that forces
+a structured verdict via function calling and the same untrusted-data framing as
+the Anthropic adapter. Unlike the Moderation-API adapter (``openai``), it can
+judge prompt-injection intent and map onto GuardMeter's category vocabulary —
+but it is instruction-following, so it can be hijacked, and therefore **fails
+closed** when the model returns no usable verdict.
 """
 
 from __future__ import annotations
@@ -76,7 +74,7 @@ class OpenAIGuard(Guard):
     Raises ImportError in the constructor when ``openai`` is not installed.
     """
 
-    name: str = "openai"
+    name: str = "openai-chat"
     version: str = "2.0.0"
     is_remote: bool = True
 
@@ -134,4 +132,4 @@ class OpenAIGuard(Guard):
         return result
 
 
-register("openai", OpenAIGuard)
+register("openai-chat", OpenAIGuard)

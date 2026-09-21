@@ -181,9 +181,18 @@ release). Outputs: `passed`, `run_id`, `report_path`.
 | `regex-enhanced` | built-in | Expanded patterns, obfuscation detection, Farsi coverage |
 | `regex` | built-in | Alias of `regex-enhanced` (kept for backward compatibility) |
 | `injection-heuristic` | built-in | Deliberately weak keyword baseline for prompt injection — an honest floor for the agentic dataset, not a real detector |
-| `openai` | `pip install guardmeter[llm]` + `OPENAI_API_KEY` | OpenAI Moderation API (experimental — see below) |
-| `anthropic` | `pip install guardmeter[llm]` + `ANTHROPIC_API_KEY` | Claude as a JSON-verdict safety classifier (experimental — see below) |
+| `anthropic` | `pip install guardmeter[llm]` + `ANTHROPIC_API_KEY` | Claude as a chat classifier (tool-use verdict, fail-closed) — experimental |
+| `openai-chat` | `pip install guardmeter[llm]` + `OPENAI_API_KEY` | OpenAI chat model as a classifier (function-call verdict, fail-closed) — experimental |
+| `openai` | `pip install guardmeter[llm]` + `OPENAI_API_KEY` | OpenAI Moderation API — un-hijackable, but fixed taxonomy, no injection intent — experimental |
 | `llamaguard` | HuggingFace `transformers` or an HTTP endpoint | Llama Guard 3, local pipeline or hosted API (experimental — see below) |
+
+**Which LLM guard?** The two chat classifiers (`anthropic`, `openai-chat`) judge
+intent — including prompt injection — against GuardMeter's category vocabulary,
+and fail closed if the model is hijacked into replying in prose. The Moderation
+API (`openai`) can't be hijacked (it follows no instructions in the input) but
+only reports OpenAI's fixed harm taxonomy and won't catch injection or tool
+misuse. Use a chat classifier for agent-facing/injection work; the Moderation
+API for cheap, deterministic content-safety triage.
 
 ### Write your own guard
 

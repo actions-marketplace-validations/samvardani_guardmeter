@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.8.1] - 2026-09-20
+### Changed
+- **`openai` is the Moderation API again.** 0.8.0 repurposed the `openai` name
+  for a chat classifier; that adapter is now **`openai-chat`**, and `openai` is
+  restored to the OpenAI Moderation API (`omni-moderation-latest`). The
+  Moderation endpoint follows no instructions in the input, so it can't be
+  hijacked — its results carry `metadata["hijackable"] = False`. If you set
+  `--candidate openai` for the 0.8.0 chat behaviour, switch to `openai-chat`.
+
 ## [0.8.0] - 2026-09-20
 ### Added
 - **`hijack_rate` metric**: the fraction of samples a guard failed to produce a
