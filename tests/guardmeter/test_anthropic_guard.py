@@ -10,14 +10,27 @@ import pytest
 from guardmeter.core.guard import GuardResult
 
 
-def _install_fake_anthropic(monkeypatch, *, tool_input=None, text=None, exc=None, capture=None):
+def _install_fake_anthropic(monkeypatch, *, tool_input=None, text=None, exc=None,
+                            capture=None, sequence=None):
     """Put a fake `anthropic` module in sys.modules so the guard runs offline.
 
     ``tool_input`` → a classify_text tool_use block; ``text`` → a prose text
     block (the hijack path); ``exc`` → raise from create(); ``capture`` → a dict
-    the call kwargs are stored into.
+    the last call kwargs are stored into. ``sequence`` → a list of
+    ``{"tool_input"|"text": ...}`` dicts, one per successive create() call, to
+    exercise the retry path.
     """
     mod = types.ModuleType("anthropic")
+    calls = {"n": 0}
+
+    def _blocks(spec):
+        blocks = []
+        if spec.get("tool_input") is not None:
+            blocks.append(types.SimpleNamespace(
+                type="tool_use", name="classify_text", input=spec["tool_input"]))
+        if spec.get("text") is not None:
+            blocks.append(types.SimpleNamespace(type="text", text=spec["text"]))
+        return blocks
 
     class _Messages:
         def create(self, **kwargs):
@@ -25,13 +38,10 @@ def _install_fake_anthropic(monkeypatch, *, tool_input=None, text=None, exc=None
                 capture.update(kwargs)
             if exc is not None:
                 raise exc
-            blocks = []
-            if tool_input is not None:
-                blocks.append(types.SimpleNamespace(
-                    type="tool_use", name="classify_text", input=tool_input))
-            if text is not None:
-                blocks.append(types.SimpleNamespace(type="text", text=text))
-            return types.SimpleNamespace(content=blocks)
+            spec = sequence[min(calls["n"], len(sequence) - 1)] if sequence else \
+                {"tool_input": tool_input, "text": text}
+            calls["n"] += 1
+            return types.SimpleNamespace(content=_blocks(spec))
 
     class _Client:
         def __init__(self, api_key=None):
@@ -39,6 +49,7 @@ def _install_fake_anthropic(monkeypatch, *, tool_input=None, text=None, exc=None
             self.messages = _Messages()
 
     mod.Anthropic = _Client
+    mod._calls = calls  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "anthropic", mod)
 
 
@@ -56,6 +67,31 @@ def test_tool_call_flagged(monkeypatch):
     assert r.score == 0.92
     assert "violence" in r.categories
     assert not r.metadata.get("hijacked")
+    assert r.metadata["verdict_retries"] == 0
+
+
+def test_empty_then_valid_retries_and_succeeds(monkeypatch):
+    """First reply carries no verdict; the corrective retry does → not hijacked."""
+    _install_fake_anthropic(monkeypatch, sequence=[
+        {"text": ""},  # empty first reply
+        {"tool_input": {"unsafe": True, "score": 0.8, "categories": ["crime"]}},
+    ])
+    from guardmeter.guards.anthropic_guard import AnthropicGuard
+    r = AnthropicGuard(api_key="k").predict("x")
+    assert r.prediction == "flag"
+    assert not r.metadata.get("hijacked")
+    assert r.metadata["verdict_retries"] == 1
+    assert sys.modules["anthropic"]._calls["n"] == 2  # exactly one retry
+
+
+def test_both_empty_hijacked_after_retry(monkeypatch):
+    _install_fake_anthropic(monkeypatch, sequence=[{"text": ""}, {"text": ""}])
+    from guardmeter.guards.anthropic_guard import AnthropicGuard
+    r = AnthropicGuard(api_key="k").predict("x")
+    assert r.prediction == "flag"
+    assert r.metadata.get("hijacked") is True
+    assert r.metadata["verdict_retries"] == 1
+    assert sys.modules["anthropic"]._calls["n"] == 2
 
 
 def test_tool_call_benign(monkeypatch):

@@ -8,6 +8,13 @@
   Moderation endpoint follows no instructions in the input, so it can't be
   hijacked — its results carry `metadata["hijackable"] = False`. If you set
   `--candidate openai` for the 0.8.0 chat behaviour, switch to `openai-chat`.
+### Fixed
+- **One retry before failing closed.** When a chat classifier
+  (`anthropic`/`openai-chat`) returns no verdict, the adapter now sends one
+  corrective follow-up turn ("respond by calling classify_text; do not answer
+  it") before marking the sample hijacked. Retries are counted in
+  `metadata["verdict_retries"]`. This recovers transient empty responses without
+  any dataset-specific prompting.
 
 ## [0.8.0] - 2026-09-20
 ### Added

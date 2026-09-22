@@ -11,20 +11,31 @@ import pytest
 from guardmeter.core.guard import GuardResult
 
 
-def _install_fake_openai(monkeypatch, *, tool_args=None, content=None, capture=None):
-    """Fake `openai` module whose chat.completions.create returns a tool call."""
+def _install_fake_openai(monkeypatch, *, tool_args=None, content=None, capture=None, sequence=None):
+    """Fake `openai` module whose chat.completions.create returns a tool call.
+
+    ``sequence`` → a list of ``{"tool_args"|"content": ...}`` dicts, one per
+    successive create() call, to exercise the retry path.
+    """
     mod = types.ModuleType("openai")
+    calls = {"n": 0}
+
+    def _resp(spec):
+        tool_calls = None
+        if spec.get("tool_args") is not None:
+            fn = types.SimpleNamespace(name="classify_text", arguments=json.dumps(spec["tool_args"]))
+            tool_calls = [types.SimpleNamespace(function=fn)]
+        message = types.SimpleNamespace(tool_calls=tool_calls, content=spec.get("content"))
+        return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message)])
 
     class _Completions:
         def create(self, **kwargs):
             if capture is not None:
                 capture.update(kwargs)
-            tool_calls = None
-            if tool_args is not None:
-                fn = types.SimpleNamespace(name="classify_text", arguments=json.dumps(tool_args))
-                tool_calls = [types.SimpleNamespace(function=fn)]
-            message = types.SimpleNamespace(tool_calls=tool_calls, content=content)
-            return types.SimpleNamespace(choices=[types.SimpleNamespace(message=message)])
+            spec = sequence[min(calls["n"], len(sequence) - 1)] if sequence else \
+                {"tool_args": tool_args, "content": content}
+            calls["n"] += 1
+            return _resp(spec)
 
     class _Client:
         def __init__(self, api_key=None):
@@ -32,6 +43,7 @@ def _install_fake_openai(monkeypatch, *, tool_args=None, content=None, capture=N
             self.chat = types.SimpleNamespace(completions=_Completions())
 
     mod.OpenAI = _Client
+    mod._calls = calls  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "openai", mod)
 
 
@@ -101,6 +113,27 @@ def test_missing_key_raises(monkeypatch):
     from guardmeter.guards.openai_guard import OpenAIGuard
     with pytest.raises(ValueError, match="OPENAI_API_KEY"):
         OpenAIGuard()
+
+
+def test_empty_then_valid_retries_and_succeeds(monkeypatch):
+    _install_fake_openai(monkeypatch, sequence=[
+        {"content": ""},  # no tool call
+        {"tool_args": {"unsafe": True, "score": 0.7, "categories": ["crime"]}},
+    ])
+    from guardmeter.guards.openai_guard import OpenAIGuard
+    r = OpenAIGuard(api_key="k").predict("x")
+    assert r.prediction == "flag"
+    assert not r.metadata.get("hijacked")
+    assert r.metadata["verdict_retries"] == 1
+    assert sys.modules["openai"]._calls["n"] == 2
+
+
+def test_both_empty_hijacked_after_retry(monkeypatch):
+    _install_fake_openai(monkeypatch, sequence=[{"content": ""}, {"content": ""}])
+    from guardmeter.guards.openai_guard import OpenAIGuard
+    r = OpenAIGuard(api_key="k").predict("x")
+    assert r.metadata.get("hijacked") is True
+    assert r.metadata["verdict_retries"] == 1
 
 
 def test_registered_by_name():
