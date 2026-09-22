@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.8.1] - 2026-09-20
+## [0.8.1] - 2026-09-21
 ### Changed
 - **`openai` is the Moderation API again.** 0.8.0 repurposed the `openai` name
   for a chat classifier; that adapter is now **`openai-chat`**, and `openai` is

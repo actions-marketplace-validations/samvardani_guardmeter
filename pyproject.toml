@@ -1,6 +1,6 @@
 [project]
 name = "guardmeter"
-version = "0.8.0"
+version = "0.8.1"
 description = "Benchmark, compare, and gate AI safety guards"
 readme = "README.md"
 license = { text = "MIT" }
