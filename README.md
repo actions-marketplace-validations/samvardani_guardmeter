@@ -214,6 +214,22 @@ register("my-guard", MyGuard)  # now usable as --candidate my-guard
 
 `predict` receives per-record metadata via `**meta`. In particular `meta["context"]` (a string or `None`) carries prior turns or the surrounding document for multi-turn and indirect-injection datasets — context-aware guards should use it; simple guards may ignore it.
 
+### Connect your own guard over HTTP
+
+To evaluate a guard GuardMeter doesn't ship — your own service — use the built-in `http` guard. Configure it from the environment or a YAML/JSON file and pass it as `--candidate http --candidate-config guard.yml` (there's also `--baseline-config`):
+
+```yaml
+type: http
+url: https://guard.internal/classify
+headers: { Authorization: "Bearer ${GUARD_TOKEN}" }   # ${ENV} is expanded
+body: '{"input": "{{text}}", "context": "{{context}}"}'  # {{text}}/{{context}} filled per row
+verdict_path: result.flagged        # dotted path to the bool/label in the response
+flag_values: [true, flagged, unsafe]  # case-insensitive; a boolean true also flags
+score_path: result.score            # optional
+```
+
+The same options exist as `GUARDMETER_HTTP_URL`, `GUARDMETER_HTTP_HEADERS` (JSON), `GUARDMETER_HTTP_BODY`, `GUARDMETER_HTTP_VERDICT_PATH`, `GUARDMETER_HTTP_FLAG_VALUES`, `GUARDMETER_HTTP_SCORE_PATH`, and `GUARDMETER_HTTP_TIMEOUT` (default 10 s). A non-2xx response or timeout is recorded as an **error** — excluded from metrics and failing the gate as an incomplete run — never a silent pass.
+
 ---
 
 ## Datasets

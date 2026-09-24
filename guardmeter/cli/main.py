@@ -6,7 +6,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import click
 
@@ -64,6 +64,10 @@ def cli() -> None:
 @click.option("--summary-md", "summary_md", default=None, help="Write a Markdown step-summary table to this path")
 @click.option("--concurrency", type=int, default=None,
               help="Parallel guard calls (default: 4 if either guard is a remote/LLM guard, else 1)")
+@click.option("--baseline-config", "baseline_config", default=None, type=click.Path(exists=True),
+              help="YAML/JSON guard config for the baseline (e.g. an HTTP guard)")
+@click.option("--candidate-config", "candidate_config", default=None, type=click.Path(exists=True),
+              help="YAML/JSON guard config for the candidate (e.g. an HTTP guard)")
 def compare(
     baseline: str,
     candidate: str,
@@ -72,6 +76,8 @@ def compare(
     json_out: bool,
     summary_md: str | None,
     concurrency: int | None,
+    baseline_config: str | None,
+    candidate_config: str | None,
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
     from guardmeter.data.loader import load_dataset
@@ -89,8 +95,8 @@ def compare(
     _log(f"  {len(records)} records loaded")
 
     _log(f"Instantiating guards: baseline={baseline!r}, candidate={candidate!r}")
-    base_guard = _resolve_guard(baseline)
-    cand_guard = _resolve_guard(candidate)
+    base_guard = _resolve_guard(baseline, baseline_config)
+    cand_guard = _resolve_guard(candidate, candidate_config)
 
     # Both strict and lenient metrics are always computed; McNemar uses strict.
     if concurrency is None:
@@ -694,11 +700,23 @@ def init() -> None:
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _resolve_guard(name: str):
-    """Resolve a guard by registry name or dotted class path."""
+def _resolve_guard(name: str, config_path: str | None = None):
+    """Resolve a guard by registry name, dotted class path, or a config file.
+
+    A config file (YAML or JSON) builds a config-driven guard; its ``type`` (or
+    the ``name`` argument) selects which. Currently ``http`` is config-driven.
+    """
     # Import built-in guards first
     _import_builtin_guards()
     from guardmeter.core.registry import get_guard
+
+    if config_path:
+        cfg = _load_guard_config(config_path)
+        gtype = cfg.get("type", name)
+        if gtype == "http":
+            from guardmeter.guards.http_guard import HttpGuard
+            return HttpGuard.from_config(cfg)
+        raise click.BadParameter(f"guard type {gtype!r} does not support --*-config")
 
     if "." in name:
         # Dotted module path: e.g. mypackage.guards.MyGuard
@@ -708,3 +726,12 @@ def _resolve_guard(name: str):
         cls = getattr(mod, parts[1])
         return cls()
     return get_guard(name)
+
+
+def _load_guard_config(path: str) -> dict[str, Any]:
+    """Load a guard config from a YAML or JSON file."""
+    text = Path(path).read_text(encoding="utf-8")
+    if path.endswith((".yaml", ".yml")):
+        import yaml
+        return yaml.safe_load(text) or {}
+    return json.loads(text)
