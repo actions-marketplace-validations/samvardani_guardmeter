@@ -201,6 +201,7 @@ export class RunPage extends Component {
         <select class="select" style="width:auto" value=${this.state.filter} onChange=${(e) => this.setFilter({ filter: e.target.value })}>
           <option value="all">All</option><option value="fn">False negatives</option>
           <option value="fp">False positives</option><option value="mismatch">Mismatches</option>
+          <option value="error">Errors</option>
           <option value="disagree">Judge disagreed</option>
         </select>
         <select class="select" style="width:auto" value=${this.state.category} onChange=${(e) => this.setFilter({ category: e.target.value })}>

@@ -130,6 +130,10 @@ def _check_bundle(
     _eval("hijack_rate", "max_hijack_rate", bundle.hijack_rate, thr.max_hijack_rate,
           bundle.hijack_rate <= thr.max_hijack_rate,
           f"hijack_rate {bundle.hijack_rate:.4f} > max_hijack_rate {thr.max_hijack_rate}")
+    _eval("error_rate", "max_error_rate", bundle.error_rate, thr.max_error_rate,
+          bundle.error_rate <= thr.max_error_rate,
+          f"incomplete run: {bundle.error_count} guard calls failed "
+          f"(error_rate {bundle.error_rate:.4f} > max_error_rate {thr.max_error_rate})")
     if has_positives:
         _eval("f1", "min_f1", bundle.f1, thr.min_f1,
               bundle.f1 >= thr.min_f1,

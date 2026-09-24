@@ -15,7 +15,13 @@ from guardmeter.core.guard import Guard, GuardResult
 from guardmeter.core.io_utils import git_commit_sha, hash_content, new_run_id
 from guardmeter.core.redact import redact
 from guardmeter.data.schema import DatasetRecord
-from guardmeter.engine.metrics import compute_metrics, compute_slices, count_hijacked
+from guardmeter.engine.metrics import (
+    compute_confusion,
+    compute_metrics,
+    compute_slices,
+    count_errors,
+    count_hijacked,
+)
 from guardmeter.engine.results import EvalResults, SampleResult
 from guardmeter.engine.significance import mcnemar_test
 
@@ -45,8 +51,10 @@ def call_with_retry(
 
     Retries a rate-limited call up to ``max_retries`` times (sleeping
     ``backoff_base * 2**attempt`` seconds). Any error that survives retries — or
-    any non-rate-limit error — is turned into a fail-closed result with
-    ``metadata["error"]`` set (redacted). It never silently passes.
+    any non-rate-limit error — becomes an ``"error"`` result (``score=None``,
+    ``metadata["error"]`` redacted, ``metadata["attempts"]`` set). Error results
+    are excluded from metrics, not counted as a flag: a guard call that never
+    produced a verdict must not silently inflate recall or FPR.
     """
     attempt = 0
     while True:
@@ -58,9 +66,11 @@ def call_with_retry(
                 attempt += 1
                 continue
             safe = redact(str(exc))
-            logger.warning("guard %r call failed (fail-closed): %s", guard.name, safe)
+            logger.warning("guard %r call failed (error, excluded from metrics): %s",
+                           guard.name, safe)
             return GuardResult(
-                prediction="flag", score=0.5, latency_ms=0, metadata={"error": safe},
+                prediction="error", score=None, latency_ms=0,
+                metadata={"error": safe, "attempts": attempt + 1},
             )
 
 
@@ -98,18 +108,11 @@ class Evaluator:
     def _predict_all(self, guard: Guard, records: list[DatasetRecord], done: int, total: int) -> list[Any]:
         """Predict all records; pass per-record context and report progress.
 
-        Batch fast-path only when there is no context, no progress callback, and
-        no concurrency; otherwise predict per record (through the retry wrapper)
-        so ``meta["context"]`` reaches the guard. Results stay in input order
-        regardless of completion order.
+        Every call goes through ``call_with_retry`` so a raising guard (dead API
+        key, transient network error, or a bug in a local guard) becomes an
+        excluded ``"error"`` result rather than aborting the run or being
+        miscounted. Results stay in input order regardless of completion order.
         """
-        has_context = any(r.context for r in records)
-        # Fast batch path only for local guards with no context/progress/concurrency;
-        # remote guards always go through call_with_retry (rate-limit handling).
-        if (self.on_progress is None and not has_context
-                and self.config.concurrency <= 1 and not guard.is_remote):
-            return guard.batch_predict([r.text for r in records])
-
         preds: list[Any] = [None] * len(records)
 
         def work(i: int, rec: DatasetRecord) -> tuple[int, GuardResult]:
@@ -169,13 +172,16 @@ class Evaluator:
         attack_dim = "attack_family" if any(r.attack_family for r in self.dataset) else "attack_type"
 
         for pol in policies:
-            base_conf = _confusion(base_preds, self.dataset, pol)
-            cand_conf = _confusion(cand_preds, self.dataset, pol)
-            base_lats = [p.latency_ms for p in base_preds]
-            cand_lats = [p.latency_ms for p in cand_preds]
+            base_conf = compute_confusion(base_preds, self.dataset, pol)
+            cand_conf = compute_confusion(cand_preds, self.dataset, pol)
+            # Error results carry no meaningful latency; keep them out of percentiles.
+            base_lats = [p.latency_ms for p in base_preds if p.prediction != "error"]
+            cand_lats = [p.latency_ms for p in cand_preds if p.prediction != "error"]
 
-            base_metrics[pol] = compute_metrics(base_conf, base_lats, count_hijacked(base_preds))
-            cand_metrics[pol] = compute_metrics(cand_conf, cand_lats, count_hijacked(cand_preds))
+            base_metrics[pol] = compute_metrics(base_conf, base_lats,
+                                                count_hijacked(base_preds), count_errors(base_preds))
+            cand_metrics[pol] = compute_metrics(cand_conf, cand_lats,
+                                                count_hijacked(cand_preds), count_errors(cand_preds))
             base_slices[pol] = compute_slices(base_preds, self.dataset, pol, self.config.slices)
             cand_slices[pol] = compute_slices(cand_preds, self.dataset, pol, self.config.slices)
             base_attack_slices[pol] = compute_slices(base_preds, self.dataset, pol, [attack_dim])
@@ -205,6 +211,8 @@ class Evaluator:
                     baseline_latency_ms=pred_b.latency_ms,
                     candidate_latency_ms=pred_c.latency_ms,
                     attack_type=rec.attack_type,
+                    baseline_meta=dict(pred_b.metadata),
+                    candidate_meta=dict(pred_c.metadata),
                 )
             )
 
@@ -244,20 +252,3 @@ class Evaluator:
             mcnemar_p=mcnemar_p,
             judge_agreement_rate=judge_agreement_rate,
         )
-
-
-def _confusion(preds, records, policy):
-    """Compute confusion dict for a policy."""
-    tp = fp = tn = fn = 0
-    for pred, rec in zip(preds, records):
-        gt_pos = (rec.label != "benign") if policy == "strict" else (rec.label == "unsafe")
-        pr_pos = pred.prediction == "flag"
-        if gt_pos and pr_pos:
-            tp += 1
-        elif not gt_pos and pr_pos:
-            fp += 1
-        elif not gt_pos and not pr_pos:
-            tn += 1
-        else:
-            fn += 1
-    return {"tp": tp, "fp": fp, "tn": tn, "fn": fn}

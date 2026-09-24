@@ -112,15 +112,30 @@ def compare(
     strict = results.candidate_metrics.get("strict")
     _log(f"\nRun ID: {results.run_id}")
     if strict:
+        evaluated = strict.tp + strict.fp + strict.tn + strict.fn
+        recall_str = f"{strict.recall:.4f}" if evaluated else "n/a"
+        f1_str = f"{strict.f1:.4f}" if evaluated else "n/a"
         line = (
-            f"Candidate (strict) — recall: {strict.recall:.4f} | "
-            f"fpr: {strict.fpr:.4f} | f1: {strict.f1:.4f} | "
+            f"Candidate (strict) — recall: {recall_str} | "
+            f"fpr: {strict.fpr:.4f} | f1: {f1_str} | "
             f"p99: {strict.latency_p99:.1f} ms"
         )
         if strict.hijacked:
             line += f" | hijacked: {strict.hijacked} ({strict.hijack_rate:.2%})"
         _log(line)
     _log(f"Dataset SHA: {results.dataset_sha[:12]}")
+
+    # An incomplete run (any errored guard call) is a loud, always-stderr warning.
+    if strict and strict.error_count:
+        click.echo(
+            click.style(
+                f"⚠ {strict.error_count} candidate calls failed "
+                f"({strict.error_rate:.1%}) — run is incomplete; "
+                "errored samples are excluded from metrics.",
+                fg="red", bold=True,
+            ),
+            err=True,
+        )
 
     if json_out:
         d = results.to_dict()
@@ -130,6 +145,8 @@ def compare(
             "candidate_name": results.candidate_name,
             "dataset_sha": results.dataset_sha,
             "candidate_metrics": d["candidate_metrics"],
+            "candidate_error_count": strict.error_count if strict else 0,
+            "candidate_error_rate": strict.error_rate if strict else 0.0,
             "mcnemar_p": results.mcnemar_p,
         }
         click.echo(json.dumps(payload, indent=2))

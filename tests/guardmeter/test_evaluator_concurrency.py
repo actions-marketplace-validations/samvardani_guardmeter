@@ -101,8 +101,10 @@ def test_retry_exhausted_fails_closed_with_error():
             raise RuntimeError("rate limit exceeded")
 
     r = call_with_retry(_AlwaysLimited(), "x", None, max_retries=2, backoff_base=0.0, sleep=lambda _: None)
-    assert r.prediction == "flag"        # never silently passes
+    assert r.prediction == "error"       # a failed call is not a verdict
+    assert r.score is None
     assert "error" in r.metadata
+    assert r.metadata["attempts"] == 3   # initial + 2 retries
     assert not r.metadata.get("hijacked")
 
 
@@ -118,6 +120,7 @@ def test_non_rate_limit_error_not_retried_and_redacted():
 
     r = call_with_retry(_AuthError(), "x", None, sleep=lambda _: None)
     assert calls["n"] == 1               # not a rate limit → no retry
-    assert r.prediction == "flag"
+    assert r.prediction == "error"
+    assert r.metadata["attempts"] == 1
     assert FAKE_KEY not in r.metadata["error"]
     assert "REDACTED" in r.metadata["error"]

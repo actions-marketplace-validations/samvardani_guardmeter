@@ -164,7 +164,9 @@ guardmeter serve --open</pre>
                     onKeyDown=${(e) => e.key === "Enter" && this.saveTag(r.run_id, e.target.value)}/>`
                 : html`<span onClick=${() => this.setState({ editing: r.run_id })}
                     class="chip neutral" title="Click to edit">${r.tag || "＋ tag"}</span>`}</td>
-              <td>${r.baseline}</td><td>${r.candidate}</td>
+              <td>${r.baseline}</td>
+              <td>${r.candidate}${r.error_count ? html`<span class="chip bad" title="Guard calls failed; excluded from metrics"
+                    style="margin-left:6px">⚠ ${r.error_count} err</span>` : ""}</td>
               <td class="mono text-right">${fmt(r.f1)}</td>
               <td class="mono text-right">${fmt(r.recall)}</td>
               <td class="mono text-right">${fmt(r.fpr)}</td>
