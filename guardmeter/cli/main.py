@@ -623,17 +623,59 @@ def dashboard(
 @cli.command("verify-report")
 @click.argument("report_dir", default="report", required=False)
 def verify_report(report_dir: str) -> None:
-    """Recompute report hashes against MANIFEST.json; exit 1 on any mismatch."""
+    """Recompute hashes against MANIFEST.json; exit 1 on mismatch.
+
+    Accepts a report directory or an evidence-pack .zip.
+    """
     from guardmeter.report.manifest import verify_manifest
 
-    ok, problems = verify_manifest(report_dir)
+    target = report_dir
+    tmp = None
+    if report_dir.endswith(".zip"):
+        import tempfile
+        import zipfile
+        tmp = tempfile.mkdtemp(prefix="gm-verify-")
+        with zipfile.ZipFile(report_dir) as zf:
+            zf.extractall(tmp)
+        target = tmp
+
+    try:
+        ok, problems = verify_manifest(target)
+    finally:
+        if tmp:
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
+
     if ok:
-        click.echo(f"✅ Report integrity verified: {report_dir}")
+        click.echo(f"✅ Integrity verified: {report_dir}")
         return
-    click.echo(f"❌ Report integrity check FAILED for {report_dir}:")
+    click.echo(f"❌ Integrity check FAILED for {report_dir}:")
     for p in problems:
         click.echo(f"  - {p}")
     sys.exit(1)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# guardmeter evidence
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--run", "run_id", default="latest", help="Run id, or 'latest'")
+@click.option("--out", "out_dir", default="evidence", help="Output directory for the pack")
+@click.option("--gate", "gate_path", default=None, type=click.Path(exists=True),
+              help="Gate policy to evaluate and include (default: a permissive record-only gate)")
+@click.option("--store", "store_path", default=None, help="Override DB path")
+def evidence(run_id: str, out_dir: str, gate_path: str | None, store_path: str | None) -> None:
+    """Write a self-contained, hash-manifested audit bundle for a run and zip it."""
+    from guardmeter.report.evidence import build_evidence
+
+    store = _get_store(store_path)
+    try:
+        zip_path = build_evidence(store, run_id, out_dir, gate_path)
+    except (KeyError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"✅ Evidence pack written: {zip_path}")
+    click.echo(f"   Verify with: guardmeter verify-report {zip_path}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
