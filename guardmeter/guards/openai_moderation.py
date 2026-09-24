@@ -60,6 +60,11 @@ class OpenAIModerationGuard(Guard):
         self._client = _openai.OpenAI(api_key=key)
         self.model = model
 
+    def describe(self) -> dict[str, Any]:
+        """Reproducibility metadata: model and verdict mode."""
+        return {"name": self.name, "version": self.version, "model": self.model,
+                "mode": "moderation_api"}
+
     def predict(self, text: str, **meta: Any) -> GuardResult:
         """Call the OpenAI Moderation API and return a GuardResult."""
         start = time.perf_counter()

@@ -68,8 +68,10 @@
   <div class="meta">
     Run: <b>{{ run_id }}</b> · Samples: <b>{{ total_samples }}</b> · Dataset SHA: <b>{{ dataset_sha[:12] }}</b>
     · Git: <b>{{ git_commit[:8] }}</b> · Generated: {{ generated_at }}
-    <br>Baseline: <b>{{ baseline_name }}</b> · Candidate: <b>{{ candidate_name }}</b>
+    <br>Baseline: <b>{{ baseline_name }}</b>{% if guard_info.baseline and guard_info.baseline.model %} <span class="meta">({{ guard_info.baseline.model }})</span>{% endif %}
+    · Candidate: <b>{{ candidate_name }}</b>{% if guard_info.candidate and guard_info.candidate.model %} <span class="meta">({{ guard_info.candidate.model }})</span>{% endif %}
     {% if mcnemar_p is not none %} · McNemar p: <b>{{ mcnemar_p }}</b>{% endif %}
+    {% if environment %}<br><span class="meta">GuardMeter {{ environment.guardmeter_version }} · Python {{ environment.python_version }} · policy {{ environment.policy }}</span>{% endif %}
   </div>
 
   <div class="toggle">

@@ -74,6 +74,10 @@ class EvalResults:
     sample_results: list[SampleResult] = field(default_factory=list)
     mcnemar_p: float | None = None
     judge_agreement_rate: float | None = None
+    # Reproducibility: {"baseline": {...describe()}, "candidate": {...}}
+    guard_info: dict[str, Any] = field(default_factory=dict)
+    # {"guardmeter_version", "python_version", "policy", "dataset_path"}
+    environment: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a JSON-compatible dict."""
@@ -113,6 +117,8 @@ class EvalResults:
             ],
             "mcnemar_p": self.mcnemar_p,
             "judge_agreement_rate": self.judge_agreement_rate,
+            "guard_info": self.guard_info,
+            "environment": self.environment,
         }
 
     @classmethod
@@ -158,4 +164,6 @@ class EvalResults:
         ]
         obj.mcnemar_p = d.get("mcnemar_p")
         obj.judge_agreement_rate = d.get("judge_agreement_rate")
+        obj.guard_info = d.get("guard_info") or {}
+        obj.environment = d.get("environment") or {}
         return obj

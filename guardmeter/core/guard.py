@@ -47,3 +47,13 @@ class Guard(ABC):
     def batch_predict(self, texts: list[str], **meta: Any) -> list[GuardResult]:
         """Score a list of texts; defaults to sequential predict calls."""
         return [self.predict(t, **meta) for t in texts]
+
+    def describe(self) -> dict[str, Any]:
+        """Return reproducibility metadata for this guard.
+
+        The default is ``{"name", "version"}``; adapters override to add the
+        model id, decision policy, or configuration that determines the verdict.
+        Recorded on every run as ``guard_info`` so a stored result names exactly
+        what was evaluated.
+        """
+        return {"name": self.name, "version": self.version}

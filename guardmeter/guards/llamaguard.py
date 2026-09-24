@@ -50,6 +50,11 @@ class LlamaGuardAdapter(Guard):
         except ImportError:
             raise ImportError("httpx is required for HTTP endpoint mode. pip install httpx")
 
+    def describe(self) -> dict[str, Any]:
+        """Reproducibility metadata: model and local-vs-HTTP mode."""
+        return {"name": self.name, "version": self.version, "model": self.model,
+                "mode": "http" if self.endpoint else "local_pipeline"}
+
     def _init_pipeline(self) -> None:
         """Initialise a local HuggingFace transformers pipeline."""
         try:

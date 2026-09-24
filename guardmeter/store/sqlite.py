@@ -112,6 +112,8 @@ class SQLiteStore(RunStore):
                 "candidate_attack_slices": data["candidate_attack_slices"],
                 "mcnemar_p": data["mcnemar_p"],
                 "judge_agreement_rate": data["judge_agreement_rate"],
+                "guard_info": data.get("guard_info", {}),
+                "environment": data.get("environment", {}),
             }
         )
         with closing(self._connect()) as conn:
@@ -294,5 +296,7 @@ class SQLiteStore(RunStore):
             "sample_results": self._load_sample_results(run_id),
             "mcnemar_p": metrics.get("mcnemar_p"),
             "judge_agreement_rate": metrics.get("judge_agreement_rate"),
+            "guard_info": metrics.get("guard_info", {}),
+            "environment": metrics.get("environment", {}),
         }
         return EvalResults.from_dict(d)

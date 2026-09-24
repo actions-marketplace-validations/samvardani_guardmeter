@@ -5,6 +5,7 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import platform
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -28,6 +29,14 @@ from guardmeter.engine.significance import mcnemar_test
 logger = logging.getLogger(__name__)
 
 _RATE_LIMIT_MARKERS = ("rate limit", "ratelimit", "429", "too many requests")
+
+
+def _guardmeter_version() -> str:
+    try:
+        from guardmeter import __version__
+        return __version__
+    except Exception:  # noqa: BLE001 (version is best-effort metadata)
+        return "unknown"
 
 
 def _is_rate_limit(exc: BaseException) -> bool:
@@ -83,6 +92,7 @@ class EvalConfig:
     run_id: str | None = None  # auto-generated UUID if None
     include_lenient: bool = True  # also compute lenient-policy metrics
     concurrency: int = 1  # >1 evaluates guard calls in a thread pool
+    dataset_path: str | None = None  # recorded in environment for reproducibility
 
 
 class Evaluator:
@@ -251,4 +261,14 @@ class Evaluator:
             sample_results=sample_results,
             mcnemar_p=mcnemar_p,
             judge_agreement_rate=judge_agreement_rate,
+            guard_info={
+                "baseline": self.baseline.describe(),
+                "candidate": self.candidate.describe(),
+            },
+            environment={
+                "guardmeter_version": _guardmeter_version(),
+                "python_version": platform.python_version(),
+                "policy": self.config.policy,
+                "dataset_path": self.config.dataset_path,
+            },
         )

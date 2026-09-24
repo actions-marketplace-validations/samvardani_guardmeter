@@ -95,7 +95,7 @@ def compare(
     # Both strict and lenient metrics are always computed; McNemar uses strict.
     if concurrency is None:
         concurrency = 4 if (base_guard.is_remote or cand_guard.is_remote) else 1
-    config = EvalConfig(concurrency=max(1, concurrency))
+    config = EvalConfig(concurrency=max(1, concurrency), dataset_path=dataset)
     evaluator = Evaluator(base_guard, cand_guard, records, config)
 
     _log(f"Running evaluation … (concurrency={config.concurrency})")
@@ -147,6 +147,8 @@ def compare(
             "candidate_metrics": d["candidate_metrics"],
             "candidate_error_count": strict.error_count if strict else 0,
             "candidate_error_rate": strict.error_rate if strict else 0.0,
+            "guard_info": results.guard_info,
+            "environment": results.environment,
             "mcnemar_p": results.mcnemar_p,
         }
         click.echo(json.dumps(payload, indent=2))

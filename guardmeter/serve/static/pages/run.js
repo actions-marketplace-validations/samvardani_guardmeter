@@ -170,6 +170,14 @@ export class RunPage extends Component {
         <a class="btn secondary" href=${api.exportCsvUrl(run.run_id)}>Export full CSV</a>
       </div>
       <p class="muted">${sig}</p>
+      ${(() => {
+        const gi = run.guard_info || {}, env = run.environment || {};
+        const model = (g) => gi[g] && gi[g].model ? ` (${gi[g].model})` : "";
+        const bits = [];
+        if (gi.baseline || gi.candidate) bits.push(`baseline ${run.baseline_name}${model("baseline")} → candidate ${run.candidate_name}${model("candidate")}`);
+        if (env.guardmeter_version) bits.push(`GuardMeter ${env.guardmeter_version} · Python ${env.python_version} · policy ${env.policy}`);
+        return bits.length ? html`<p class="muted mono" style="font-size:12px">${bits.join(" · ")}</p>` : "";
+      })()}
 
       <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:8px">
         ${metricCard("Baseline (strict)", base)}

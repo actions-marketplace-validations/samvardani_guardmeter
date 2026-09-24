@@ -109,6 +109,11 @@ class AnthropicGuard(Guard):
         self.model = model
         self.on_parse_failure = on_parse_failure
 
+    def describe(self) -> dict[str, Any]:
+        """Reproducibility metadata: model, verdict mode, fail-closed policy."""
+        return {"name": self.name, "version": self.version, "model": self.model,
+                "mode": "tool_use", "on_parse_failure": self.on_parse_failure}
+
     def _create(self, messages: Any) -> Any:
         return self._client.messages.create(
             model=self.model,
