@@ -1,5 +1,35 @@
 # Changelog
 
+## [0.8.2] - 2026-09-24
+### Fixed
+- **Correctness: guard-call errors are no longer counted as flags.** A failed
+  guard call (invalid key, HTTP 5xx, timeout) was turned into `prediction="flag"`
+  and entered the confusion matrix — so a dead API key scored the candidate
+  recall 1.00 / F1 0.83. Errors are now a distinct `error` outcome (`score=None`),
+  **excluded** from metrics; overall and per-slice `error_rate` are reported, and
+  errored samples carry `metadata["error"]`/`attempts`, persisted per sample.
+  A run with any error now reports recall `n/a` (not 1.00) and fails the gate as
+  an incomplete run.
+### Added
+- **`error_rate` metric** (overall and per slice) and a **`max_error_rate`** gate
+  threshold (default 0.0: any error fails the gate as "incomplete run: N guard
+  calls failed"). Per-sample error/hijack metadata is persisted (SQLite
+  migration) and surfaced in the app (error chip on run cards, "Errors" sample
+  filter) and in `compare` (a red stderr warning, `--json`, `--summary-md`).
+- **`guard_info` + environment on every run**: `Guard.describe()` records model,
+  verdict mode, profile/threshold, etc.; runs also record the GuardMeter and
+  Python versions, dataset path + sha, and policy. Shown in the report and
+  dashboard headers and in `compare --json`.
+- **Generic HTTP guard** (`http`): evaluate your own endpoint over HTTP,
+  configured from `GUARDMETER_HTTP_*` env vars or a YAML/JSON file via
+  `--baseline-config`/`--candidate-config` (URL, headers with `${ENV}` expansion,
+  body template with `{{text}}`/`{{context}}`, dotted verdict/score paths,
+  flag values, timeout). Non-2xx/timeout is recorded as an error.
+- **Evidence pack** (`guardmeter evidence`): a self-contained, hash-manifested
+  audit bundle (report, dashboard snapshot, run.json, gate result + policy,
+  NIST/ISO/EU-AI-Act informational mapping, one-page summary) zipped for
+  distribution; `verify-report` accepts the zip.
+
 ## [0.8.1] - 2026-09-21
 ### Changed
 - **`openai` is the Moderation API again.** 0.8.0 repurposed the `openai` name
