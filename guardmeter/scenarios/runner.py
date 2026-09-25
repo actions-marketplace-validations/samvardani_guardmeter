@@ -36,7 +36,11 @@ def _run_once(scenario: Scenario, target: Target, *, cross_check: bool) -> RunRe
     outcomes: list[dict[str, Any]] = []
     all_pass = True
     for assertion in scenario.expect:
-        oc = evaluate_assertion(assertion, resp, cross_check=cross_check)
+        try:
+            oc = evaluate_assertion(assertion, resp, cross_check=cross_check)
+        except Exception as exc:  # noqa: BLE001 (a judge/config failure errors the scenario, never crashes the run)
+            return RunRecord(latency_ms=resp.latency_ms, error=redact(f"assertion error: {exc}"),
+                             passed=False)
         outcomes.append({"type": oc.assertion_type, "passed": oc.passed,
                          "detail": oc.detail, "judge_disagree": oc.judge_disagree})
         # A judge-disagree assertion doesn't count toward pass/fail.
