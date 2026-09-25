@@ -98,6 +98,7 @@ class PlaygroundServer(http.server.ThreadingHTTPServer):
     default_guards: list[str]        # set per-instance in create_server()
     token: str | None                # optional Bearer token for /api/*
     store_path: str | None           # SQLite path override (None → default store)
+    hook_timeout: float              # max seconds for a rollout-hook suite run
     rate_buckets: dict[str, tuple[float, float]]
     rate_lock: threading.Lock
     jobs: JobManager
@@ -287,8 +288,31 @@ class PlaygroundHandler(http.server.BaseHTTPRequestHandler):
             self._post_compare()
         elif path == "/api/gate/evaluate":
             self._post_gate_evaluate()
+        elif path == "/api/hooks/rollout":
+            self._post_rollout_hook()
         else:
             self._send_json(404, {"error": "not found"})
+
+    def _post_rollout_hook(self) -> None:
+        """Run a scenario suite against a rollout target and return pass/regressions."""
+        data = self._read_json()
+        if data is None:
+            return
+        if not isinstance(data, dict) or not data.get("suite") or not data.get("endpoint") \
+                or not data.get("model"):
+            self._send_json(400, {"error": "need 'suite', 'endpoint', and 'model'"})
+            return
+        from guardmeter.serve.api import run_rollout_hook
+        timeout = float(getattr(self.server, "hook_timeout", 300.0))
+        try:
+            result = run_rollout_hook(self._store(), data, timeout)
+        except FileNotFoundError as exc:
+            self._send_json(400, {"error": str(exc)})
+            return
+        except TimeoutError:
+            self._send_json(504, {"error": "rollout suite timed out", "passed": False})
+            return
+        self._send_json(200, result)
 
     def _post_try(self) -> None:
         ok, retry_after = self._rate_ok()
@@ -408,12 +432,14 @@ def create_server(
     default_guards: list[str] | None = None,
     token: str | None = None,
     store_path: str | None = None,
+    hook_timeout: float = 300.0,
 ) -> PlaygroundServer:
     """Create (but do not start) a PlaygroundServer. Port 0 picks a free port."""
     httpd = PlaygroundServer((host, port), PlaygroundHandler)
     httpd.default_guards = list(default_guards) if default_guards else list(_DEFAULT_GUARDS)
     httpd.token = token
     httpd.store_path = store_path
+    httpd.hook_timeout = hook_timeout
     httpd.rate_buckets = {}
     httpd.rate_lock = threading.Lock()
     httpd.jobs = JobManager()
@@ -426,6 +452,7 @@ def run_server(
     default_guards: list[str] | None = None,
     open_browser: bool = False,
     token: str | None = None,
+    hook_timeout: float = 300.0,
 ) -> None:
     """Run the playground server until interrupted.
 
@@ -441,7 +468,7 @@ def run_server(
     if host not in _LOOPBACK:
         logger.warning("GuardMeter serve is exposed on %s — token auth is required.", host)
 
-    httpd = create_server(host, port, default_guards, token=token)
+    httpd = create_server(host, port, default_guards, token=token, hook_timeout=hook_timeout)
     actual_port = httpd.server_address[1]
     url = f"http://{host}:{actual_port}"
     auth_note = " (token required)" if token else ""

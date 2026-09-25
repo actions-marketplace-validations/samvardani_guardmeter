@@ -250,13 +250,17 @@ def _print_try_table(results: list[TryResult]) -> None:
 @click.option("--guard", "guards", multiple=True,
               help="Default guard to pre-check (repeatable); default: regex-baseline + regex-enhanced")
 @click.option("--open", "open_browser", is_flag=True, help="Open the playground in a browser")
-def serve(host: str, port: int, guards: tuple[str, ...], open_browser: bool) -> None:
+@click.option("--hook-timeout", default=300.0, show_default=True, type=float,
+              help="Max seconds for a POST /api/hooks/rollout suite run")
+def serve(host: str, port: int, guards: tuple[str, ...], open_browser: bool,
+          hook_timeout: float) -> None:
     """Run a local playground: type text, pick guards, see verdicts live."""
     from guardmeter.serve.server import run_server
 
     default_guards = list(guards) if guards else ["regex-baseline", "regex-enhanced"]
     try:
-        run_server(host=host, port=port, default_guards=default_guards, open_browser=open_browser)
+        run_server(host=host, port=port, default_guards=default_guards,
+                   open_browser=open_browser, hook_timeout=hook_timeout)
     except RuntimeError as exc:
         raise click.ClickException(str(exc)) from exc
 
