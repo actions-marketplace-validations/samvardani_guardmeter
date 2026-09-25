@@ -22,10 +22,19 @@ def write_manifest(
     run_id: str | None = None,
     dataset_sha: str | None = None,
     git_commit: str | None = None,
+    include: str = "*.html",
 ) -> Path:
-    """Write MANIFEST.json hashing every *.html in ``report_dir``."""
+    """Write MANIFEST.json hashing every file matching ``include`` in ``report_dir``.
+
+    ``include="*"`` hashes every file (used by the evidence pack); the manifest
+    itself is always excluded.
+    """
     report_dir = Path(report_dir)
-    files = {p.name: _sha256(p) for p in sorted(report_dir.glob("*.html"))}
+    files = {
+        p.name: _sha256(p)
+        for p in sorted(report_dir.glob(include))
+        if p.is_file() and p.name != MANIFEST_NAME
+    }
     manifest = {
         "generated_at": datetime.datetime.now(datetime.UTC).isoformat(),
         "guardmeter_version": __version__,

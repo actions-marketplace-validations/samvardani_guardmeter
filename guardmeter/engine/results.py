@@ -20,14 +20,17 @@ class SampleResult:
     label: str
     category: str
     language: str
-    baseline_pred: str  # "pass" | "flag"
-    candidate_pred: str  # "pass" | "flag"
+    baseline_pred: str  # "pass" | "flag" | "error"
+    candidate_pred: str  # "pass" | "flag" | "error"
     judge_verdict: str | None = None  # "agree" | "disagree" | None
     baseline_score: float | None = None
     candidate_score: float | None = None
     baseline_latency_ms: float = 0.0
     candidate_latency_ms: float = 0.0
     attack_type: str | None = None
+    # Per-guard result metadata (error, hijacked, attempts, verdict_retries).
+    baseline_meta: dict[str, Any] = field(default_factory=dict)
+    candidate_meta: dict[str, Any] = field(default_factory=dict)
 
 
 def _bundle_to_dict(b: MetricsBundle) -> dict[str, Any]:
@@ -41,6 +44,7 @@ def _bundle_to_dict(b: MetricsBundle) -> dict[str, Any]:
         "latency_p95": b.latency_p95, "latency_p99": b.latency_p99,
         "latency_mean": b.latency_mean, "latency_max": b.latency_max,
         "hijacked": b.hijacked, "hijack_rate": b.hijack_rate,
+        "error_count": b.error_count, "error_rate": b.error_rate,
     }
 
 
@@ -70,6 +74,10 @@ class EvalResults:
     sample_results: list[SampleResult] = field(default_factory=list)
     mcnemar_p: float | None = None
     judge_agreement_rate: float | None = None
+    # Reproducibility: {"baseline": {...describe()}, "candidate": {...}}
+    guard_info: dict[str, Any] = field(default_factory=dict)
+    # {"guardmeter_version", "python_version", "policy", "dataset_path"}
+    environment: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialise to a JSON-compatible dict."""
@@ -102,11 +110,15 @@ class EvalResults:
                  "baseline_score": s.baseline_score, "candidate_score": s.candidate_score,
                  "baseline_latency_ms": s.baseline_latency_ms,
                  "candidate_latency_ms": s.candidate_latency_ms,
-                 "attack_type": s.attack_type}
+                 "attack_type": s.attack_type,
+                 "baseline_meta": s.baseline_meta,
+                 "candidate_meta": s.candidate_meta}
                 for s in self.sample_results
             ],
             "mcnemar_p": self.mcnemar_p,
             "judge_agreement_rate": self.judge_agreement_rate,
+            "guard_info": self.guard_info,
+            "environment": self.environment,
         }
 
     @classmethod
@@ -145,9 +157,13 @@ class EvalResults:
                 baseline_latency_ms=s.get("baseline_latency_ms", 0.0),
                 candidate_latency_ms=s.get("candidate_latency_ms", 0.0),
                 attack_type=s.get("attack_type"),
+                baseline_meta=s.get("baseline_meta") or {},
+                candidate_meta=s.get("candidate_meta") or {},
             )
             for s in d.get("sample_results", [])
         ]
         obj.mcnemar_p = d.get("mcnemar_p")
         obj.judge_agreement_rate = d.get("judge_agreement_rate")
+        obj.guard_info = d.get("guard_info") or {}
+        obj.environment = d.get("environment") or {}
         return obj

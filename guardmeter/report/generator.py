@@ -171,6 +171,8 @@ class ReportGenerator:
             generated_at=datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M UTC"),
             baseline_name=results.baseline_name,
             candidate_name=results.candidate_name,
+            guard_info=results.guard_info,
+            environment=results.environment,
             mcnemar_p=results.mcnemar_p,
             version=__version__,
             chartjs=_chartjs(),

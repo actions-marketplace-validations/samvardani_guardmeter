@@ -140,6 +140,17 @@ def write_step_summary(
         (cand.latency_p99 <= thr.max_latency_p99_ms) if thr else None,
         fmt="{:.1f}", suffix=" ms",
     ))
+    if base.error_count or cand.error_count or (thr and thr.max_error_rate < 1.0):
+        lines.append(_row(
+            "Errors", float(base.error_count), float(cand.error_count),
+            f"≤ {thr.max_error_rate:.0%}" if thr else "—",
+            (cand.error_rate <= thr.max_error_rate) if thr else None,
+            fmt="{:.0f}",
+        ))
+        if cand.error_count:
+            lines.append("")
+            lines.append(f"> ⚠ **Incomplete run:** {cand.error_count} candidate guard "
+                         f"calls failed ({cand.error_rate:.1%}) and are excluded from metrics.")
 
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 

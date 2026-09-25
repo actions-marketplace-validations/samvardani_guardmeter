@@ -7,27 +7,28 @@
   <script>{{ chartjs | safe }}</script>
   <style>
     :root{color-scheme:light}
-    body{font-family:"SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;line-height:1.6;margin:0;padding:48px 0;background:#f9fafb;color:#0f172a}
+    body{font-family:"SF Pro Text",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;line-height:1.6;margin:0;padding:48px 0;background:#f0f2e9;color:#18211b}
     .page{max-width:1200px;margin:0 auto;padding:0 32px 48px}
-    h1{margin:0 0 16px;font-size:28px;font-weight:600;letter-spacing:-0.01em;color:#0b1120}
-    h2{margin:0 0 12px;font-size:20px;font-weight:600;color:#111827}
-    h3{margin:20px 0 12px;font-size:16px;font-weight:600;color:#1f2937}
-    .meta{color:#6b7280;font-size:13px;margin-bottom:12px}
+    h1{margin:0 0 16px;font-size:28px;font-weight:600;letter-spacing:-0.01em;color:#0b100e}
+    h2{margin:0 0 12px;font-size:20px;font-weight:600;color:#121814}
+    h3{margin:20px 0 12px;font-size:16px;font-weight:600;color:#18211b}
+    .meta{color:#576459;font-size:13px;margin-bottom:12px}
     .row{display:flex;flex-wrap:wrap;gap:24px}
-    .card{border:1px solid rgba(148,163,184,0.25);border-radius:12px;padding:20px 24px;flex:1 1 360px;min-width:320px;background:#fff;box-shadow:0 12px 32px rgba(15,23,42,0.08),0 1px 2px rgba(15,23,42,0.05)}
+    .card{border:1px solid rgba(88,106,90,0.25);border-radius:12px;padding:20px 24px;flex:1 1 360px;min-width:320px;background:#fff;box-shadow:0 12px 32px rgba(11,16,14,0.08),0 1px 2px rgba(11,16,14,0.05)}
     table{width:100%;border-collapse:collapse;font-size:13px;margin-top:16px}
-    th,td{border-bottom:1px solid #e5e7eb;padding:10px 8px;text-align:left;vertical-align:top}
-    th{background:#f1f5f9;font-weight:600;color:#1f2937;white-space:nowrap}
+    th,td{border-bottom:1px solid #cbd3c8;padding:10px 8px;text-align:left;vertical-align:top}
+    th{background:#e5eadd;font-weight:600;color:#18211b;white-space:nowrap}
     tr:last-child td{border-bottom:none}
     .ok{color:#0c7d36}.warn{color:#b45309}.err{color:#b91c1c}
-    .badge{display:inline-block;border:1px solid rgba(148,163,184,0.4);border-radius:999px;padding:4px 10px;margin-right:8px;font-size:12px;background:#fff}
+    .badge{display:inline-block;border:1px solid rgba(88,106,90,0.4);border-radius:999px;padding:4px 10px;margin-right:8px;font-size:12px;background:#fff}
     .section{margin-top:32px}
-    .toggle{display:flex;gap:24px;align-items:center;margin:16px 0;font-size:14px;color:#1f2937}
+    .toggle{display:flex;gap:24px;align-items:center;margin:16px 0;font-size:14px;color:#18211b}
+    input[type="radio"]{accent-color:#41652f}
     .toggle label{display:flex;align-items:center;gap:8px;cursor:pointer}
     .hidden{display:none}
     .pass-cell{background:#dcfce7}.fail-cell{background:#fee2e2}
     canvas{max-width:100%;margin-top:12px}
-    .footer{margin-top:48px;text-align:center;font-size:12px;color:#9ca3af}
+    .footer{margin-top:48px;text-align:center;font-size:12px;color:#576459}
     @media(max-width:900px){.row{flex-direction:column}.card{min-width:0}}
   </style>
 </head>
@@ -37,39 +38,41 @@
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="40" height="40">
       <defs>
         <linearGradient id="nb-sg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#0f2744"/>
-          <stop offset="100%" style="stop-color:#0a1f3d"/>
+          <stop offset="0%" style="stop-color:#121814"/>
+          <stop offset="100%" style="stop-color:#18211b"/>
         </linearGradient>
         <linearGradient id="nb-cg" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" style="stop-color:#22d3ee"/>
-          <stop offset="100%" style="stop-color:#06b6d4"/>
+          <stop offset="0%" style="stop-color:#c8f4ad"/>
+          <stop offset="100%" style="stop-color:#a9dd8f"/>
         </linearGradient>
         <linearGradient id="nb-si" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" style="stop-color:#1e3a5f"/>
-          <stop offset="100%" style="stop-color:#0d1f38"/>
+          <stop offset="0%" style="stop-color:#18211b"/>
+          <stop offset="100%" style="stop-color:#121814"/>
         </linearGradient>
         <filter id="nb-glow">
           <feGaussianBlur stdDeviation="2" result="b"/>
           <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
         </filter>
       </defs>
-      <path d="M60 8 L100 24 L100 62 Q100 90 60 112 Q20 90 20 62 L20 24 Z" fill="url(#nb-sg)" stroke="#22d3ee" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M60 8 L100 24 L100 62 Q100 90 60 112 Q20 90 20 62 L20 24 Z" fill="url(#nb-sg)" stroke="#c8f4ad" stroke-width="2.5" stroke-linejoin="round"/>
       <path d="M60 14 L94 28 L94 62 Q94 86 60 106 Q26 86 26 62 L26 28 Z" fill="url(#nb-si)" opacity="0.6"/>
-      <line x1="38" y1="60" x2="82" y2="60" stroke="#22d3ee" stroke-width="1.5" opacity="0.35"/>
-      <line x1="60" y1="42" x2="60" y2="78" stroke="#22d3ee" stroke-width="1.5" opacity="0.35"/>
-      <circle cx="38" cy="60" r="2" fill="#22d3ee" opacity="0.4"/>
-      <circle cx="82" cy="60" r="2" fill="#22d3ee" opacity="0.4"/>
-      <circle cx="60" cy="42" r="2" fill="#22d3ee" opacity="0.4"/>
-      <circle cx="60" cy="78" r="2" fill="#22d3ee" opacity="0.4"/>
+      <line x1="38" y1="60" x2="82" y2="60" stroke="#c8f4ad" stroke-width="1.5" opacity="0.35"/>
+      <line x1="60" y1="42" x2="60" y2="78" stroke="#c8f4ad" stroke-width="1.5" opacity="0.35"/>
+      <circle cx="38" cy="60" r="2" fill="#c8f4ad" opacity="0.4"/>
+      <circle cx="82" cy="60" r="2" fill="#c8f4ad" opacity="0.4"/>
+      <circle cx="60" cy="42" r="2" fill="#c8f4ad" opacity="0.4"/>
+      <circle cx="60" cy="78" r="2" fill="#c8f4ad" opacity="0.4"/>
       <polyline points="44,60 56,72 76,48" fill="none" stroke="url(#nb-cg)" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" filter="url(#nb-glow)"/>
     </svg>
-    <h1 style="margin:0"><span style="color:#0b1120;font-weight:700">Guard</span><span style="color:#06b6d4;font-weight:700">Meter</span> Evaluation Report</h1>
+    <h1 style="margin:0"><span style="color:#0b100e;font-weight:700">Guard</span><span style="color:#41652f;font-weight:700">Meter</span> Evaluation Report</h1>
   </div>
   <div class="meta">
     Run: <b>{{ run_id }}</b> · Samples: <b>{{ total_samples }}</b> · Dataset SHA: <b>{{ dataset_sha[:12] }}</b>
     · Git: <b>{{ git_commit[:8] }}</b> · Generated: {{ generated_at }}
-    <br>Baseline: <b>{{ baseline_name }}</b> · Candidate: <b>{{ candidate_name }}</b>
+    <br>Baseline: <b>{{ baseline_name }}</b>{% if guard_info.baseline and guard_info.baseline.model %} <span class="meta">({{ guard_info.baseline.model }})</span>{% endif %}
+    · Candidate: <b>{{ candidate_name }}</b>{% if guard_info.candidate and guard_info.candidate.model %} <span class="meta">({{ guard_info.candidate.model }})</span>{% endif %}
     {% if mcnemar_p is not none %} · McNemar p: <b>{{ mcnemar_p }}</b>{% endif %}
+    {% if environment %}<br><span class="meta">GuardMeter {{ environment.guardmeter_version }} · Python {{ environment.python_version }} · policy {{ environment.policy }}</span>{% endif %}
   </div>
 
   <div class="toggle">
@@ -222,7 +225,7 @@
   <!-- Regulatory mapping (informational) -->
   <div class="card section" id="compliance">
     <h2>Regulatory mapping (informational)</h2>
-    <p style="color:#94a3b8;font-size:13px;margin:4px 0 12px">
+    <p style="color:#576459;font-size:13px;margin:4px 0 12px">
       Informational aid for your own documentation — not a compliance certification or legal assessment.
     </p>
     <table>
@@ -275,14 +278,14 @@ function latencyBuckets(lats) {
 const bBuckets = latencyBuckets(baseLatencies);
 new Chart(document.getElementById('latencyBaseline'), {
   type: 'bar',
-  data: {labels: bBuckets.labels, datasets: [{label:'Count', data:bBuckets.data, backgroundColor:'#3b82f6'}]},
+  data: {labels: bBuckets.labels, datasets: [{label:'Count', data:bBuckets.data, backgroundColor:'#9a7137'}]},
   options: {plugins:{legend:{display:false}}, scales:{x:{title:{display:true,text:'ms'}}, y:{title:{display:true,text:'Count'}}}}
 });
 
 const cBuckets = latencyBuckets(candLatencies);
 new Chart(document.getElementById('latencyCandidate'), {
   type: 'bar',
-  data: {labels: cBuckets.labels, datasets: [{label:'Count', data:cBuckets.data, backgroundColor:'#10b981'}]},
+  data: {labels: cBuckets.labels, datasets: [{label:'Count', data:cBuckets.data, backgroundColor:'#4f733e'}]},
   options: {plugins:{legend:{display:false}}, scales:{x:{title:{display:true,text:'ms'}}, y:{title:{display:true,text:'Count'}}}}
 });
 
@@ -292,8 +295,8 @@ if (sweepData && sweepData.thresholds && document.getElementById('thresholdSweep
     data: {
       labels: sweepData.thresholds,
       datasets: [
-        {label:'Precision', data: sweepData.precision, borderColor:'#3b82f6', fill:false},
-        {label:'Recall', data: sweepData.recall, borderColor:'#10b981', fill:false},
+        {label:'Precision', data: sweepData.precision, borderColor:'#9a7137', fill:false},
+        {label:'Recall', data: sweepData.recall, borderColor:'#4f733e', fill:false},
         {label:'FPR', data: sweepData.fpr, borderColor:'#ef4444', fill:false},
       ]
     },

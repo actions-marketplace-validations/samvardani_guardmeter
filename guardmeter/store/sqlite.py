@@ -71,7 +71,9 @@ class SQLiteStore(RunStore):
                     baseline_score REAL,
                     candidate_score REAL,
                     baseline_latency_ms REAL,
-                    candidate_latency_ms REAL
+                    candidate_latency_ms REAL,
+                    baseline_meta TEXT,
+                    candidate_meta TEXT
                 )
             """)
             # Migrate existing databases created before the score/latency columns.
@@ -84,6 +86,10 @@ class SQLiteStore(RunStore):
                     conn.execute(f"ALTER TABLE sample_results ADD COLUMN {col} REAL")
             if "attack_type" not in existing:
                 conn.execute("ALTER TABLE sample_results ADD COLUMN attack_type TEXT")
+            # Per-guard result metadata (error/hijacked/attempts/verdict_retries) as JSON.
+            for col in ("baseline_meta", "candidate_meta"):
+                if col not in existing:
+                    conn.execute(f"ALTER TABLE sample_results ADD COLUMN {col} TEXT")
             # Migrate runs table for user tag/note metadata.
             run_cols = {row[1] for row in conn.execute("PRAGMA table_info(runs)")}
             for col in ("tag", "note"):
@@ -106,6 +112,8 @@ class SQLiteStore(RunStore):
                 "candidate_attack_slices": data["candidate_attack_slices"],
                 "mcnemar_p": data["mcnemar_p"],
                 "judge_agreement_rate": data["judge_agreement_rate"],
+                "guard_info": data.get("guard_info", {}),
+                "environment": data.get("environment", {}),
             }
         )
         with closing(self._connect()) as conn:
@@ -124,8 +132,9 @@ class SQLiteStore(RunStore):
             conn.executemany(
                 "INSERT INTO sample_results (run_id, row_idx, text, label, category, language, "
                 "baseline_pred, candidate_pred, baseline_score, candidate_score, "
-                "baseline_latency_ms, candidate_latency_ms, attack_type) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "baseline_latency_ms, candidate_latency_ms, attack_type, "
+                "baseline_meta, candidate_meta) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 [
                     (
                         results.run_id, i,
@@ -134,6 +143,7 @@ class SQLiteStore(RunStore):
                         s.baseline_score, s.candidate_score,
                         s.baseline_latency_ms, s.candidate_latency_ms,
                         s.attack_type,
+                        json.dumps(s.baseline_meta), json.dumps(s.candidate_meta),
                     )
                     for i, s in enumerate(results.sample_results)
                 ],
@@ -176,6 +186,8 @@ class SQLiteStore(RunStore):
                     "fpr": cand_strict.get("fpr"),
                     "f1": cand_strict.get("f1"),
                     "latency_p99": cand_strict.get("latency_p99"),
+                    "error_count": cand_strict.get("error_count", 0),
+                    "error_rate": cand_strict.get("error_rate", 0.0),
                     "mcnemar_p": metrics.get("mcnemar_p"),
                 }
             )
@@ -239,7 +251,7 @@ class SQLiteStore(RunStore):
             rows = conn.execute(
                 "SELECT text, label, category, language, baseline_pred, candidate_pred, "
                 "baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms, "
-                "attack_type "
+                "attack_type, baseline_meta, candidate_meta "
                 "FROM sample_results WHERE run_id=? ORDER BY row_idx",
                 (run_id,),
             ).fetchall()
@@ -256,10 +268,12 @@ class SQLiteStore(RunStore):
                 "baseline_latency_ms": baseline_latency_ms if baseline_latency_ms is not None else 0.0,
                 "candidate_latency_ms": candidate_latency_ms if candidate_latency_ms is not None else 0.0,
                 "attack_type": attack_type,
+                "baseline_meta": json.loads(baseline_meta) if baseline_meta else {},
+                "candidate_meta": json.loads(candidate_meta) if candidate_meta else {},
             }
             for (text, label, category, language, baseline_pred, candidate_pred,
                  baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms,
-                 attack_type) in rows
+                 attack_type, baseline_meta, candidate_meta) in rows
         ]
 
     def _row_to_results(self, row: tuple[Any, ...]) -> EvalResults:
@@ -282,5 +296,7 @@ class SQLiteStore(RunStore):
             "sample_results": self._load_sample_results(run_id),
             "mcnemar_p": metrics.get("mcnemar_p"),
             "judge_agreement_rate": metrics.get("judge_agreement_rate"),
+            "guard_info": metrics.get("guard_info", {}),
+            "environment": metrics.get("environment", {}),
         }
         return EvalResults.from_dict(d)

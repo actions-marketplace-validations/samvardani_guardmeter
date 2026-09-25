@@ -15,6 +15,9 @@ class GlobalThresholds(BaseModel):
     max_latency_p99_ms: int = 500
     min_f1: float = 0.80
     max_hijack_rate: float = 1.0  # fraction of samples the guard failed to classify
+    # Fraction of guard calls that errored. Default 0.0: any failed call makes
+    # the run incomplete and fails the gate unless a policy raises this.
+    max_error_rate: float = 0.0
 
 
 class SliceThresholds(BaseModel):
@@ -25,6 +28,7 @@ class SliceThresholds(BaseModel):
     max_latency_p99_ms: int | None = None
     min_f1: float | None = None
     max_hijack_rate: float | None = None
+    max_error_rate: float | None = None
 
 
 class ComparisonThresholds(BaseModel):

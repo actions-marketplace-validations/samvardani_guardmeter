@@ -174,6 +174,11 @@ class RegexGuard(Guard):
 
     # ── Public interface ────────────────────────────────────────────────────
 
+    def describe(self) -> dict[str, Any]:
+        """Reproducibility metadata: profile and decision threshold."""
+        return {"name": self.name, "version": self.version,
+                "profile": self.profile, "threshold": self.threshold}
+
     def predict(self, text: str, **meta: Any) -> GuardResult:
         """Score a single text and return a GuardResult."""
         start = time.perf_counter()

@@ -13,6 +13,8 @@
 
 GuardMeter compares two content-safety guards — a **baseline** and a **candidate** — on a labeled dataset and produces per-slice metrics, an HTML report, an interactive dashboard, and a pass/fail CI gate. It's for developers and ML engineers who ship a safety classifier and need to catch regressions — per category, language, and attack type — before they merge.
 
+> **Want it done for you?** The team behind GuardMeter runs a fixed-price **Guardrail Tune-Up** — your filter vs. a better configuration, on your traffic, with a signed evidence pack and a CI release check. From $1,500 · 5 business days → [seatechone.com/guardmeter](https://seatechone.com/guardmeter/)
+
 ---
 
 ## 30-second demo
@@ -181,9 +183,18 @@ release). Outputs: `passed`, `run_id`, `report_path`.
 | `regex-enhanced` | built-in | Expanded patterns, obfuscation detection, Farsi coverage |
 | `regex` | built-in | Alias of `regex-enhanced` (kept for backward compatibility) |
 | `injection-heuristic` | built-in | Deliberately weak keyword baseline for prompt injection — an honest floor for the agentic dataset, not a real detector |
-| `openai` | `pip install guardmeter[llm]` + `OPENAI_API_KEY` | OpenAI Moderation API (experimental — see below) |
-| `anthropic` | `pip install guardmeter[llm]` + `ANTHROPIC_API_KEY` | Claude as a JSON-verdict safety classifier (experimental — see below) |
+| `anthropic` | `pip install guardmeter[llm]` + `ANTHROPIC_API_KEY` | Claude as a chat classifier (tool-use verdict, fail-closed) — experimental |
+| `openai-chat` | `pip install guardmeter[llm]` + `OPENAI_API_KEY` | OpenAI chat model as a classifier (function-call verdict, fail-closed) — experimental |
+| `openai` | `pip install guardmeter[llm]` + `OPENAI_API_KEY` | OpenAI Moderation API — un-hijackable, but fixed taxonomy, no injection intent — experimental |
 | `llamaguard` | HuggingFace `transformers` or an HTTP endpoint | Llama Guard 3, local pipeline or hosted API (experimental — see below) |
+
+**Which LLM guard?** The two chat classifiers (`anthropic`, `openai-chat`) judge
+intent — including prompt injection — against GuardMeter's category vocabulary,
+and fail closed if the model is hijacked into replying in prose. The Moderation
+API (`openai`) can't be hijacked (it follows no instructions in the input) but
+only reports OpenAI's fixed harm taxonomy and won't catch injection or tool
+misuse. Use a chat classifier for agent-facing/injection work; the Moderation
+API for cheap, deterministic content-safety triage.
 
 ### Write your own guard
 
@@ -204,6 +215,22 @@ register("my-guard", MyGuard)  # now usable as --candidate my-guard
 ```
 
 `predict` receives per-record metadata via `**meta`. In particular `meta["context"]` (a string or `None`) carries prior turns or the surrounding document for multi-turn and indirect-injection datasets — context-aware guards should use it; simple guards may ignore it.
+
+### Connect your own guard over HTTP
+
+To evaluate a guard GuardMeter doesn't ship — your own service — use the built-in `http` guard. Configure it from the environment or a YAML/JSON file and pass it as `--candidate http --candidate-config guard.yml` (there's also `--baseline-config`):
+
+```yaml
+type: http
+url: https://guard.internal/classify
+headers: { Authorization: "Bearer ${GUARD_TOKEN}" }   # ${ENV} is expanded
+body: '{"input": "{{text}}", "context": "{{context}}"}'  # {{text}}/{{context}} filled per row
+verdict_path: result.flagged        # dotted path to the bool/label in the response
+flag_values: [true, flagged, unsafe]  # case-insensitive; a boolean true also flags
+score_path: result.score            # optional
+```
+
+The same options exist as `GUARDMETER_HTTP_URL`, `GUARDMETER_HTTP_HEADERS` (JSON), `GUARDMETER_HTTP_BODY`, `GUARDMETER_HTTP_VERDICT_PATH`, `GUARDMETER_HTTP_FLAG_VALUES`, `GUARDMETER_HTTP_SCORE_PATH`, and `GUARDMETER_HTTP_TIMEOUT` (default 10 s). A non-2xx response or timeout is recorded as an **error** — excluded from metrics and failing the gate as an incomplete run — never a silent pass.
 
 ---
 

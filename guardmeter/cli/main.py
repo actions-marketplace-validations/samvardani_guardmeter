@@ -6,7 +6,7 @@ import json
 import logging
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import click
 
@@ -64,6 +64,10 @@ def cli() -> None:
 @click.option("--summary-md", "summary_md", default=None, help="Write a Markdown step-summary table to this path")
 @click.option("--concurrency", type=int, default=None,
               help="Parallel guard calls (default: 4 if either guard is a remote/LLM guard, else 1)")
+@click.option("--baseline-config", "baseline_config", default=None, type=click.Path(exists=True),
+              help="YAML/JSON guard config for the baseline (e.g. an HTTP guard)")
+@click.option("--candidate-config", "candidate_config", default=None, type=click.Path(exists=True),
+              help="YAML/JSON guard config for the candidate (e.g. an HTTP guard)")
 def compare(
     baseline: str,
     candidate: str,
@@ -72,6 +76,8 @@ def compare(
     json_out: bool,
     summary_md: str | None,
     concurrency: int | None,
+    baseline_config: str | None,
+    candidate_config: str | None,
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
     from guardmeter.data.loader import load_dataset
@@ -89,13 +95,13 @@ def compare(
     _log(f"  {len(records)} records loaded")
 
     _log(f"Instantiating guards: baseline={baseline!r}, candidate={candidate!r}")
-    base_guard = _resolve_guard(baseline)
-    cand_guard = _resolve_guard(candidate)
+    base_guard = _resolve_guard(baseline, baseline_config)
+    cand_guard = _resolve_guard(candidate, candidate_config)
 
     # Both strict and lenient metrics are always computed; McNemar uses strict.
     if concurrency is None:
         concurrency = 4 if (base_guard.is_remote or cand_guard.is_remote) else 1
-    config = EvalConfig(concurrency=max(1, concurrency))
+    config = EvalConfig(concurrency=max(1, concurrency), dataset_path=dataset)
     evaluator = Evaluator(base_guard, cand_guard, records, config)
 
     _log(f"Running evaluation … (concurrency={config.concurrency})")
@@ -112,15 +118,30 @@ def compare(
     strict = results.candidate_metrics.get("strict")
     _log(f"\nRun ID: {results.run_id}")
     if strict:
+        evaluated = strict.tp + strict.fp + strict.tn + strict.fn
+        recall_str = f"{strict.recall:.4f}" if evaluated else "n/a"
+        f1_str = f"{strict.f1:.4f}" if evaluated else "n/a"
         line = (
-            f"Candidate (strict) — recall: {strict.recall:.4f} | "
-            f"fpr: {strict.fpr:.4f} | f1: {strict.f1:.4f} | "
+            f"Candidate (strict) — recall: {recall_str} | "
+            f"fpr: {strict.fpr:.4f} | f1: {f1_str} | "
             f"p99: {strict.latency_p99:.1f} ms"
         )
         if strict.hijacked:
             line += f" | hijacked: {strict.hijacked} ({strict.hijack_rate:.2%})"
         _log(line)
     _log(f"Dataset SHA: {results.dataset_sha[:12]}")
+
+    # An incomplete run (any errored guard call) is a loud, always-stderr warning.
+    if strict and strict.error_count:
+        click.echo(
+            click.style(
+                f"⚠ {strict.error_count} candidate calls failed "
+                f"({strict.error_rate:.1%}) — run is incomplete; "
+                "errored samples are excluded from metrics.",
+                fg="red", bold=True,
+            ),
+            err=True,
+        )
 
     if json_out:
         d = results.to_dict()
@@ -130,6 +151,10 @@ def compare(
             "candidate_name": results.candidate_name,
             "dataset_sha": results.dataset_sha,
             "candidate_metrics": d["candidate_metrics"],
+            "candidate_error_count": strict.error_count if strict else 0,
+            "candidate_error_rate": strict.error_rate if strict else 0.0,
+            "guard_info": results.guard_info,
+            "environment": results.environment,
             "mcnemar_p": results.mcnemar_p,
         }
         click.echo(json.dumps(payload, indent=2))
@@ -598,17 +623,59 @@ def dashboard(
 @cli.command("verify-report")
 @click.argument("report_dir", default="report", required=False)
 def verify_report(report_dir: str) -> None:
-    """Recompute report hashes against MANIFEST.json; exit 1 on any mismatch."""
+    """Recompute hashes against MANIFEST.json; exit 1 on mismatch.
+
+    Accepts a report directory or an evidence-pack .zip.
+    """
     from guardmeter.report.manifest import verify_manifest
 
-    ok, problems = verify_manifest(report_dir)
+    target = report_dir
+    tmp = None
+    if report_dir.endswith(".zip"):
+        import tempfile
+        import zipfile
+        tmp = tempfile.mkdtemp(prefix="gm-verify-")
+        with zipfile.ZipFile(report_dir) as zf:
+            zf.extractall(tmp)
+        target = tmp
+
+    try:
+        ok, problems = verify_manifest(target)
+    finally:
+        if tmp:
+            import shutil
+            shutil.rmtree(tmp, ignore_errors=True)
+
     if ok:
-        click.echo(f"✅ Report integrity verified: {report_dir}")
+        click.echo(f"✅ Integrity verified: {report_dir}")
         return
-    click.echo(f"❌ Report integrity check FAILED for {report_dir}:")
+    click.echo(f"❌ Integrity check FAILED for {report_dir}:")
     for p in problems:
         click.echo(f"  - {p}")
     sys.exit(1)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# guardmeter evidence
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--run", "run_id", default="latest", help="Run id, or 'latest'")
+@click.option("--out", "out_dir", default="evidence", help="Output directory for the pack")
+@click.option("--gate", "gate_path", default=None, type=click.Path(exists=True),
+              help="Gate policy to evaluate and include (default: a permissive record-only gate)")
+@click.option("--store", "store_path", default=None, help="Override DB path")
+def evidence(run_id: str, out_dir: str, gate_path: str | None, store_path: str | None) -> None:
+    """Write a self-contained, hash-manifested audit bundle for a run and zip it."""
+    from guardmeter.report.evidence import build_evidence
+
+    store = _get_store(store_path)
+    try:
+        zip_path = build_evidence(store, run_id, out_dir, gate_path)
+    except (KeyError, ValueError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    click.echo(f"✅ Evidence pack written: {zip_path}")
+    click.echo(f"   Verify with: guardmeter verify-report {zip_path}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -675,11 +742,23 @@ def init() -> None:
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _resolve_guard(name: str):
-    """Resolve a guard by registry name or dotted class path."""
+def _resolve_guard(name: str, config_path: str | None = None):
+    """Resolve a guard by registry name, dotted class path, or a config file.
+
+    A config file (YAML or JSON) builds a config-driven guard; its ``type`` (or
+    the ``name`` argument) selects which. Currently ``http`` is config-driven.
+    """
     # Import built-in guards first
     _import_builtin_guards()
     from guardmeter.core.registry import get_guard
+
+    if config_path:
+        cfg = _load_guard_config(config_path)
+        gtype = cfg.get("type", name)
+        if gtype == "http":
+            from guardmeter.guards.http_guard import HttpGuard
+            return HttpGuard.from_config(cfg)
+        raise click.BadParameter(f"guard type {gtype!r} does not support --*-config")
 
     if "." in name:
         # Dotted module path: e.g. mypackage.guards.MyGuard
@@ -689,3 +768,12 @@ def _resolve_guard(name: str):
         cls = getattr(mod, parts[1])
         return cls()
     return get_guard(name)
+
+
+def _load_guard_config(path: str) -> dict[str, Any]:
+    """Load a guard config from a YAML or JSON file."""
+    text = Path(path).read_text(encoding="utf-8")
+    if path.endswith((".yaml", ".yml")):
+        import yaml
+        return yaml.safe_load(text) or {}
+    return json.loads(text)

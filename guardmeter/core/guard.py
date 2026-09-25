@@ -9,10 +9,16 @@ from typing import Any
 
 @dataclass
 class GuardResult:
-    """Result produced by a guard's predict call."""
+    """Result produced by a guard's predict call.
 
-    prediction: str  # "pass" | "flag"
-    score: float  # 0.0 – 1.0
+    ``prediction`` is "pass", "flag", or "error". An "error" result means the
+    guard call itself failed (after retries) and could not produce a verdict;
+    it has ``score=None`` and is excluded from metrics rather than counted as a
+    flag. See ``guardmeter.engine.evaluator.call_with_retry``.
+    """
+
+    prediction: str  # "pass" | "flag" | "error"
+    score: float | None  # 0.0 – 1.0, or None for an "error" result
     latency_ms: int
     categories: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
@@ -41,3 +47,13 @@ class Guard(ABC):
     def batch_predict(self, texts: list[str], **meta: Any) -> list[GuardResult]:
         """Score a list of texts; defaults to sequential predict calls."""
         return [self.predict(t, **meta) for t in texts]
+
+    def describe(self) -> dict[str, Any]:
+        """Return reproducibility metadata for this guard.
+
+        The default is ``{"name", "version"}``; adapters override to add the
+        model id, decision policy, or configuration that determines the verdict.
+        Recorded on every run as ``guard_info`` so a stored result names exactly
+        what was evaluated.
+        """
+        return {"name": self.name, "version": self.version}

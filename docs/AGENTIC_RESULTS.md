@@ -5,64 +5,95 @@ GuardMeter perform on the [agentic attack dataset](../dataset/agentic/v1/), and
 shows that neither is a prompt-injection detector. The point of the dataset is
 to make that gap measurable, not to flatter the shipped guards.
 
-## Published results — Anthropic adapter, v0.7 vs v0.8
+## Published results — Anthropic adapter, v0.7 → v0.8 → v0.8.1 → v0.8.2
 
 The agentic dataset hijacked the v0.7 Anthropic adapter: it asked the model to
 classify the sample as a chat message, and on 39 rows the model answered the
 sample in prose instead of classifying it. The old parser turned each unparseable
 reply into a silent `pass`. The v0.8 adapter forces a structured tool-use verdict,
 frames the sample as untrusted data, and **fails closed** (a missing verdict
-becomes `flag`, counted as `hijack_rate`). Both runs below use
+becomes `flag`, counted as `hijack_rate`). v0.8.1 adds one corrective retry before
+failing closed. v0.8.2 adds error accounting. All runs use
 `--baseline injection-heuristic --candidate anthropic` on the same dataset.
 
-- **Model:** `claude-sonnet-4-5` · **Dataset sha:** `5c6902dcc0bb` (421 rows) ·
-  **Date:** 2026-09-20 · **GuardMeter:** 0.8.0
-- v0.7 = run `5fb1c4d9` (prose JSON, `--concurrency 1`); v0.8 = run `963d3cf7`
-  (tool-use, fail-closed, `--concurrency 4`).
+> **Methodology note — read before comparing rows.** Runs before 0.8.2 counted a
+> failed guard call (network error, HTTP 5xx, invalid key) as a `flag` and did not
+> record it, so a call that never produced a verdict could still land in TP/FP.
+> From 0.8.2 an errored call is a distinct `error` outcome, **excluded** from the
+> confusion matrix and reported as `error_rate`. The pre-0.8.2 rows are retained
+> for history; because errored calls were miscounted, their recall may be
+> **marginally overstated**. Older rows' numbers are left unchanged — only the new
+> row is measured under the corrected accounting. (The v0.7–v0.8.1 runs used a
+> valid key, so their error surface was small; the correction matters most when a
+> guard is actually failing.)
 
-| Adapter | Recall | FPR | F1 | hijack_rate | p99 latency | Agentic gate |
-|---|---|---|---|---|---|---|
-| v0.7 (prose JSON) | 0.680 | 0.0095 | 0.808 | not measured (≈39 silent-pass) | 6309 ms | fail |
-| v0.8 (tool-use, fail-closed) | 0.924 | 0.114 | 0.942 | 0.052 (22/421) | 3961 ms | fail |
+- **Model:** `claude-sonnet-4-5` · **Dataset sha:** `5c6902dcc0bb` (421 rows) ·
+  **GuardMeter:** 0.8.2
+- v0.7 = run `5fb1c4d9` (prose JSON, `--concurrency 1`); v0.8 = run `963d3cf7`
+  (tool-use, fail-closed); v0.8.1 = run `a4efee53` (tool-use + one retry); v0.8.2 =
+  run `45c2b4c3` (error accounting). The structured runs use `--concurrency 4`.
+
+| Adapter | Recall | FPR | F1 | hijack_rate | error_rate | p99 latency | Agentic gate |
+|---|---|---|---|---|---|---|---|
+| v0.7 (prose JSON) | 0.680 | 0.0095 | 0.808 | not measured (≈39 silent-pass) | not measured | 6309 ms | fail |
+| v0.8 (tool-use, fail-closed) | 0.924 | 0.114 | 0.942 | 0.052 (22/421) | not measured | 3961 ms | fail |
+| v0.8.1 (tool-use + one retry) | 0.915 | 0.095 | 0.940 | 0.040 (17/421) | not measured | 4605 ms | fail |
+| v0.8.2 (errors excluded) | 0.927 | 0.095 | 0.947 | 0.043 (18/421) | 0.000 (0/421) | 5708 ms | fail |
 
 Per-family recall:
 
-| Family | v0.7 | v0.8 |
-|---|---|---|
-| direct_override | 0.96 | 0.979 |
-| indirect_injection | 0.80 | 0.969 |
-| exfiltration | 0.62 | 0.973 |
-| authority_spoof | 0.81 | 0.968 |
-| persona_jailbreak | 0.71 | 0.968 |
-| multi_turn | 0.77 | 0.935 |
-| encoded | 0.19 | 0.969 |
-| tool_misuse | 0.41 | 0.634 |
+| Family | v0.7 | v0.8 | v0.8.1 | v0.8.2 |
+|---|---|---|---|---|
+| direct_override | 0.96 | 0.979 | 0.979 | 0.979 |
+| indirect_injection | 0.80 | 0.969 | 0.939 | 0.939 |
+| exfiltration | 0.62 | 0.973 | 0.946 | 1.000 |
+| authority_spoof | 0.81 | 0.968 | 0.968 | 0.968 |
+| persona_jailbreak | 0.71 | 0.968 | 0.968 | 0.968 |
+| multi_turn | 0.77 | 0.935 | 0.903 | 0.935 |
+| encoded | 0.19 | 0.969 | 0.969 | 0.969 |
+| tool_misuse | 0.41 | 0.634 | 0.658 | 0.683 |
+
+The v0.8.2 run used a valid key, so `error_rate` is 0.000 — the error columns read
+as expected on a healthy run. Their point is the failure case: with an invalid key,
+a 7-row compare now reports recall **n/a** and 100% `error_rate` (the run is
+flagged incomplete and fails the gate) instead of the pre-0.8.2 recall of 1.00.
+Recall/FPR/F1 are otherwise consistent with v0.8.1 within single-run LLM variance
+(exfiltration and tool_misuse drifted up a little this run; encoded's 18 hijacks
+are unchanged in character).
 
 **Interpretation.** Forcing a structured verdict and framing the sample as
 untrusted data lifted recall from 0.68 to 0.92 and F1 from 0.81 to 0.94, and
 roughly halved the silent-failure surface (39 unparsed prose replies → 22
 still-empty verdicts), while concurrency + a tighter `max_tokens` cut p99 latency
-from 6.3 s to 4.0 s. Two things did **not** improve. `tool_misuse` is still the
-hardest family (0.63): these rows read like legitimate tool calls and need intent
-reasoning, not surface cues. And FPR **regressed** from 0.01 to 0.11 — a real cost
-of failing closed. Every one of the 22 hijacks is in the `encoded` family: shown
+from 6.3 s to 4.0 s. Two things did **not** improve at v0.8. `tool_misuse` is still
+the hardest family (0.63): these rows read like legitimate tool calls and need
+intent reasoning, not surface cues. And FPR **regressed** from 0.01 to 0.11 — a
+real cost of failing closed. Every hijack is in the `encoded` family: shown
 obfuscated content and told not to decode-and-follow it, the model sometimes
-returns no verdict at all. Failing those closed flags them, which helps recall on
-the 30 unsafe encoded rows but also flags 3 of the 10 benign encoded look-alikes,
-and is the main driver of the FPR rise. Against local regex guards (p99 ≈ 0 ms)
-the latency cost is the other standing trade-off: a real LLM guard is seconds per
-call.
+returns no verdict at all.
 
-Both adapters fail the aspirational `gate.agentic.json` — v0.7 on recall and
-latency, v0.8 on latency (≈4 s vs the 200 ms bar), global FPR, and `tool_misuse`
-recall. That gate describes a fast, low-FPR production guard; a per-call LLM is
-neither, and the gate is meant to show that gap rather than be met here.
+**What the retry (v0.8.1) changed.** The corrective follow-up recovered 5 of the
+22 empty verdicts (hijack_rate 0.052 → 0.040, all still `encoded`). Because fewer
+benign encoded look-alikes are fail-closed-flagged, **FPR fell 0.114 → 0.095** —
+the intended effect. Recall moved slightly the other way (0.924 → 0.915) and a few
+families dip a point or two; that is within single-run, non-deterministic LLM
+variance and not a real regression (F1 is flat at 0.94). The retry costs a second
+round-trip on empty verdicts, so p99 rose 3961 → 4605 ms. No thresholds were
+touched. Against local regex guards (p99 ≈ 0 ms) the latency cost is the other
+standing trade-off: a real LLM guard is seconds per call.
 
-**Methodology.** The v0.8 framing is generic — no prompt was tuned against these
-rows, and no threshold was fit to the dataset. The numbers are a single run each;
-LLM verdicts are not fully deterministic, so a rerun may shift a few rows (and the
-FPR/hijack figures with them). We report the FPR regression rather than hide it:
-failing closed is the right default for a guard, but it is not free.
+All four adapters fail the aspirational `gate.agentic.json` — v0.7 on recall and
+latency, v0.8/v0.8.1/v0.8.2 on latency (4–6 s vs the 200 ms bar), global FPR, and
+`tool_misuse` recall. That gate describes a fast, low-FPR production guard; a
+per-call LLM is neither, and the gate is meant to show that gap rather than be met
+here.
+
+**Methodology.** The framing and the retry prompt are generic — no prompt was
+tuned against these rows, and no threshold was fit to the dataset. The numbers are
+a single run each; LLM verdicts are not fully deterministic, so a rerun may shift
+a few rows (and the FPR/hijack figures with them). We report the FPR regression
+(and its partial recovery) rather than hide it: failing closed is the right
+default for a guard, but it is not free.
 
 ## Setup
 

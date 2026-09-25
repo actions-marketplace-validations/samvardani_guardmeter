@@ -1,24 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640">
   <defs>
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#040d1a"/>
-      <stop offset="100%" style="stop-color:#080f1e"/>
+      <stop offset="0%" style="stop-color:#0b100e"/>
+      <stop offset="100%" style="stop-color:#0b100e"/>
     </linearGradient>
     <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f2744"/>
-      <stop offset="100%" style="stop-color:#0a1f3d"/>
+      <stop offset="0%" style="stop-color:#121814"/>
+      <stop offset="100%" style="stop-color:#18211b"/>
     </linearGradient>
-    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#22d3ee"/>
-      <stop offset="100%" style="stop-color:#06b6d4"/>
+    <linearGradient id="mintGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c8f4ad"/>
+      <stop offset="100%" style="stop-color:#a9dd8f"/>
     </linearGradient>
     <linearGradient id="shieldInner" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#1e3a5f"/>
-      <stop offset="100%" style="stop-color:#0d1f38"/>
+      <stop offset="0%" style="stop-color:#18211b"/>
+      <stop offset="100%" style="stop-color:#121814"/>
     </linearGradient>
     <!-- Subtle grid overlay -->
     <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#0e2240" stroke-width="0.5"/>
+      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#18211b" stroke-width="0.5"/>
     </pattern>
     <filter id="softGlow" x="-30%" y="-30%" width="160%" height="160%">
       <feGaussianBlur stdDeviation="6" result="coloredBlur"/>
@@ -48,41 +48,41 @@
   <!-- Grid overlay -->
   <rect width="1280" height="640" fill="url(#grid)" opacity="0.6"/>
 
-  <!-- Cyan glow blobs (ambient light) -->
-  <circle cx="900" cy="320" r="300" fill="#06b6d4" opacity="0.04"/>
-  <circle cx="200" cy="500" r="200" fill="#0ea5e9" opacity="0.04"/>
+  <!-- Mint glow blobs (ambient light) -->
+  <circle cx="900" cy="320" r="300" fill="#a9dd8f" opacity="0.04"/>
+  <circle cx="200" cy="500" r="200" fill="#e7c899" opacity="0.04"/>
 
   <!-- Top border accent line -->
-  <line x1="0" y1="0" x2="1280" y2="0" stroke="#22d3ee" stroke-width="3" opacity="0.6"/>
+  <line x1="0" y1="0" x2="1280" y2="0" stroke="#c8f4ad" stroke-width="3" opacity="0.6"/>
 
   <!-- ── LARGE SHIELD MARK (right side) ── -->
   <!-- Shield scaled 2.5x from 120px viewBox = 300px, centered at x=980, y=320 -->
   <g transform="translate(830, 90) scale(2.5)" filter="url(#shieldGlow)">
     <path d="M60 8 L100 24 L100 62 Q100 90 60 112 Q20 90 20 62 L20 24 Z"
           fill="url(#shieldGrad)"
-          stroke="#22d3ee"
+          stroke="#c8f4ad"
           stroke-width="2"
           stroke-linejoin="round"/>
     <path d="M60 14 L94 28 L94 62 Q94 86 60 106 Q26 86 26 62 L26 28 Z"
           fill="url(#shieldInner)"
           opacity="0.7"/>
-    <path d="M60 8 L100 24" stroke="#67e8f9" stroke-width="0.8" opacity="0.5" fill="none"/>
-    <path d="M60 8 L20 24" stroke="#67e8f9" stroke-width="0.8" opacity="0.5" fill="none"/>
+    <path d="M60 8 L100 24" stroke="#c8f4ad" stroke-width="0.8" opacity="0.5" fill="none"/>
+    <path d="M60 8 L20 24" stroke="#c8f4ad" stroke-width="0.8" opacity="0.5" fill="none"/>
     <!-- Circuit traces -->
-    <line x1="38" y1="60" x2="82" y2="60" stroke="#22d3ee" stroke-width="1.2" opacity="0.4"/>
-    <line x1="60" y1="42" x2="60" y2="78" stroke="#22d3ee" stroke-width="1.2" opacity="0.4"/>
-    <circle cx="38" cy="60" r="2.5" fill="#22d3ee" opacity="0.5"/>
-    <circle cx="82" cy="60" r="2.5" fill="#22d3ee" opacity="0.5"/>
-    <circle cx="60" cy="42" r="2.5" fill="#22d3ee" opacity="0.5"/>
-    <circle cx="60" cy="78" r="2.5" fill="#22d3ee" opacity="0.5"/>
-    <line x1="38" y1="60" x2="38" y2="50" stroke="#22d3ee" stroke-width="0.8" opacity="0.3"/>
-    <line x1="82" y1="60" x2="82" y2="70" stroke="#22d3ee" stroke-width="0.8" opacity="0.3"/>
-    <line x1="60" y1="42" x2="70" y2="42" stroke="#22d3ee" stroke-width="0.8" opacity="0.3"/>
-    <line x1="60" y1="78" x2="50" y2="78" stroke="#22d3ee" stroke-width="0.8" opacity="0.3"/>
+    <line x1="38" y1="60" x2="82" y2="60" stroke="#c8f4ad" stroke-width="1.2" opacity="0.4"/>
+    <line x1="60" y1="42" x2="60" y2="78" stroke="#c8f4ad" stroke-width="1.2" opacity="0.4"/>
+    <circle cx="38" cy="60" r="2.5" fill="#c8f4ad" opacity="0.5"/>
+    <circle cx="82" cy="60" r="2.5" fill="#c8f4ad" opacity="0.5"/>
+    <circle cx="60" cy="42" r="2.5" fill="#c8f4ad" opacity="0.5"/>
+    <circle cx="60" cy="78" r="2.5" fill="#c8f4ad" opacity="0.5"/>
+    <line x1="38" y1="60" x2="38" y2="50" stroke="#c8f4ad" stroke-width="0.8" opacity="0.3"/>
+    <line x1="82" y1="60" x2="82" y2="70" stroke="#c8f4ad" stroke-width="0.8" opacity="0.3"/>
+    <line x1="60" y1="42" x2="70" y2="42" stroke="#c8f4ad" stroke-width="0.8" opacity="0.3"/>
+    <line x1="60" y1="78" x2="50" y2="78" stroke="#c8f4ad" stroke-width="0.8" opacity="0.3"/>
     <!-- Checkmark -->
     <polyline points="44,60 56,72 76,48"
               fill="none"
-              stroke="url(#cyanGrad)"
+              stroke="url(#mintGrad)"
               stroke-width="5.5"
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -97,19 +97,19 @@
         font-size="112"
         font-weight="800"
         letter-spacing="-3"
-        fill="#f0f9ff">Guard</text>
+        fill="#eff3eb">Guard</text>
 
-  <!-- "Bench" in cyan -->
+  <!-- "Meter" in mint -->
   <text x="88" y="378"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif"
         font-size="112"
         font-weight="800"
         letter-spacing="-3"
-        fill="#22d3ee"
+        fill="#c8f4ad"
         filter="url(#softGlow)">Meter</text>
 
   <!-- Divider line -->
-  <line x1="88" y1="412" x2="560" y2="412" stroke="#1e3a5f" stroke-width="1.5"/>
+  <line x1="88" y1="412" x2="560" y2="412" stroke="#18211b" stroke-width="1.5"/>
 
   <!-- Tagline -->
   <text x="88" y="448"
@@ -117,34 +117,34 @@
         font-size="22"
         font-weight="400"
         letter-spacing="4"
-        fill="#38bdf8"
+        fill="#a0aba3"
         opacity="0.75">AI SAFETY GUARD EVALUATION</text>
 
   <!-- Feature pills row -->
   <!-- Pill 1 -->
-  <rect x="88" y="480" width="170" height="34" rx="17" fill="#0f2744" stroke="#22d3ee" stroke-width="1" opacity="0.8"/>
+  <rect x="88" y="480" width="170" height="34" rx="17" fill="#121814" stroke="#c8f4ad" stroke-width="1" opacity="0.8"/>
   <text x="173" y="502" text-anchor="middle"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif"
-        font-size="13" font-weight="500" fill="#67e8f9">pip install guardmeter</text>
+        font-size="13" font-weight="500" fill="#c8f4ad">pip install guardmeter</text>
 
   <!-- Pill 2 -->
-  <rect x="270" y="480" width="118" height="34" rx="17" fill="#0f2744" stroke="#1e3a5f" stroke-width="1" opacity="0.8"/>
+  <rect x="270" y="480" width="118" height="34" rx="17" fill="#121814" stroke="#18211b" stroke-width="1" opacity="0.8"/>
   <text x="329" y="502" text-anchor="middle"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif"
-        font-size="13" font-weight="500" fill="#94a3b8">Open Source</text>
+        font-size="13" font-weight="500" fill="#a0aba3">Open Source</text>
 
   <!-- Pill 3 -->
-  <rect x="400" y="480" width="98" height="34" rx="17" fill="#0f2744" stroke="#1e3a5f" stroke-width="1" opacity="0.8"/>
+  <rect x="400" y="480" width="98" height="34" rx="17" fill="#121814" stroke="#18211b" stroke-width="1" opacity="0.8"/>
   <text x="449" y="502" text-anchor="middle"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif"
-        font-size="13" font-weight="500" fill="#94a3b8">MIT License</text>
+        font-size="13" font-weight="500" fill="#a0aba3">MIT License</text>
 
   <!-- Bottom border accent -->
-  <line x1="0" y1="640" x2="1280" y2="640" stroke="#22d3ee" stroke-width="2" opacity="0.3"/>
+  <line x1="0" y1="640" x2="1280" y2="640" stroke="#c8f4ad" stroke-width="2" opacity="0.3"/>
 
   <!-- github.com/samvardani/guardmeter -->
   <text x="88" y="626"
         font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif"
         font-size="15" font-weight="400" letter-spacing="0.5"
-        fill="#475569">github.com/samvardani/guardmeter</text>
+        fill="#a0aba3">github.com/samvardani/guardmeter</text>
 </svg>

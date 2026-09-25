@@ -1,19 +1,19 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
   <defs>
-    <!-- Deep blue background gradient for shield -->
+    <!-- Charcoal background gradient for shield -->
     <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f2744;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0a1f3d;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#121814;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#18211b;stop-opacity:1" />
     </linearGradient>
-    <!-- Cyan glow for accents -->
-    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#22d3ee;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    <!-- Mint glow for accents -->
+    <linearGradient id="mintGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#c8f4ad;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#a9dd8f;stop-opacity:1" />
     </linearGradient>
     <!-- Subtle inner shield highlight -->
     <linearGradient id="shieldInner" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" style="stop-color:#1e3a5f;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#0d1f38;stop-opacity:1" />
+      <stop offset="0%" style="stop-color:#18211b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#121814;stop-opacity:1" />
     </linearGradient>
     <!-- Glow filter -->
     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
@@ -36,7 +36,7 @@
   <!-- Classic shield: top flat, sides angled, bottom pointed -->
   <path d="M60 8 L100 24 L100 62 Q100 90 60 112 Q20 90 20 62 L20 24 Z"
         fill="url(#shieldGrad)"
-        stroke="#22d3ee"
+        stroke="#c8f4ad"
         stroke-width="2.5"
         stroke-linejoin="round"/>
 
@@ -45,28 +45,28 @@
         fill="url(#shieldInner)"
         opacity="0.6"/>
 
-  <!-- Cyan shield rim highlight (top arc) -->
-  <path d="M60 8 L100 24" stroke="#67e8f9" stroke-width="1" opacity="0.5" fill="none"/>
-  <path d="M60 8 L20 24" stroke="#67e8f9" stroke-width="1" opacity="0.5" fill="none"/>
+  <!-- Mint shield rim highlight (top arc) -->
+  <path d="M60 8 L100 24" stroke="#c8f4ad" stroke-width="1" opacity="0.5" fill="none"/>
+  <path d="M60 8 L20 24" stroke="#c8f4ad" stroke-width="1" opacity="0.5" fill="none"/>
 
   <!-- Data circuit lines (PCB trace aesthetic) -->
   <!-- Horizontal main trace -->
-  <line x1="38" y1="60" x2="82" y2="60" stroke="#22d3ee" stroke-width="1.5" opacity="0.35" filter="url(#glow)"/>
+  <line x1="38" y1="60" x2="82" y2="60" stroke="#c8f4ad" stroke-width="1.5" opacity="0.35" filter="url(#glow)"/>
   <!-- Vertical traces -->
-  <line x1="60" y1="42" x2="60" y2="78" stroke="#22d3ee" stroke-width="1.5" opacity="0.35" filter="url(#glow)"/>
+  <line x1="60" y1="42" x2="60" y2="78" stroke="#c8f4ad" stroke-width="1.5" opacity="0.35" filter="url(#glow)"/>
   <!-- Corner node dots -->
-  <circle cx="38" cy="60" r="2" fill="#22d3ee" opacity="0.4"/>
-  <circle cx="82" cy="60" r="2" fill="#22d3ee" opacity="0.4"/>
-  <circle cx="60" cy="42" r="2" fill="#22d3ee" opacity="0.4"/>
-  <circle cx="60" cy="78" r="2" fill="#22d3ee" opacity="0.4"/>
+  <circle cx="38" cy="60" r="2" fill="#c8f4ad" opacity="0.4"/>
+  <circle cx="82" cy="60" r="2" fill="#c8f4ad" opacity="0.4"/>
+  <circle cx="60" cy="42" r="2" fill="#c8f4ad" opacity="0.4"/>
+  <circle cx="60" cy="78" r="2" fill="#c8f4ad" opacity="0.4"/>
   <!-- Short branch traces -->
-  <line x1="38" y1="60" x2="38" y2="52" stroke="#22d3ee" stroke-width="1" opacity="0.25"/>
-  <line x1="82" y1="60" x2="82" y2="68" stroke="#22d3ee" stroke-width="1" opacity="0.25"/>
+  <line x1="38" y1="60" x2="38" y2="52" stroke="#c8f4ad" stroke-width="1" opacity="0.25"/>
+  <line x1="82" y1="60" x2="82" y2="68" stroke="#c8f4ad" stroke-width="1" opacity="0.25"/>
 
-  <!-- Central checkmark / guard pass mark — bold cyan -->
+  <!-- Central checkmark / guard pass mark — bold mint -->
   <polyline points="45,60 56,72 76,48"
             fill="none"
-            stroke="url(#cyanGrad)"
+            stroke="url(#mintGrad)"
             stroke-width="5"
             stroke-linecap="round"
             stroke-linejoin="round"

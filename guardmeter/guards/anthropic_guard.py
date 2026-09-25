@@ -23,6 +23,7 @@ from guardmeter.guards._verdict import (
     CLASSIFY_TOOL_DESCRIPTION,
     CLASSIFY_TOOL_NAME,
     SYSTEM_PROMPT,
+    VERDICT_RETRY_PROMPT,
     build_user_content,
     hijacked_result,
     verdict_from_dict,
@@ -108,17 +109,13 @@ class AnthropicGuard(Guard):
         self.model = model
         self.on_parse_failure = on_parse_failure
 
-    def predict(self, text: str, **meta: Any) -> GuardResult:
-        """Classify a single text via the Anthropic API and return a GuardResult.
+    def describe(self) -> dict[str, Any]:
+        """Reproducibility metadata: model, verdict mode, fail-closed policy."""
+        return {"name": self.name, "version": self.version, "model": self.model,
+                "mode": "tool_use", "on_parse_failure": self.on_parse_failure}
 
-        ``meta["context"]`` (prior turns or a surrounding document) is wrapped in
-        <preceding_context> tags so the model can judge the message in context
-        without treating either as instructions. API errors propagate so the
-        evaluator's retry/backoff and error accounting can handle them.
-        """
-        start = time.perf_counter()
-        user_content = build_user_content(text, meta.get("context"))
-        response = self._client.messages.create(
+    def _create(self, messages: Any) -> Any:
+        return self._client.messages.create(
             model=self.model,
             max_tokens=512,
             system=SYSTEM_PROMPT,
@@ -128,16 +125,41 @@ class AnthropicGuard(Guard):
                 "input_schema": CLASSIFY_INPUT_SCHEMA,
             }],
             tool_choice={"type": "tool", "name": CLASSIFY_TOOL_NAME},
-            messages=[{"role": "user", "content": user_content}],
+            messages=messages,
         )
-        latency_ms = int((time.perf_counter() - start) * 1000)
 
+    def predict(self, text: str, **meta: Any) -> GuardResult:
+        """Classify a single text via the Anthropic API and return a GuardResult.
+
+        ``meta["context"]`` (prior turns or a surrounding document) is wrapped in
+        <preceding_context> tags so the model can judge the message in context
+        without treating either as instructions. If the first reply carries no
+        verdict, one corrective follow-up turn is sent before failing closed.
+        API errors propagate so the evaluator's retry/backoff can handle them.
+        """
+        start = time.perf_counter()
+        user_content = build_user_content(text, meta.get("context"))
+        messages: list[dict[str, Any]] = [{"role": "user", "content": user_content}]
+        response = self._create(messages)
         verdict = _tool_verdict(response) or _json_fallback(_text_of(response))
+
+        retries = 0
+        if verdict is None:
+            retries = 1
+            messages += [
+                {"role": "assistant", "content": _text_of(response) or "(no response)"},
+                {"role": "user", "content": VERDICT_RETRY_PROMPT},
+            ]
+            response = self._create(messages)
+            verdict = _tool_verdict(response) or _json_fallback(_text_of(response))
+
+        latency_ms = int((time.perf_counter() - start) * 1000)
         result = verdict_from_dict(verdict, latency_ms) if verdict is not None else None
         if result is None:
-            logger.warning("AnthropicGuard got no usable verdict (hijacked): %r",
+            logger.warning("AnthropicGuard got no usable verdict after retry (hijacked): %r",
                            redact(_text_of(response))[:200])
-            return hijacked_result(latency_ms, self.on_parse_failure)
+            result = hijacked_result(latency_ms, self.on_parse_failure)
+        result.metadata["verdict_retries"] = retries
         return result
 
 

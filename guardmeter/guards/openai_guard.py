@@ -1,13 +1,11 @@
-"""OpenAI guard adapter.
+"""OpenAI chat-classifier guard adapter.
 
-A chat-completions safety classifier that forces a structured verdict via
-function calling and the same untrusted-data framing as the Anthropic adapter.
-
-This replaces the previous Moderation-API adapter (0.7 and earlier): the
-Moderation API classifies against OpenAI's fixed taxonomy and cannot judge
-prompt-injection intent or map onto GuardMeter's category vocabulary. The
-chat-based classifier can, and — like the Anthropic adapter — **fails closed**
-when the model returns no usable verdict.
+Registered as ``openai-chat``. A chat-completions safety classifier that forces
+a structured verdict via function calling and the same untrusted-data framing as
+the Anthropic adapter. Unlike the Moderation-API adapter (``openai``), it can
+judge prompt-injection intent and map onto GuardMeter's category vocabulary —
+but it is instruction-following, so it can be hijacked, and therefore **fails
+closed** when the model returns no usable verdict.
 """
 
 from __future__ import annotations
@@ -25,6 +23,7 @@ from guardmeter.guards._verdict import (
     CLASSIFY_TOOL_DESCRIPTION,
     CLASSIFY_TOOL_NAME,
     SYSTEM_PROMPT,
+    VERDICT_RETRY_PROMPT,
     build_user_content,
     hijacked_result,
     verdict_from_dict,
@@ -48,6 +47,14 @@ def _tool_arguments(response: Any) -> dict[str, Any] | None:
                 return None
             return data if isinstance(data, dict) else None
     return None
+
+
+def _message_content(response: Any) -> str:
+    """The assistant message text, or '' if absent (for echoing into a retry)."""
+    try:
+        return response.choices[0].message.content or ""
+    except (AttributeError, IndexError, TypeError):
+        return ""
 
 
 def _content_fallback(response: Any) -> dict[str, Any] | None:
@@ -76,7 +83,7 @@ class OpenAIGuard(Guard):
     Raises ImportError in the constructor when ``openai`` is not installed.
     """
 
-    name: str = "openai"
+    name: str = "openai-chat"
     version: str = "2.0.0"
     is_remote: bool = True
 
@@ -104,16 +111,15 @@ class OpenAIGuard(Guard):
         self.model = model
         self.on_parse_failure = on_parse_failure
 
-    def predict(self, text: str, **meta: Any) -> GuardResult:
-        """Classify a single text via the OpenAI chat API and return a GuardResult."""
-        start = time.perf_counter()
-        user_content = build_user_content(text, meta.get("context"))
-        response = self._client.chat.completions.create(
+    def describe(self) -> dict[str, Any]:
+        """Reproducibility metadata: model, verdict mode, fail-closed policy."""
+        return {"name": self.name, "version": self.version, "model": self.model,
+                "mode": "function_call", "on_parse_failure": self.on_parse_failure}
+
+    def _create(self, messages: Any) -> Any:
+        return self._client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
+            messages=messages,
             tools=[{
                 "type": "function",
                 "function": {
@@ -124,14 +130,40 @@ class OpenAIGuard(Guard):
             }],
             tool_choice={"type": "function", "function": {"name": CLASSIFY_TOOL_NAME}},
         )
-        latency_ms = int((time.perf_counter() - start) * 1000)
 
+    def predict(self, text: str, **meta: Any) -> GuardResult:
+        """Classify a single text via the OpenAI chat API and return a GuardResult.
+
+        If the first reply carries no function call, one corrective follow-up
+        turn is sent before failing closed.
+        """
+        start = time.perf_counter()
+        user_content = build_user_content(text, meta.get("context"))
+        messages: list[dict[str, Any]] = [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_content},
+        ]
+        response = self._create(messages)
         verdict = _tool_arguments(response) or _content_fallback(response)
+
+        retries = 0
+        if verdict is None:
+            retries = 1
+            echo = _message_content(response) or "(no response)"
+            messages += [
+                {"role": "assistant", "content": echo},
+                {"role": "user", "content": VERDICT_RETRY_PROMPT},
+            ]
+            response = self._create(messages)
+            verdict = _tool_arguments(response) or _content_fallback(response)
+
+        latency_ms = int((time.perf_counter() - start) * 1000)
         result = verdict_from_dict(verdict, latency_ms) if verdict is not None else None
         if result is None:
-            logger.warning("OpenAIGuard got no usable verdict (hijacked)")
-            return hijacked_result(latency_ms, self.on_parse_failure)
+            logger.warning("OpenAIGuard got no usable verdict after retry (hijacked)")
+            result = hijacked_result(latency_ms, self.on_parse_failure)
+        result.metadata["verdict_retries"] = retries
         return result
 
 
-register("openai", OpenAIGuard)
+register("openai-chat", OpenAIGuard)

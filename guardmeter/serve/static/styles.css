@@ -1,14 +1,15 @@
 /* GuardMeter design system — tokens + components. No build step. */
 
 :root {
-  --bg: #0f172a;
-  --surface: #1e293b;
-  --surface-2: #172033;
-  --border: #334155;
-  --text: #e2e8f0;
-  --text-muted: #94a3b8;
-  --accent: #22d3ee;
-  --accent-2: #818cf8;
+  --bg: #0b100e;
+  --surface: #121814;
+  --surface-2: #18211b;
+  --border: #303a31;
+  --text: #eff3eb;
+  --text-muted: #a0aba3;
+  --accent: #c8f4ad;
+  --accent-2: #e7c899;
+  --on-accent: #0b100e;
   --ok: #4ade80;
   --warn: #fbbf24;
   --danger: #f87171;
@@ -21,18 +22,19 @@
 }
 
 [data-theme="light"] {
-  --bg: #f8fafc;
+  --bg: #f0f2e9;
   --surface: #ffffff;
-  --surface-2: #f1f5f9;
-  --border: #d7dee8;
-  --text: #0f172a;
-  --text-muted: #55637a;
-  --accent: #0891b2;
-  --accent-2: #4f46e5;
+  --surface-2: #e5eadd;
+  --border: #cbd3c8;
+  --text: #0b100e;
+  --text-muted: #576459;
+  --accent: #41652f;
+  --accent-2: #856033;
+  --on-accent: #ffffff;
   --ok: #16a34a;
   --warn: #b45309;
   --danger: #dc2626;
-  --shadow: 0 8px 24px rgba(15,23,42,0.12);
+  --shadow: 0 8px 24px rgba(11,16,14,0.12);
 }
 
 * , *::before, *::after { box-sizing: border-box; }
@@ -83,7 +85,7 @@ code, .mono { font-family: var(--mono); font-size: var(--f-xs); }
   transition: background .15s, border-color .15s, opacity .15s;
 }
 .btn:hover { background: color-mix(in srgb, var(--surface-2) 70%, var(--border)); }
-.btn.primary { background: var(--accent-2); color: #fff; }
+.btn.primary { background: var(--accent-2); color: var(--on-accent); }
 .btn.primary:hover { background: color-mix(in srgb, var(--accent-2) 85%, #000); }
 .btn.secondary { background: transparent; border-color: var(--border); }
 .btn.ghost { background: transparent; }
@@ -168,7 +170,7 @@ table.tbl tbody tr:nth-child(even) td { background: color-mix(in srgb, var(--sur
 /* heatmap */
 .heatmap { display: grid; gap: 3px; }
 .heatmap .cell { border-radius: 5px; padding: 6px 4px; text-align: center; font-size: var(--f-xs);
-  font-family: var(--mono); cursor: pointer; color: #04121f; }
+  font-family: var(--mono); cursor: pointer; color: #0b100e; }
 .heatmap .hd { color: var(--text-muted); font-size: 11px; background: none; cursor: default; padding: 4px; }
 
 /* sparkline */

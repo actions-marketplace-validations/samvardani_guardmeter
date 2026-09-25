@@ -50,9 +50,10 @@ def import_builtin_guards() -> None:
     """
     import importlib
 
+    import guardmeter.guards.http_guard
     import guardmeter.guards.injection_heuristic
     import guardmeter.guards.regex_guard  # noqa: F401
-    for mod in ("openai_guard", "llamaguard", "anthropic_guard"):
+    for mod in ("openai_moderation", "openai_guard", "llamaguard", "anthropic_guard"):
         try:
             importlib.import_module(f"guardmeter.guards.{mod}")
         except ImportError:

@@ -76,6 +76,8 @@ def samples_payload(results: EvalResults, filt: str = "all", q: str = "",
             continue
         if filt == "mismatch" and s.baseline_pred == s.candidate_pred:
             continue
+        if filt == "error" and not (s.baseline_pred == "error" or s.candidate_pred == "error"):
+            continue
         if filt == "disagree" and s.judge_verdict != "disagree":
             continue
         if category and s.category != category:
