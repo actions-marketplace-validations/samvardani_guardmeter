@@ -339,6 +339,12 @@ def report(
 @click.option("--webhook", "webhook_url", default=None,
               help="POST JSON to this URL on failure (else $GUARDMETER_WEBHOOK_URL)")
 @click.option("--report-url", "report_url", default=None, help="Report URL to include in the webhook payload")
+@click.option("--scenario-run", "scenario_run", default=None,
+              help="Gate a scenario run id (or 'latest') instead of an eval run")
+@click.option("--suite", "suite_path", default=None, type=click.Path(exists=True),
+              help="Suite file, so the gate can verify the suite is validated")
+@click.option("--allow-unvalidated", "allow_unvalidated", is_flag=True,
+              help="Gate a scenario run even if its suite is not validated")
 def gate(
     cfg_path: str,
     run_id: str,
@@ -349,6 +355,9 @@ def gate(
     junit_path: str | None,
     webhook_url: str | None,
     report_url: str | None,
+    scenario_run: str | None,
+    suite_path: str | None,
+    allow_unvalidated: bool,
 ) -> None:
     """Run the CI gate check. Exits 0 on pass, 1 on failure."""
     import os
@@ -365,6 +374,11 @@ def gate(
         click.echo(msg, err=json_out)
 
     store = _get_store(store_path)
+
+    if scenario_run is not None:
+        _gate_scenario_run(store, scenario_run, cfg_path, suite_path, allow_unvalidated,
+                           json_out, _log)
+        return  # pragma: no cover  (helper calls sys.exit)
 
     if run_id == "latest":
         results = store.latest_run()
@@ -476,6 +490,49 @@ def _load_suite_or_exit(suite_path: str):
         raise click.ClickException(f"suite failed to load: {exc}") from exc
 
 
+def _gate_scenario_run(store, scenario_run, cfg_path, suite_path, allow_unvalidated, json_out, _log):
+    """Gate a stored scenario run against ScenarioThresholds. Exits 0/1."""
+    from guardmeter.gate.schema import ScenarioThresholds
+    from guardmeter.scenarios.gate import check_scenario_gate
+
+    try:
+        data = store.get_scenario_run(scenario_run)
+    except KeyError as exc:
+        raise click.ClickException(str(exc)) from exc
+    aggregate = data.get("aggregate", {})
+
+    cfg = _load_gate_config(cfg_path)
+    thr = cfg.scenarios or ScenarioThresholds()
+
+    failures: list[str] = []
+    # Refuse an unvalidated suite unless explicitly allowed.
+    if suite_path:
+        from guardmeter.scenarios.audit import audit_suite
+        suite = _load_suite_or_exit(suite_path)
+        rep = audit_suite(suite, None)  # static + cannot-fail, no endpoint
+        if (rep.unreviewed or rep.cannot_fail) and not allow_unvalidated:
+            failures.append(
+                f"suite not validated: {len(rep.unreviewed)} unreviewed, "
+                f"{len(rep.cannot_fail)} cannot-fail (use --allow-unvalidated to override)")
+    elif not allow_unvalidated:
+        failures.append("no --suite given to verify validation (use --allow-unvalidated to skip)")
+
+    _passed_thr, thr_failures = check_scenario_gate(aggregate, thr)
+    failures.extend(thr_failures)
+    passed = not failures
+
+    if json_out:
+        click.echo(json.dumps({"passed": passed, "failures": failures,
+                               "run_id": data.get("run_id")}, indent=2))
+    if passed:
+        _log("Scenario Gate: PASSED")
+        sys.exit(0)
+    _log("Scenario Gate: FAILED")
+    for f in failures:
+        _log(f"  ❌ {f}")
+    sys.exit(1)
+
+
 def _build_target(endpoint: str | None, model: str | None, key_env: str | None,
                   guard: str | None, guard_config: str | None):
     from guardmeter.scenarios.target import EndpointTarget, GuardTarget
@@ -559,6 +616,37 @@ def scenarios_run(suite_path: str, endpoint: str | None, model: str | None, key_
         _log(f"JUnit written to {junit_path}")
     if json_out:
         click.echo(json.dumps(results.to_dict(), indent=2))
+
+
+@scenarios.command("audit")
+@click.argument("suite_path", type=click.Path(exists=True))
+@click.option("--endpoint", default=None, help="Endpoint for flaky/judge-disagree checks")
+@click.option("--model", default=None, help="Model at the endpoint")
+@click.option("--key-env", default=None, help="Env var holding the endpoint API key")
+@click.option("--out", "out_path", default="validation.md", show_default=True)
+@click.option("--repeats", default=3, show_default=True, help="Runs per scenario for the flaky check")
+def scenarios_audit(suite_path: str, endpoint: str | None, model: str | None,
+                    key_env: str | None, out_path: str, repeats: int) -> None:
+    """Audit a suite (review coverage, cannot-fail, near-dup, flaky) → validation.md."""
+    from guardmeter.scenarios.audit import audit_suite, render_validation_md
+
+    suite = _load_suite_or_exit(suite_path)
+    target = None
+    if endpoint:
+        target = _build_target(endpoint, model, key_env, None, None)
+    rep = audit_suite(suite, target, repeats=repeats)
+    Path(out_path).write_text(render_validation_md(rep), encoding="utf-8")
+
+    click.echo(f"Audit written to {out_path}")
+    click.echo(f"  unreviewed={len(rep.unreviewed)} cannot_fail={len(rep.cannot_fail)} "
+               f"weak_categories={len(rep.weak_categories)} near_dup={len(rep.near_duplicates)}"
+               + (f" flaky={len(rep.flaky)} ({rep.flaky_rate:.1%}) "
+                  f"judge_disagree={len(rep.judge_disagree)}" if rep.endpoint_used else ""))
+    if rep.validated:
+        click.echo("✅ VALIDATED")
+        return
+    click.echo("❌ NOT VALIDATED")
+    sys.exit(1)
 
 
 # ─────────────────────────────────────────────────────────────────────────────

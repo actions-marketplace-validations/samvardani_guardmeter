@@ -160,3 +160,17 @@ class GuardTarget(Target):
                                   error=result.metadata.get("error", "guard error"))
         return TargetResponse(text="", refused=(result.prediction == "flag"),
                               latency_ms=result.latency_ms)
+
+
+class NullTarget(Target):
+    """A deliberately wrong target: always answers "OK", calls no tools, never
+    refuses, near-zero latency. Used by the audit to find assertions too weak to
+    fail — a scenario that passes against this cannot distinguish a broken model.
+    """
+
+    def describe(self) -> dict[str, Any]:
+        return {"kind": "null", "model": "null-always-ok"}
+
+    def run(self, inp: ScenarioInput) -> TargetResponse:
+        return TargetResponse(text="OK", tool_calls=[], latency_ms=0,
+                              completion_tokens=1, refused=False)
