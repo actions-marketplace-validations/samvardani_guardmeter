@@ -460,6 +460,108 @@ def runs_show(run_id: str, store_path: str | None) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# guardmeter scenarios
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.group()
+def scenarios() -> None:
+    """Test what an endpoint does, not just what it blocks."""
+
+
+def _load_suite_or_exit(suite_path: str):
+    from guardmeter.scenarios.loader import load_suite
+    try:
+        return load_suite(suite_path)
+    except Exception as exc:
+        raise click.ClickException(f"suite failed to load: {exc}") from exc
+
+
+def _build_target(endpoint: str | None, model: str | None, key_env: str | None,
+                  guard: str | None, guard_config: str | None):
+    from guardmeter.scenarios.target import EndpointTarget, GuardTarget
+    if guard or guard_config:
+        return GuardTarget(_resolve_guard(guard or "http", guard_config))
+    if not endpoint or not model:
+        raise click.BadParameter("provide --endpoint and --model, or --guard")
+    import os
+    key = os.environ.get(key_env, "") if key_env else ""
+    return EndpointTarget(endpoint, model, api_key=key)
+
+
+@scenarios.command("validate")
+@click.argument("suite_path", type=click.Path(exists=True))
+def scenarios_validate(suite_path: str) -> None:
+    """Validate a suite (schema + a dry parse); exit 1 on any error."""
+    suite = _load_suite_or_exit(suite_path)
+    n_assert = sum(len(s.expect) for s in suite.scenarios)
+    click.echo(f"✅ {suite.suite.name} v{suite.suite.version}: "
+               f"{len(suite.scenarios)} scenarios, {n_assert} assertions, valid.")
+
+
+@scenarios.command("list")
+@click.argument("suite_path", type=click.Path(exists=True))
+def scenarios_list(suite_path: str) -> None:
+    """List the scenarios in a suite."""
+    suite = _load_suite_or_exit(suite_path)
+    click.echo(f"{suite.suite.name} v{suite.suite.version} — {len(suite.scenarios)} scenarios")
+    for s in suite.scenarios:
+        kinds = ",".join(a.type for a in s.expect)
+        reviewed = "✓" if s.reviewed_by else "·"
+        click.echo(f"  {reviewed} {s.id:24s} [{s.category}/{s.language}] {kinds}")
+
+
+@scenarios.command("run")
+@click.argument("suite_path", type=click.Path(exists=True))
+@click.option("--endpoint", default=None, help="OpenAI-compatible base URL (e.g. http://localhost:8080/v1)")
+@click.option("--model", default=None, help="Model name at the endpoint")
+@click.option("--key-env", default=None, help="Env var holding the endpoint API key")
+@click.option("--guard", default=None, help="Use a GuardMeter guard as the target (block/allow suites)")
+@click.option("--guard-config", default=None, type=click.Path(exists=True), help="Guard config file")
+@click.option("--concurrency", default=1, show_default=True, type=int)
+@click.option("--no-cross-check", "no_cross", is_flag=True, help="Disable judge cross-checking")
+@click.option("--store", "store_path", default=None, help="Override DB path")
+@click.option("--json", "json_out", is_flag=True, help="Print the run JSON to stdout")
+@click.option("--summary-md", "summary_md", default=None, help="Write a Markdown summary")
+@click.option("--junit", "junit_path", default=None, help="Write JUnit XML (one testcase per scenario)")
+def scenarios_run(suite_path: str, endpoint: str | None, model: str | None, key_env: str | None,
+                  guard: str | None, guard_config: str | None, concurrency: int, no_cross: bool,
+                  store_path: str | None, json_out: bool, summary_md: str | None,
+                  junit_path: str | None) -> None:
+    """Run a suite against an endpoint (or a guard) and store the results."""
+    from guardmeter.scenarios.output import junit_xml
+    from guardmeter.scenarios.output import summary_md as render_summary
+    from guardmeter.scenarios.runner import run_suite
+
+    def _log(msg: str) -> None:
+        click.echo(msg, err=json_out)
+
+    suite = _load_suite_or_exit(suite_path)
+    target = _build_target(endpoint, model, key_env, guard, guard_config)
+    _log(f"Running {len(suite.scenarios)} scenarios against {target.describe()} "
+         f"(concurrency={concurrency}) …")
+    results = run_suite(suite, target, concurrency=max(1, concurrency), cross_check=not no_cross)
+
+    store = _get_store(store_path)
+    store.save_scenario_run(results)
+    agg = results.aggregate()
+
+    _log(f"\nRun ID: {results.run_id}")
+    _log(f"Pass rate: {agg['pass_rate']} | passed {agg['passed']} failed {agg['failed']} "
+         f"| flaky {agg['flaky']} | errors {agg['errored']} | judge-disagree {agg['judge_disagree']}")
+    _log(f"Latency p50/p95/p99: {agg['latency_p50']:.0f}/{agg['latency_p95']:.0f}/"
+         f"{agg['latency_p99']:.0f} ms")
+
+    if summary_md:
+        Path(summary_md).write_text(render_summary(results), encoding="utf-8")
+        _log(f"Summary written to {summary_md}")
+    if junit_path:
+        Path(junit_path).write_text(junit_xml(results), encoding="utf-8")
+        _log(f"JUnit written to {junit_path}")
+    if json_out:
+        click.echo(json.dumps(results.to_dict(), indent=2))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # guardmeter dataset
 # ─────────────────────────────────────────────────────────────────────────────
 

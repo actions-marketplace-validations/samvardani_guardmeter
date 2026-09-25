@@ -95,9 +95,70 @@ class SQLiteStore(RunStore):
             for col in ("tag", "note"):
                 if col not in run_cols:
                     conn.execute(f"ALTER TABLE runs ADD COLUMN {col} TEXT")
+            # Scenario runs (endpoint-behaviour suites) live in their own table.
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS scenario_runs (
+                    run_id       TEXT PRIMARY KEY,
+                    timestamp    TEXT NOT NULL,
+                    suite_name   TEXT,
+                    suite_version TEXT,
+                    target       TEXT,
+                    results_json TEXT
+                )
+            """)
             conn.commit()
 
     _RUN_COLS = "run_id, timestamp, dataset_sha, git_commit, baseline, candidate, metrics_json"
+
+    # ── Scenario runs ────────────────────────────────────────────────────────
+
+    def save_scenario_run(self, results: Any) -> None:
+        """Persist a ScenarioResults (full to_dict) under its run_id."""
+        data = results.to_dict()
+        agg = data.get("aggregate", {})
+        target = json.dumps(data.get("target", {}))
+        with closing(self._connect()) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO scenario_runs "
+                "(run_id, timestamp, suite_name, suite_version, target, results_json) "
+                "VALUES (?,?,?,?,?,?)",
+                (results.run_id, results.timestamp, results.suite_name,
+                 results.suite_version, target, json.dumps(data)),
+            )
+            conn.commit()
+        logger.debug("Saved scenario run %s (pass_rate=%s)", results.run_id, agg.get("pass_rate"))
+
+    def get_scenario_run(self, run_id: str) -> dict[str, Any]:
+        """Return the stored ScenarioResults dict for a run_id (or 'latest')."""
+        with closing(self._connect()) as conn:
+            if run_id == "latest":
+                row = conn.execute(
+                    "SELECT results_json FROM scenario_runs ORDER BY timestamp DESC LIMIT 1"
+                ).fetchone()
+            else:
+                row = conn.execute(
+                    "SELECT results_json FROM scenario_runs WHERE run_id=?", (run_id,)
+                ).fetchone()
+        if row is None:
+            raise KeyError(f"Scenario run '{run_id}' not found in store")
+        return json.loads(row[0])
+
+    def list_scenario_runs(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Return recent scenario-run summaries (id, suite, target, aggregate)."""
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                "SELECT run_id, timestamp, suite_name, suite_version, target, results_json "
+                "FROM scenario_runs ORDER BY timestamp DESC LIMIT ?", (limit,)
+            ).fetchall()
+        out = []
+        for run_id, ts, suite_name, suite_version, target, results_json in rows:
+            data = json.loads(results_json) if results_json else {}
+            out.append({
+                "run_id": run_id, "timestamp": ts, "suite_name": suite_name,
+                "suite_version": suite_version, "target": json.loads(target) if target else {},
+                "aggregate": data.get("aggregate", {}),
+            })
+        return out
 
     def save_run(self, results: EvalResults) -> None:
         """Persist an EvalResults to the SQLite store."""
