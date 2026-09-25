@@ -226,6 +226,14 @@ class PlaygroundHandler(http.server.BaseHTTPRequestHandler):
         elif path == "/api/datasets":
             from guardmeter.serve.api import datasets_list
             self._send_json(200, {"datasets": datasets_list()})
+        elif path == "/api/scenario-runs":
+            self._send_json(200, {"runs": self._store().list_scenario_runs(
+                limit=self._int(params, "limit", 100))})
+        elif len(seg) == 3 and seg[:2] == ["api", "scenario-runs"]:
+            try:
+                self._send_json(200, self._store().get_scenario_run(seg[2]))
+            except KeyError:
+                self._send_json(404, {"error": "scenario run not found"})
         elif len(seg) == 4 and seg[:2] == ["api", "datasets"] and seg[3] == "stats":
             from guardmeter.serve.api import dataset_stats
             stats = dataset_stats(seg[2])

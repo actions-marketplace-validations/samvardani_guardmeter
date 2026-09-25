@@ -8,6 +8,7 @@ import { GatePage } from "/static/pages/gate.js";
 import { TryPage } from "/static/pages/try.js";
 import { DatasetsPage } from "/static/pages/datasets.js";
 import { ComparePage } from "/static/pages/compare.js";
+import { ScenariosPage, ScenarioRunPage } from "/static/pages/scenarios.js";
 import { NewEvalModal } from "/static/components/neweval.js";
 
 initTheme();
@@ -33,6 +34,9 @@ function parseRoute() {
   const path = (hash ? hash.split("?")[0] : location.pathname);
   const run = path.match(/^\/run\/(.+)$/);
   if (run) return { name: "run", id: decodeURIComponent(run[1]) };
+  const scn = path.match(/^\/scenario\/(.+)$/);
+  if (scn) return { name: "scenario", id: decodeURIComponent(scn[1]) };
+  if (path === "/scenarios") return { name: "scenarios" };
   if (path === "/gate") return { name: "gate" };
   if (path === "/compare") return { name: "compare" };
   if (path === "/try") return { name: "try" };
@@ -41,7 +45,7 @@ function parseRoute() {
 }
 
 // Registry filled in by later page modules; overview is built in.
-export const PAGES = { overview: OverviewPage, run: RunPage, gate: GatePage, try: TryPage, datasets: DatasetsPage, compare: ComparePage };
+export const PAGES = { overview: OverviewPage, run: RunPage, gate: GatePage, try: TryPage, datasets: DatasetsPage, compare: ComparePage, scenarios: ScenariosPage, scenario: ScenarioRunPage };
 
 function Stub({ title }) {
   return html`<main class="container" style="padding:24px 24px 48px">
@@ -53,6 +57,7 @@ const NAV = [
   { name: "overview", href: "/", label: "Overview" },
   { name: "gate", href: "/gate", label: "Gate" },
   { name: "compare", href: "/compare", label: "Compare" },
+  { name: "scenarios", href: "/scenarios", label: "Scenarios" },
   { name: "try", href: "/try", label: "Try" },
   { name: "datasets", href: "/datasets", label: "Datasets" },
 ];
