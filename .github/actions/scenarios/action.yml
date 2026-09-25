@@ -1,0 +1,66 @@
+name: "GuardMeter Scenarios"
+description: "Run a GuardMeter scenario suite against an endpoint and gate on the result."
+inputs:
+  suite:
+    description: "Path to the scenario suite (YAML/JSON/JSONL)"
+    required: true
+  endpoint:
+    description: "OpenAI-compatible base URL (e.g. https://host/v1)"
+    required: true
+  model:
+    description: "Model name at the endpoint"
+    required: true
+  key-env:
+    description: "Name of the env var holding the endpoint API key"
+    required: false
+    default: ""
+  gate-config:
+    description: "gate.json with a `scenarios` block"
+    required: false
+    default: "gate.json"
+  allow-unvalidated:
+    description: "Gate even if the suite is not validated"
+    required: false
+    default: "false"
+  concurrency:
+    description: "Parallel scenarios"
+    required: false
+    default: "4"
+  version:
+    description: 'guardmeter version to install, or "local"'
+    required: false
+    default: "0.9.0"
+  python-version:
+    description: "Python version"
+    required: false
+    default: "3.12"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v7
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install guardmeter
+      shell: bash
+      run: |
+        if [ "${{ inputs.version }}" = "local" ]; then pip install -e ".[dev]"; else pip install "guardmeter==${{ inputs.version }}"; fi
+    - name: Run scenarios
+      shell: bash
+      run: |
+        guardmeter scenarios run "${{ inputs.suite }}" \
+          --endpoint "${{ inputs.endpoint }}" --model "${{ inputs.model }}" \
+          ${{ inputs.key-env && format('--key-env {0}', inputs.key-env) || '' }} \
+          --concurrency "${{ inputs.concurrency }}" \
+          --summary-md "$GITHUB_STEP_SUMMARY" --junit guardmeter-scenarios-junit.xml
+    - name: Upload JUnit
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: guardmeter-scenarios-junit
+        path: guardmeter-scenarios-junit.xml
+    - name: Gate
+      shell: bash
+      run: |
+        guardmeter gate --scenario-run latest --config "${{ inputs.gate-config }}" \
+          --suite "${{ inputs.suite }}" \
+          ${{ inputs.allow-unvalidated == 'true' && '--allow-unvalidated' || '' }}

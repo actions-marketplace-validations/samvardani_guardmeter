@@ -28,6 +28,65 @@ def current_gate_config() -> GateConfig | None:
         return None
 
 
+def run_rollout_hook(store: Any, body: dict[str, Any], timeout: float) -> dict[str, Any]:
+    """Run a scenario suite against a rollout target; return pass + regressions.
+
+    Body: ``{suite, endpoint, model, key_env?, concurrency?}``. Runs the suite
+    synchronously (bounded by ``timeout``), stores it, gates it against the
+    ``scenarios`` block of ./gate.json (or defaults), and lists scenarios that
+    regressed from ``pass`` versus the previous run of the same suite+model.
+    """
+    import os
+    from concurrent.futures import ThreadPoolExecutor
+    from concurrent.futures import TimeoutError as FTimeout
+
+    from guardmeter.gate.schema import ScenarioThresholds
+    from guardmeter.scenarios.gate import check_scenario_gate
+    from guardmeter.scenarios.loader import load_suite
+    from guardmeter.scenarios.runner import run_suite
+    from guardmeter.scenarios.target import EndpointTarget
+
+    suite_path = Path(body["suite"])
+    if not suite_path.exists():
+        raise FileNotFoundError(f"suite not found: {suite_path}")
+    suite = load_suite(suite_path)
+    key = os.environ.get(body["key_env"], "") if body.get("key_env") else ""
+    target = EndpointTarget(body["endpoint"], body["model"], api_key=key)
+    concurrency = int(body.get("concurrency", 2))
+
+    # Previous run of the same suite+model, for the regression diff.
+    prev_status: dict[str, str] = {}
+    for summary in store.list_scenario_runs(limit=50):
+        if summary["suite_name"] == suite.suite.name and \
+                (summary.get("target") or {}).get("model") == body["model"]:
+            prev = store.get_scenario_run(summary["run_id"])
+            prev_status = {r["id"]: r["status"] for r in prev.get("results", [])}
+            break
+
+    with ThreadPoolExecutor(max_workers=1) as ex:
+        fut = ex.submit(run_suite, suite, target, concurrency=max(1, concurrency))
+        try:
+            results = fut.result(timeout=timeout)
+        except FTimeout as exc:
+            raise TimeoutError("rollout suite timed out") from exc
+
+    store.save_scenario_run(results)
+    agg = results.aggregate()
+
+    cfg = current_gate_config()
+    thr = (cfg.scenarios if cfg else None) or ScenarioThresholds()
+    passed, failures = check_scenario_gate(agg, thr)
+    regressions = [r.id for r in results.results
+                   if prev_status.get(r.id) == "pass" and r.status != "pass"]
+    return {
+        "passed": passed and not regressions,
+        "run_id": results.run_id,
+        "pass_rate": agg.get("pass_rate"),
+        "regressions": regressions,
+        "gate_failures": failures,
+    }
+
+
 def gate_pass_for(results: EvalResults, gate_config: GateConfig | None) -> bool | None:
     """True/False if a gate policy exists, else None."""
     if gate_config is None:

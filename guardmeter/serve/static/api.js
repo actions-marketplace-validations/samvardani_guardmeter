@@ -89,4 +89,6 @@ export const api = {
   tryText: (text, guards) => json("POST", "/api/try", { text, guards }),
   compare: (body) => json("POST", "/api/compare", body),
   job: (id) => json("GET", `/api/jobs/${encodeURIComponent(id)}`),
+  scenarioRuns: () => isSnap() ? Promise.resolve({ runs: SNAP().scenarioRuns || [] }) : json("GET", "/api/scenario-runs"),
+  scenarioRun: (id) => isSnap() ? Promise.resolve((SNAP().scenarioDetail || {})[id]) : json("GET", `/api/scenario-runs/${encodeURIComponent(id)}`),
 };

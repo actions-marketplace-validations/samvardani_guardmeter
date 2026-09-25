@@ -48,6 +48,16 @@ def _gather_data(store: Any) -> dict[str, Any]:
     stats = {d["name"]: serve_api.dataset_stats(d["name"]) for d in datasets}
     rows = {d["name"]: (serve_api.dataset_rows(d["name"], limit=100000) or {}).get("rows", []) for d in datasets}
 
+    scenario_runs: list[dict[str, Any]] = []
+    scenario_detail: dict[str, Any] = {}
+    if hasattr(store, "list_scenario_runs"):
+        scenario_runs = store.list_scenario_runs(limit=200)
+        for sr in scenario_runs:
+            try:
+                scenario_detail[sr["run_id"]] = store.get_scenario_run(sr["run_id"])
+            except KeyError:
+                continue
+
     return {
         "runs": runs,
         "runDetail": detail,
@@ -56,6 +66,8 @@ def _gather_data(store: Any) -> dict[str, Any]:
         "datasets": datasets,
         "datasetStats": stats,
         "datasetRows": rows,
+        "scenarioRuns": scenario_runs,
+        "scenarioDetail": scenario_detail,
     }
 
 

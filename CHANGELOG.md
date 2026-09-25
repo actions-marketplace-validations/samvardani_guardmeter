@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.9.0] - 2026-09-25
+### Added
+- **Scenarios — measure endpoint behaviour, not only guardrails.** A scenario
+  tests what an OpenAI-compatible endpoint *does* on one input: which tool it
+  calls, whether it refuses the right request, whether it leaks the system
+  prompt, whether it answers in valid JSON, whether it stays under a latency
+  budget. Guardrail block/allow is one assertion kind among many.
+  - `guardmeter/scenarios`: a pydantic Suite/Scenario schema with a YAML/JSON/
+    JSONL loader and typed assertions (block/allow, must_call_tool/
+    must_not_call_tool, must_contain/must_not_contain, must_match, json_valid,
+    max_latency_ms/max_tokens, rubric, refusal_expected).
+  - `guardmeter scenarios run SUITE --endpoint URL --model M` runs each scenario
+    `repeat` times (concurrently), with determinism (pass/fail/flaky/error),
+    judge cross-check (a second judge flags rubric disagreements), and error
+    accounting (transport/5xx never counts as a pass/fail). Results — pass rate
+    overall and per category/language/tag, latency p50/p95/p99, flaky/error/
+    judge-disagree rates — are stored in SQLite. `--summary-md`, `--junit`.
+  - `guardmeter scenarios audit SUITE [--endpoint …]` writes validation.md:
+    review coverage, near-duplicate inputs, weak categories, *cannot-fail*
+    scenarios (pass against a broken null target), and flaky/judge-disagree. A
+    suite is "validated" only when clean.
+  - Gate: a `scenarios` block (min_pass_rate global + per-category,
+    max_flaky_rate, max_error_rate, max_latency_p95_ms); `gate --scenario-run ID`
+    refuses an unvalidated suite unless `--allow-unvalidated`.
+  - App: a Scenarios page (suite runs, run detail with per-scenario evidence,
+    two-run regression compare); snapshot and evidence packs include scenario
+    runs.
+  - Automation: `POST /api/hooks/rollout` runs a suite against a rollout target
+    and returns `{passed, run_id, regressions[]}` synchronously (`serve
+    --hook-timeout`); a composite GitHub Action; `docs/OPOD_INTEGRATION.md`.
+  - `suites/opod-agent-basics.yaml`: 30 reviewed bilingual scenarios, with
+    first results on two Opod models in `docs/OPOD_SCENARIO_RESULTS.md`.
+
 ## [0.8.2] - 2026-09-24
 ### Fixed
 - **Correctness: guard-call errors are no longer counted as flags.** A failed

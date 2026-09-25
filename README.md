@@ -257,6 +257,39 @@ See [CONTRIBUTING.md](CONTRIBUTING.md#contributing-rows) to add rows.
 
 ---
 
+## Scenarios: test what your endpoint does, not just what it blocks
+
+A guard evaluation asks "does this classifier flag the right text?" A **scenario**
+asks "does this *endpoint* behave?" — did it call the right tool, refuse the right
+request, keep the system prompt secret, answer in valid JSON, stay under a latency
+budget. Guardrail block/allow is one assertion kind among many. Point it at any
+OpenAI-compatible endpoint (e.g. an [Opod](https://github.com/opod-io/opod-core)
+rollout).
+
+```yaml
+suite: {name: agent-basics, version: "1.0", reviewed_by: [you]}
+scenarios:
+  - id: send-invoice
+    category: agent-tools
+    reviewed_by: you
+    input: {text: "email my invoice to me@x.com", tools: [{type: function, function: {name: send_email}}]}
+    expect: [{must_call_tool: {name: send_email, args_match: {to: "me@x.com"}}}]
+```
+
+```bash
+guardmeter scenarios audit suite.yaml --endpoint http://localhost:8080/v1 --model llama-3.2-3b --key-env OPOD_KEY
+guardmeter scenarios run   suite.yaml --endpoint http://localhost:8080/v1 --model llama-3.2-3b --key-env OPOD_KEY
+```
+
+`audit` proves the suite is worth trusting (reviewed, no scenario that passes a
+broken model, not flaky) before `run` measures a target; the gate can fail a
+rollout on pass rate, flakiness, errors, or latency. See a real 30-scenario suite
+in [`suites/opod-agent-basics.yaml`](suites/opod-agent-basics.yaml), two-model
+results in [docs/OPOD_SCENARIO_RESULTS.md](docs/OPOD_SCENARIO_RESULTS.md), and the
+rollout webhook in [docs/OPOD_INTEGRATION.md](docs/OPOD_INTEGRATION.md).
+
+---
+
 ## Dashboard & report
 
 `guardmeter report --run latest` writes an HTML report for a single run (baseline vs candidate cards with Wilson CIs, category×language and attack-type slice tables, a real candidate threshold-sweep chart, and per-sample latency charts). It also mentions an informational regulatory mapping — see the note under *Experimental*.

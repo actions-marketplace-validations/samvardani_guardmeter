@@ -134,6 +134,13 @@ def build_evidence(
     (out_dir / "summary.md").write_text(
         _summary_md(results, gate_result, gate_config_path), encoding="utf-8")
 
+    # Scenario runs (endpoint-behaviour) are part of the audit story too.
+    if hasattr(store, "list_scenario_runs"):
+        scenario_runs = store.list_scenario_runs(limit=200)
+        if scenario_runs:
+            (out_dir / "scenario-runs.json").write_text(
+                json.dumps(scenario_runs, indent=2), encoding="utf-8")
+
     write_manifest(
         out_dir, run_id=results.run_id, dataset_sha=results.dataset_sha,
         git_commit=results.git_commit, include="*",

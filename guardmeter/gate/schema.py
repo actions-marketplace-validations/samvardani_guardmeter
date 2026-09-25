@@ -38,6 +38,16 @@ class ComparisonThresholds(BaseModel):
     max_fpr_increase: float = 0.02        # candidate FPR can't rise more than 2 pp
 
 
+class ScenarioThresholds(BaseModel):
+    """Gate thresholds for a scenario run (endpoint-behaviour suites)."""
+
+    min_pass_rate: float = 0.9
+    per_category: dict[str, float] = {}  # category → min pass rate
+    max_flaky_rate: float = 0.05
+    max_error_rate: float = 0.0
+    max_latency_p95_ms: int | None = None
+
+
 class GateConfig(BaseModel):
     """Full CI gate configuration."""
 
@@ -48,4 +58,5 @@ class GateConfig(BaseModel):
     # "attack:<glob>" key (e.g. "attack:leetspeak") targets the attack-type family.
     slices: dict[str, SliceThresholds] = {}
     comparison: ComparisonThresholds | None = None
+    scenarios: ScenarioThresholds | None = None
     on_failure: Literal["block", "warn"] = "block"
