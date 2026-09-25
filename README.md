@@ -13,6 +13,8 @@
 
 GuardMeter compares two content-safety guards — a **baseline** and a **candidate** — on a labeled dataset and produces per-slice metrics, an HTML report, an interactive dashboard, and a pass/fail CI gate. It's for developers and ML engineers who ship a safety classifier and need to catch regressions — per category, language, and attack type — before they merge.
 
+> **Want it done for you?** The team behind GuardMeter runs a fixed-price **Guardrail Tune-Up** — your filter vs. a better configuration, on your traffic, with a signed evidence pack and a CI release check. From $1,500 · 5 business days → [seatechone.com/guardmeter](https://seatechone.com/guardmeter/)
+
 ---
 
 ## 30-second demo
