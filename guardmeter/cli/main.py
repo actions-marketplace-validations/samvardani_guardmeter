@@ -419,10 +419,22 @@ def gate(
         _log(f"Webhook {'delivered' if ok else 'failed'}")
 
     if json_out:
+        from guardmeter.gate.checker import parity_gap
+        pol = gate_config.mode
+        lang_slices = results.candidate_language_slices.get(pol, {})
+        par = gate_config.language_parity
+        gap, _recalls = parity_gap(lang_slices, par.reference if par else "best",
+                                  par.min_support if par else 20)
         payload = {
             "passed": check_result.passed,
             "failures": [f.to_dict() for f in check_result.structured_failures],
             "run_id": results.run_id,
+            "languages": {
+                str(k[0]): {"recall": b.recall, "fpr": b.fpr, "f1": b.f1,
+                            "n": b.tp + b.fp + b.tn + b.fn}
+                for k, b in lang_slices.items()
+            },
+            "language_parity_gap": gap,
         }
         click.echo(json.dumps(payload, indent=2))
 

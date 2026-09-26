@@ -152,6 +152,24 @@ def write_step_summary(
             lines.append(f"> ⚠ **Incomplete run:** {cand.error_count} candidate guard "
                          f"calls failed ({cand.error_rate:.1%}) and are excluded from metrics.")
 
+    # Per-language rows + parity line.
+    lang_slices = results.candidate_language_slices.get(policy) or \
+        results.candidate_language_slices.get("strict") or {}
+    if lang_slices:
+        from guardmeter.gate.checker import parity_gap
+        lines += ["", "### By language", "", "| Language | Recall | FPR | F1 | n |",
+                  "|----------|--------|-----|----|----|"]
+        for key in sorted(lang_slices, key=lambda k: -lang_slices[k].recall):
+            b = lang_slices[key]
+            n = b.tp + b.fp + b.tn + b.fn
+            lines.append(f"| {key[0]} | {b.recall:.4f} | {b.fpr:.4f} | {b.f1:.4f} | {n} |")
+        par = config.language_parity if config else None
+        gap, _ = parity_gap(lang_slices, par.reference if par else "best",
+                            par.min_support if par else 20)
+        if gap is not None:
+            cap = f" (cap {par.max_recall_gap})" if par else ""
+            lines += ["", f"**Language parity gap:** {gap:.4f}{cap}"]
+
     output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 

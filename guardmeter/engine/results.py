@@ -71,6 +71,9 @@ class EvalResults:
     # Parallel attack-type family, keyed by policy → (attack_type,) → MetricsBundle
     baseline_attack_slices: SliceFamily = field(default_factory=dict)
     candidate_attack_slices: SliceFamily = field(default_factory=dict)
+    # Per-language family, keyed by policy → (language,) → MetricsBundle
+    baseline_language_slices: SliceFamily = field(default_factory=dict)
+    candidate_language_slices: SliceFamily = field(default_factory=dict)
     sample_results: list[SampleResult] = field(default_factory=list)
     mcnemar_p: float | None = None
     judge_agreement_rate: float | None = None
@@ -103,6 +106,8 @@ class EvalResults:
             "candidate_slices": slices_to_dict(self.candidate_slices),
             "baseline_attack_slices": slices_to_dict(self.baseline_attack_slices),
             "candidate_attack_slices": slices_to_dict(self.candidate_attack_slices),
+            "baseline_language_slices": slices_to_dict(self.baseline_language_slices),
+            "candidate_language_slices": slices_to_dict(self.candidate_language_slices),
             "sample_results": [
                 {"text": s.text, "label": s.label, "category": s.category,
                  "language": s.language, "baseline_pred": s.baseline_pred,
@@ -147,6 +152,8 @@ class EvalResults:
         obj.candidate_slices = slices_from_dict(d.get("candidate_slices", {}))
         obj.baseline_attack_slices = slices_from_dict(d.get("baseline_attack_slices", {}))
         obj.candidate_attack_slices = slices_from_dict(d.get("candidate_attack_slices", {}))
+        obj.baseline_language_slices = slices_from_dict(d.get("baseline_language_slices", {}))
+        obj.candidate_language_slices = slices_from_dict(d.get("candidate_language_slices", {}))
         obj.sample_results = [
             SampleResult(
                 text=s["text"], label=s["label"], category=s["category"],

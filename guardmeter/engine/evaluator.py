@@ -175,6 +175,8 @@ class Evaluator:
         cand_slices = {}
         base_attack_slices = {}
         cand_attack_slices = {}
+        base_language_slices = {}
+        cand_language_slices = {}
 
         # The attack slice family uses attack_family when the dataset provides it
         # (the agentic dataset), else attack_type (sample.csv). They coincide on
@@ -196,6 +198,8 @@ class Evaluator:
             cand_slices[pol] = compute_slices(cand_preds, self.dataset, pol, self.config.slices)
             base_attack_slices[pol] = compute_slices(base_preds, self.dataset, pol, [attack_dim])
             cand_attack_slices[pol] = compute_slices(cand_preds, self.dataset, pol, [attack_dim])
+            base_language_slices[pol] = compute_slices(base_preds, self.dataset, pol, ["language"])
+            cand_language_slices[pol] = compute_slices(cand_preds, self.dataset, pol, ["language"])
 
         # McNemar significance test on primary policy
         try:
@@ -258,6 +262,8 @@ class Evaluator:
             candidate_slices=cand_slices,
             baseline_attack_slices=base_attack_slices,
             candidate_attack_slices=cand_attack_slices,
+            baseline_language_slices=base_language_slices,
+            candidate_language_slices=cand_language_slices,
             sample_results=sample_results,
             mcnemar_p=mcnemar_p,
             judge_agreement_rate=judge_agreement_rate,
