@@ -135,7 +135,8 @@ def validate_records(records: list[DatasetRecord]) -> list[str]:
 
     # language script ratios — registry-driven, per language.
     # Families that legitimately mix scripts, romanize, or obfuscate are exempt.
-    _MIXED = {"transliteration", "script_mixing", "bidi_override", "encoded"}
+    _MIXED = {"transliteration", "script_mixing", "bidi_override", "encoded",
+              "language_switch", "translate_then_follow"}
     for r in records:
         rid = r.id or _norm(r.text)[:30]
         if r.attack_family in _MIXED:

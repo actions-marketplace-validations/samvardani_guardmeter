@@ -4,11 +4,26 @@
   "description": "Multilingual agentic attack dataset. Every language begins 'authored' and is released only after native review.",
   "languages": {
     "en": {
-      "rows": 0,
-      "families_covered": [],
-      "status": "draft",
+      "rows": 128,
+      "families_covered": [
+        "authority_spoof",
+        "bidi_override",
+        "cultural_authority",
+        "direct_override",
+        "encoded",
+        "exfiltration",
+        "indirect_injection",
+        "language_switch",
+        "multi_turn",
+        "persona_jailbreak",
+        "script_mixing",
+        "tool_misuse",
+        "translate_then_follow",
+        "transliteration"
+      ],
+      "status": "authored",
       "reviewers": [],
-      "notes": ""
+      "notes": "Authored in English (author working language). Awaiting native review."
     },
     "es": {
       "rows": 0,
