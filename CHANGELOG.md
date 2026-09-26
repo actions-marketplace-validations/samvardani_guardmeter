@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.10.1] - 2026-09-26
+### Data
+- **Agentic dataset v2 expanded to 14 authored languages (from 3), 1810 rows.**
+  Added 11 languages — German, French, Portuguese, Arabic, Hindi, Chinese,
+  Japanese, Russian, Turkish, Indonesian, Korean — each authored natively (not
+  translated) across all 14 attack families (≥6 unsafe + ≥3 benign per family,
+  ≥5 borderline; ~131 rows/language). Each ships an authoring note under
+  `docs/languages/<code>.md` (registers, romanization, script traps). Every new
+  row is `review_status: "authored"`; **only en and fa are native-reviewed
+  (samvardani)** — the other 12 authored languages await native review, and 10
+  Tier-1 languages remain draft.
+- **Results on the full v2** (`docs/MULTILINGUAL_RESULTS.md`): injection-heuristic
+  vs anthropic (`claude-sonnet-4-5`), no tuning. Strict: anthropic recall 0.948,
+  FPR 0.051, F1 0.961, hijack 1.3%. Recall-parity gap 0.073 across all authored
+  languages vs 0.030 across the native-reviewed subset (up from a 3-language gap
+  of 0.018 in 0.10.0).
+### Fixed
+- `native_script_ratio` counts a language's auxiliary scripts (Han+kana for
+  Japanese, Hangul+Han for Korean) so natural Japanese/Korean rows pass the
+  per-language script-ratio check; the validator now uses it. zh/Latin/RTL
+  languages are unaffected.
+
 ## [0.10.0] - 2026-09-26
 ### Added
 - **Multilingual: language is a first-class dimension.**

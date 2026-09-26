@@ -5,34 +5,30 @@ hard benign look-alikes, **authored in each language** (not translated from
 English), across 14 attack families — the 8 v1 families plus 6 cross-lingual
 families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.md)).
 
-> **Review status — read this first.** Every row is `review_status: "authored"`.
-> Authoring means the rows were composed by reasoning in the language; it does
-> **not** mean they read as native. Only **en, es, fa** are authored so far, and
-> **none is native-reviewed yet** — no language is "released". The remaining 21
-> Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors
-> and native reviewers. See [../../../docs/REVIEWER_GUIDE.md](../../../docs/REVIEWER_GUIDE.md)
+> **Review status — read this first.** Authored so far: **en**, **es**, **pt**, **fr**, **de**, **ru**, **tr**, **ar**, **fa**, **hi**, **id**, **zh**, **ja**, **ko**. Every row is `review_status: "authored"` and **none is native-reviewed yet** — no language is "released". The remaining 10 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
+> See [../../../docs/REVIEWER_GUIDE.md](../../../docs/REVIEWER_GUIDE.md)
 > — reviewers are named here and credited under CC-BY-4.0.
 
 ## Composition (authored languages)
 
-| Family | en unsafe | en benign | en borderline | es unsafe | es benign | es borderline | fa unsafe | fa benign | fa borderline | total |
-|---|---|---|---|---|---|---|---|---|---|---|
-| authority_spoof | 5 | 3 | 1 | 5 | 3 | 1 | 5 | 3 | 1 | 27 |
-| bidi_override | 5 | 3 | 0 | 5 | 3 | 0 | 5 | 3 | 0 | 24 |
-| cultural_authority | 5 | 3 | 0 | 5 | 3 | 0 | 5 | 3 | 0 | 24 |
-| direct_override | 8 | 4 | 1 | 8 | 4 | 1 | 8 | 4 | 1 | 39 |
-| encoded | 6 | 4 | 0 | 5 | 4 | 0 | 4 | 4 | 0 | 27 |
-| exfiltration | 6 | 4 | 1 | 6 | 4 | 0 | 6 | 4 | 0 | 31 |
-| indirect_injection | 5 | 2 | 1 | 4 | 2 | 1 | 4 | 2 | 1 | 22 |
-| language_switch | 6 | 3 | 0 | 5 | 3 | 0 | 5 | 3 | 0 | 25 |
-| multi_turn | 4 | 2 | 1 | 4 | 2 | 1 | 4 | 2 | 1 | 21 |
-| persona_jailbreak | 5 | 3 | 1 | 5 | 3 | 1 | 5 | 3 | 1 | 27 |
-| script_mixing | 6 | 3 | 0 | 5 | 3 | 0 | 5 | 3 | 0 | 25 |
-| tool_misuse | 6 | 4 | 0 | 6 | 4 | 0 | 6 | 4 | 0 | 30 |
-| translate_then_follow | 5 | 3 | 0 | 5 | 3 | 0 | 5 | 3 | 0 | 24 |
-| transliteration | 6 | 3 | 0 | 5 | 3 | 0 | 5 | 3 | 0 | 25 |
+| Language | Rows | Unsafe | Benign | Borderline | Families | Status |
+|---|---|---|---|---|---|---|
+| en | 128 | 78 | 44 | 6 | 14/14 | authored |
+| es | 122 | 73 | 44 | 5 | 14/14 | authored |
+| pt | 131 | 84 | 42 | 5 | 14/14 | authored |
+| fr | 131 | 84 | 42 | 5 | 14/14 | authored |
+| de | 129 | 84 | 40 | 5 | 14/14 | authored |
+| ru | 131 | 84 | 42 | 5 | 14/14 | authored |
+| tr | 131 | 84 | 42 | 5 | 14/14 | authored |
+| ar | 131 | 84 | 42 | 5 | 14/14 | authored |
+| fa | 121 | 72 | 44 | 5 | 14/14 | authored |
+| hi | 131 | 84 | 42 | 5 | 14/14 | authored |
+| id | 131 | 84 | 42 | 5 | 14/14 | authored |
+| zh | 131 | 84 | 42 | 5 | 14/14 | authored |
+| ja | 131 | 84 | 42 | 5 | 14/14 | authored |
+| ko | 131 | 84 | 42 | 5 | 14/14 | authored |
 
-**Total: 371** · en 128 · es 122 · fa 121
+**Total: 1810** · en 128 · es 122 · pt 131 · fr 131 · de 129 · ru 131 · tr 131 · ar 131 · fa 121 · hi 131 · id 131 · zh 131 · ja 131 · ko 131
 
 ## Attack families
 
@@ -58,8 +54,19 @@ malware. Injection targets are generic tools.
 |---|---|---|---|
 | en | authored — awaiting native review | 128 | — |
 | es | authored — awaiting native review | 122 | — |
+| pt | authored — awaiting native review | 131 | — |
+| fr | authored — awaiting native review | 131 | — |
+| de | authored — awaiting native review | 129 | — |
+| ru | authored — awaiting native review | 131 | — |
+| tr | authored — awaiting native review | 131 | — |
+| ar | authored — awaiting native review | 131 | — |
 | fa | authored — awaiting native review | 121 | — |
-| (21 others) | draft — awaiting authoring + review | 0 | — |
+| hi | authored — awaiting native review | 131 | — |
+| id | authored — awaiting native review | 131 | — |
+| zh | authored — awaiting native review | 131 | — |
+| ja | authored — awaiting native review | 131 | — |
+| ko | authored — awaiting native review | 131 | — |
+| (10 others) | draft — awaiting authoring + review | 0 | — |
 
 ## Licence and versioning
 

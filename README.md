@@ -243,9 +243,9 @@ The same options exist as `GUARDMETER_HTTP_URL`, `GUARDMETER_HTTP_HEADERS` (JSON
 
   The shipped regex/keyword guards score near zero on it — that's the point. See [docs/AGENTIC_RESULTS.md](docs/AGENTIC_RESULTS.md) for the honest baseline and [`gate.agentic.json`](dataset/agentic/v1/gate.agentic.json) for the bar a real injection guard has to clear.
 
-- **`dataset/agentic/v2/`** — the **Agentic Attack Dataset v2 (multilingual)**: 371 rows across **English, Spanish, and Farsi** (128 / 122 / 121), each authored natively in its language — not translated — spanning all 14 attack families including the six cross-lingual ones (script mixing, transliteration, language switch, bidi override, translate-then-follow, cultural authority). Same content rules as v1 (generic targets, no real PII/exploits). It ships a [dataset card](dataset/agentic/v2/DATASET_CARD.md), [changelog](dataset/agentic/v2/CHANGELOG.md), CC-BY-4.0 [licence](dataset/agentic/v2/LICENSE), and a multilingual [`gate.agentic.json`](dataset/agentic/v2/gate.agentic.json) with per-language and recall-parity thresholds. Fetch with `guardmeter dataset fetch agentic-v2`.
+- **`dataset/agentic/v2/`** — the **Agentic Attack Dataset v2 (multilingual)**: 1810 rows across **14 languages** (en, es, fa, de, fr, pt, ar, hi, zh, ja, ru, tr, id, ko; ~130 each), each authored natively in its language — not translated — spanning all 14 attack families including the six cross-lingual ones (script mixing, transliteration, language switch, bidi override, translate-then-follow, cultural authority). Same content rules as v1 (generic targets, no real PII/exploits). It ships a [dataset card](dataset/agentic/v2/DATASET_CARD.md), [changelog](dataset/agentic/v2/CHANGELOG.md), CC-BY-4.0 [licence](dataset/agentic/v2/LICENSE), and a multilingual [`gate.agentic.json`](dataset/agentic/v2/gate.agentic.json) with per-language and recall-parity thresholds. Fetch with `guardmeter dataset fetch agentic-v2`.
 
-  **en and fa are natively reviewed (samvardani); es is authored-only** and its metrics are provisional. The v2 registry defines 24 Tier-1 languages — the remaining 21 are scaffolded and await native authors/reviewers, so partial progress is usable. See [docs/MULTILINGUAL_RESULTS.md](docs/MULTILINGUAL_RESULTS.md) for the anthropic-vs-heuristic run.
+  **Only en and fa are natively reviewed (samvardani);** the other 12 authored languages are authored-only and their metrics are provisional. Per-language authoring notes live in [`docs/languages/`](docs/languages/). The v2 registry defines 24 Tier-1 languages — the remaining 10 are scaffolded and await native authors, so partial progress is usable. See [docs/MULTILINGUAL_RESULTS.md](docs/MULTILINGUAL_RESULTS.md) for the anthropic-vs-heuristic run.
 
 ### Working with a dataset
 
@@ -289,9 +289,10 @@ script-histogram language detection.
   report *partial* validation by language — `validated: partial (languages: …)`
   — so honest, incomplete coverage is visible rather than hidden.
 
-Reviewed languages today: **English and Farsi** (dataset v2 + the
-`suites/multilingual-agent-basics.yaml` scenario suite). Everything else is
-authored-only and clearly flagged. See
+Dataset v2 is authored in **14 languages** (~130 rows each), but reviewed
+languages today are only **English and Farsi** (also the two reviewed languages
+in `suites/multilingual-agent-basics.yaml`). The other 12 authored languages
+are clearly flagged authored-only. See
 [docs/MULTILINGUAL_RESULTS.md](docs/MULTILINGUAL_RESULTS.md).
 
 ---

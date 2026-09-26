@@ -1,31 +1,44 @@
 # Multilingual results — dataset v2
 
-- Run: `3ce18ca9-bc43-437d-b320-1ff4d2591318`
+- Run: `80c63e2e-a688-4e47-8616-bafaab6f054e`
 - Baseline: **injection-heuristic** · Candidate: **anthropic** (`claude-sonnet-4-5`)
-- Dataset record-SHA: `18b2e86d82e3d5f1…` · rows: **371** · languages: **3** (en, es, fa)
+- Dataset record-SHA: `afc8dcac3bec6b46…` · rows: **1810** · languages: **14** (ar, de, en, es, fa, fr, hi, id, ja, ko, pt, ru, tr, zh)
 - Metric policy: **strict** (borderline counts as positive). Overall row also shows lenient. No threshold tuning.
 
 ## Overall
 
 | Guard | Policy | Recall | FPR | F1 | Hijack rate | p50 ms | p95 ms |
 |---|---|---|---|---|---|---|---|
-| injection-heuristic | strict | 0.172 | 0.000 | 0.293 | 0.000 | 0 | 0 |
-| anthropic | strict | 0.925 | 0.068 | 0.942 | 0.013 | 2545 | 3303 |
-| anthropic | lenient | 0.969 | 0.095 | 0.954 | 0.013 | 2545 | 3303 |
+| injection-heuristic | strict | 0.149 | 0.027 | 0.257 | 0.000 | 0 | 0 |
+| anthropic | strict | 0.948 | 0.051 | 0.961 | 0.013 | 2552 | 3102 |
+| anthropic | lenient | 0.971 | 0.107 | 0.955 | 0.013 | 2552 | 3102 |
 
 ## Per-language — anthropic, strict policy
 
 | Lang | Reviewed | n | pos | Recall | FPR | F1 | Hijack rate | p50 ms |
 |---|---|---|---|---|---|---|---|---|
-| en (English) | ✅ reviewed | 128 | 84 | 0.917 | 0.045 | 0.945 | 0.023 | 2491 |
-| es (Spanish) | ⚠️ authored-only | 122 | 78 | 0.923 | 0.068 | 0.941 | 0.016 | 2498 |
-| fa (Persian) | ✅ reviewed | 121 | 77 | 0.935 | 0.091 | 0.941 | 0.000 | 2665 |
+| ar (Arabic) | ⚠️ authored-only | 131 | 89 | 0.966 | 0.048 | 0.972 | 0.008 | 2569 |
+| de (German) | ⚠️ authored-only | 129 | 89 | 0.955 | 0.050 | 0.966 | 0.023 | 2542 |
+| en (English) | ✅ reviewed | 128 | 84 | 0.905 | 0.023 | 0.944 | 0.023 | 2446 |
+| es (Spanish) | ⚠️ authored-only | 122 | 78 | 0.910 | 0.045 | 0.940 | 0.016 | 2483 |
+| fa (Persian) | ✅ reviewed | 121 | 77 | 0.935 | 0.068 | 0.947 | 0.000 | 2669 |
+| fr (French) | ⚠️ authored-only | 131 | 89 | 0.966 | 0.024 | 0.977 | 0.008 | 2518 |
+| hi (Hindi) | ⚠️ authored-only | 131 | 89 | 0.955 | 0.071 | 0.960 | 0.008 | 2558 |
+| id (Indonesian) | ⚠️ authored-only | 131 | 89 | 0.944 | 0.071 | 0.955 | 0.031 | 2526 |
+| ja (Japanese) | ⚠️ authored-only | 131 | 89 | 0.978 | 0.048 | 0.978 | 0.008 | 2574 |
+| ko (Korean) | ⚠️ authored-only | 131 | 89 | 0.944 | 0.071 | 0.955 | 0.008 | 2559 |
+| pt (Portuguese) | ⚠️ authored-only | 131 | 89 | 0.978 | 0.000 | 0.989 | 0.015 | 2537 |
+| ru (Russian) | ⚠️ authored-only | 131 | 89 | 0.944 | 0.071 | 0.955 | 0.008 | 2586 |
+| tr (Turkish) | ⚠️ authored-only | 131 | 89 | 0.944 | 0.071 | 0.955 | 0.015 | 2621 |
+| zh (Chinese) | ⚠️ authored-only | 131 | 89 | 0.944 | 0.048 | 0.960 | 0.008 | 2466 |
 
 ## Recall parity
 
-- Gap (languages with ≥20 positives): **0.018** (best `fa` − worst `en`)
-- Best 3: `fa` 0.935, `es` 0.923, `en` 0.917
-- Worst 3: `fa` 0.935, `es` 0.923, `en` 0.917
+- Gap over **all 14 authored** languages (≥20 positives): **0.073** (best `ja` − worst `en`)
+- Gap over **native-reviewed only** (en, fa): **0.030** — the only parity number that rests on reviewed rows
+- Best 3: `ja` 0.978, `pt` 0.978, `ar` 0.966
+- Worst 3: `fa` 0.935, `es` 0.910, `en` 0.905
+- Awaiting native review (12): `ar`, `de`, `es`, `fr`, `hi`, `id`, `ja`, `ko`, `pt`, `ru`, `tr`, `zh`
 
 ## Methodology & caveats
 
@@ -40,4 +53,4 @@
 guardmeter compare --baseline injection-heuristic --candidate anthropic \
   --dataset dataset/agentic/v2/data.jsonl --concurrency 4
 ```
-Requires `ANTHROPIC_API_KEY`. The paid run (~371 rows) costs a few dollars; candidate model was `claude-sonnet-4-5`.
+Requires `ANTHROPIC_API_KEY`. The paid run (1810 rows) costs roughly $10–15; candidate model was `claude-sonnet-4-5`.
