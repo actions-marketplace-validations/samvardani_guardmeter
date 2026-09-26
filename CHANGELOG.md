@@ -1,5 +1,40 @@
 # Changelog
 
+## [0.10.0] - 2026-09-26
+### Added
+- **Multilingual: language is a first-class dimension.**
+  - `guardmeter/core/languages.py`: a registry of 24 Tier-1 languages (script,
+    direction, family, Unicode ranges, market registers) with script-histogram
+    language detection (`guardmeter languages`).
+  - **Six cross-lingual attack families** — `script_mixing`, `transliteration`,
+    `language_switch`, `bidi_override`, `translate_then_follow`,
+    `cultural_authority` — alongside the eight monolingual ones. Bidi controls
+    are revealed as `⟨RLO⟩`-style tokens (never stripped/rendered raw);
+    zero-width runs and full-width homoglyphs are NFKC-folded before matching.
+  - **Unicode-aware guards**: `injection-heuristic` carries markers for 20+
+    languages and fires on bidi/zero-width abuse; LLM adapters use a
+    language-agnostic system prompt.
+  - **Per-language + parity gates**: `gate.json` accepts per-language
+    `min_recall`/`max_fpr`/`min_f1`, `required_languages`, and a
+    `language_parity` block (fails when best−worst recall gap exceeds a bound).
+  - **RTL-correct reports**: HTML report/dashboard render RTL and CJK/Thai/
+    Devanagari with `<bdi dir="auto">` and a broad font stack; per-language view.
+  - **Native-reviewer workflow**: rows start `authored`; only a named native
+    reviewer promotes to `reviewed`. Suites and datasets report *partial*
+    validation by language (`validated: partial (languages: …)`).
+  - **Agentic Attack Dataset v2 (multilingual)**: 371 rows in English, Spanish,
+    and Farsi (128/122/121), authored natively, across all 14 families. Ships a
+    card, changelog, CC-BY-4.0 licence, and a multilingual `gate.agentic.json`.
+    Fetch with `guardmeter dataset fetch agentic-v2`. **en and fa are natively
+    reviewed; es is authored-only (provisional).** The registry defines 24
+    languages; the remaining 21 are scaffolded, awaiting native authors.
+  - **`suites/multilingual-agent-basics.yaml`**: 54 scenarios across 6 languages
+    (en/es/fa/pt/de/ru); en and fa reviewed, the rest awaiting native review.
+  - **Results**: `docs/MULTILINGUAL_RESULTS.md` — injection-heuristic vs
+    anthropic (`claude-sonnet-4-5`) on v2. Strict: anthropic recall 0.925,
+    FPR 0.068, F1 0.942, hijack 1.3%; per-language recall en 0.917 / es 0.923 /
+    fa 0.935, recall-parity gap 0.018. Baseline heuristic recall 0.172.
+
 ## [0.9.0] - 2026-09-25
 ### Added
 - **Scenarios — measure endpoint behaviour, not only guardrails.** A scenario
