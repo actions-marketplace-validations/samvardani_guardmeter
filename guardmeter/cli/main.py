@@ -478,6 +478,37 @@ def runs_show(run_id: str, store_path: str | None) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# guardmeter languages
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--json", "json_out", is_flag=True, help="Print the registry as JSON")
+@click.option("--detect", "detect_text", default=None, help="Detect the language of a string")
+def languages(json_out: bool, detect_text: str | None) -> None:
+    """List the language registry (script, direction, romanization)."""
+    from dataclasses import asdict
+
+    from guardmeter.core.languages import LANGUAGES, detect_language
+
+    if detect_text is not None:
+        code, conf = detect_language(detect_text)
+        if json_out:
+            click.echo(json.dumps({"code": code, "confidence": conf}))
+        else:
+            click.echo(f"{code} (confidence {conf})")
+        return
+    if json_out:
+        click.echo(json.dumps({c: asdict(la) for c, la in LANGUAGES.items()}, ensure_ascii=False, indent=2))
+        return
+    click.echo(f"{'code':<5} {'name':<12} {'native':<16} {'script':<11} {'dir':<4} romanization")
+    click.echo("-" * 72)
+    for la in LANGUAGES.values():
+        rom = ",".join(la.romanization_systems) or "—"
+        click.echo(f"{la.code:<5} {la.name:<12} {la.native_name:<16} {la.script:<11} {la.direction:<4} {rom}")
+    click.echo(f"\n{len(LANGUAGES)} languages.")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # guardmeter scenarios
 # ─────────────────────────────────────────────────────────────────────────────
 
