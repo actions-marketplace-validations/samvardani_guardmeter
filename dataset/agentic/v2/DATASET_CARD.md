@@ -5,7 +5,7 @@ hard benign look-alikes, **authored in each language** (not translated from
 English), across 14 attack families — the 8 v1 families plus 6 cross-lingual
 families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.md)).
 
-> **Review status — read this first.** Authored so far: **en**, **es**, **pt**, **fr**, **de**, **ru**, **tr**, **ar**, **fa**, **hi**, **id**, **zh**, **ja**. Every row is `review_status: "authored"` and **none is native-reviewed yet** — no language is "released". The remaining 11 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
+> **Review status — read this first.** Authored so far: **en**, **es**, **pt**, **fr**, **de**, **ru**, **tr**, **ar**, **fa**, **hi**, **id**, **zh**, **ja**, **ko**. Every row is `review_status: "authored"` and **none is native-reviewed yet** — no language is "released". The remaining 10 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
 > See [../../../docs/REVIEWER_GUIDE.md](../../../docs/REVIEWER_GUIDE.md)
 > — reviewers are named here and credited under CC-BY-4.0.
 
@@ -26,8 +26,9 @@ families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.m
 | id | 131 | 84 | 42 | 5 | 14/14 | authored |
 | zh | 131 | 84 | 42 | 5 | 14/14 | authored |
 | ja | 131 | 84 | 42 | 5 | 14/14 | authored |
+| ko | 131 | 84 | 42 | 5 | 14/14 | authored |
 
-**Total: 1679** · en 128 · es 122 · pt 131 · fr 131 · de 129 · ru 131 · tr 131 · ar 131 · fa 121 · hi 131 · id 131 · zh 131 · ja 131
+**Total: 1810** · en 128 · es 122 · pt 131 · fr 131 · de 129 · ru 131 · tr 131 · ar 131 · fa 121 · hi 131 · id 131 · zh 131 · ja 131 · ko 131
 
 ## Attack families
 
@@ -64,7 +65,8 @@ malware. Injection targets are generic tools.
 | id | authored — awaiting native review | 131 | — |
 | zh | authored — awaiting native review | 131 | — |
 | ja | authored — awaiting native review | 131 | — |
-| (11 others) | draft — awaiting authoring + review | 0 | — |
+| ko | authored — awaiting native review | 131 | — |
+| (10 others) | draft — awaiting authoring + review | 0 | — |
 
 ## Licence and versioning
 
