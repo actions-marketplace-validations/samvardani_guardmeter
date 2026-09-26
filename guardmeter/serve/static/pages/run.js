@@ -117,6 +117,32 @@ export class RunPage extends Component {
     } catch (e) { toast(e.message, "error"); this.setState({ retest: null }); }
   }
 
+  languages(run) {
+    const rows = parseAttacks((run.candidate_language_slices || {}).strict)
+      .map((r) => ({ language: r.attack, recall: r.recall, bundle: null, n: r.n }));
+    if (!rows.length) return "";
+    // Attach fpr/f1 from the raw bundles.
+    const raw = (run.candidate_language_slices || {}).strict || {};
+    const byLang = {};
+    for (const [k, b] of Object.entries(raw)) { try { byLang[JSON.parse(k)[0]] = b; } catch (_e) { /* skip */ } }
+    rows.sort((a, b) => (b.recall ?? -1) - (a.recall ?? -1));
+    const withPos = rows.filter((r) => byLang[r.language] && (byLang[r.language].tp + byLang[r.language].fn) >= 20);
+    const gap = withPos.length >= 2
+      ? Math.max(...withPos.map((r) => r.recall)) - Math.min(...withPos.map((r) => r.recall)) : null;
+    return html`<div class="card section" style="margin-top:16px">
+      <div class="row between center"><h3 style="margin:0">Languages — candidate</h3>
+        ${gap !== null ? html`<span class="chip ${gap > 0.15 ? "bad" : "ok"}">parity gap ${fmt(gap)}</span>` : ""}</div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:16px;margin-top:8px">
+        <${ChartCanvas} name="lang-recall" make=${(cv) => barChart(cv, rows.map((r) => r.language), rows.map((r) => r.recall ?? 0), "recall")}/>
+        <table class="tbl"><thead><tr><th>Lang</th><th>Recall</th><th>FPR</th><th>F1</th><th>n</th></tr></thead><tbody>
+          ${rows.map((r) => { const b = byLang[r.language] || {}; return html`<tr>
+            <td>${r.language}</td><td class="mono">${fmt(r.recall)}</td>
+            <td class="mono">${fmt(b.fpr)}</td><td class="mono">${fmt(b.f1)}</td><td class="mono">${r.n}</td></tr>`; })}
+        </tbody></table>
+      </div>
+    </div>`;
+  }
+
   heatmap(run) {
     const slices = parseSlices((run.candidate_slices || {}).strict);
     if (!slices.length) return html`<div class="card empty">No slice data</div>`;
@@ -195,6 +221,8 @@ export class RunPage extends Component {
         </div>
       </div>
 
+      ${this.languages(run)}
+
       <div class="grid" style="grid-template-columns:1fr 1fr;margin-top:16px">
         <div class="card"><h3>Candidate threshold sweep</h3>
           ${sweep ? html`<${ChartCanvas} name="threshold-sweep" make=${(cv) => lineChart(cv, sweep)}/>` : html`<div class="empty">No candidate scores</div>`}
@@ -229,8 +257,9 @@ export class RunPage extends Component {
           <th>Text</th><th>Label</th><th>Category</th><th>Lang</th><th>Baseline</th><th>Candidate</th></tr></thead>
           <tbody>
             ${samples.length ? samples.map((s, i) => html`<tr key=${i} style="cursor:pointer" onClick=${() => this.setState({ drawer: s, retest: null })}>
-              <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.text}</td>
-              <td>${s.label}</td><td>${s.category}</td><td>${s.language}</td>
+              <td style="max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><bdi dir="auto">${s.text}</bdi></td>
+              <td>${s.label}</td><td>${s.category}</td>
+              <td>${s.language}${s.script ? html`<span class="chip neutral" style="margin-left:4px">${s.script}</span>` : ""}</td>
               <td><${VerdictChip} prediction=${s.baseline_pred}/></td>
               <td><${VerdictChip} prediction=${s.candidate_pred}/></td>
             </tr>`) : html`<tr><td colspan="6" class="empty">No matching samples</td></tr>`}

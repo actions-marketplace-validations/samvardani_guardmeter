@@ -28,6 +28,9 @@
     .hidden{display:none}
     .pass-cell{background:#dcfce7}.fail-cell{background:#fee2e2}
     canvas{max-width:100%;margin-top:12px}
+    /* Font stack covering Arabic/Hebrew/CJK/Thai/Devanagari via system fonts (no downloads). */
+    .sample-text{max-width:520px;font-family:-apple-system,"Segoe UI","Noto Sans","Noto Sans Arabic","Noto Sans Hebrew","Noto Sans CJK","Noto Sans Thai","Noto Sans Devanagari","Arial Unicode MS",sans-serif}
+    .sample-text bdi{unicode-bidi:isolate}
     .footer{margin-top:48px;text-align:center;font-size:12px;color:#576459}
     @media(max-width:900px){.row{flex-direction:column}.card{min-width:0}}
   </style>
@@ -155,6 +158,25 @@
       </table>
     </div>
     {% endif %}
+
+    {% if language_rows %}
+    <div class="card section">
+      <h2>Languages — Strict (Candidate)</h2>
+      {% if language_gap is not none %}<div class="meta">Recall parity gap (best − worst, n ≥ 20): <b>{{ '%.4f' | format(language_gap) }}</b></div>{% endif %}
+      <table>
+        <tr><th>Language</th><th>Script</th><th>Recall</th><th>FPR</th><th>F1</th><th>N</th></tr>
+        {% for l in language_rows %}
+        <tr>
+          <td>{{ l.language }} <span class="meta">{{ '(rtl)' if l.direction == 'rtl' else '' }}</span></td>
+          <td><span class="badge">{{ l.script }}</span></td>
+          <td>{{ '%.4f' | format(l.recall) }}</td><td>{{ '%.4f' | format(l.fpr) }}</td>
+          <td>{{ '%.4f' | format(l.f1) }}</td><td>{{ l.n }}</td>
+        </tr>
+        {% endfor %}
+      </table>
+    </div>
+    {% endif %}
+
   </div>
 
   <!-- LENIENT VIEW -->
@@ -202,14 +224,14 @@
   {% endif %}
 
   <!-- Sample Results -->
-  {% if sample_results %}
+  {% if rtl_samples %}
   <div class="card section">
     <h2>Sample Results</h2>
     <table>
       <tr><th>Text</th><th>Label</th><th>Category</th><th>Lang</th><th>Baseline</th><th>Candidate</th>{% if has_judge %}<th>Judge</th>{% endif %}</tr>
-      {% for s in sample_results %}
+      {% for s in rtl_samples %}
       <tr>
-        <td style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ s.text }}</td>
+        <td class="sample-text" style="max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><bdi dir="auto">{{ s.text }}</bdi></td>
         <td>{{ s.label }}</td>
         <td>{{ s.category }}</td>
         <td>{{ s.language }}</td>

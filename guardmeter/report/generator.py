@@ -155,6 +155,37 @@ class ReportGenerator:
 
         strict_cand_attack = _attack_rows(results.candidate_attack_slices.get("strict", {}))
 
+        # Per-language rows (sorted by recall) + parity gap, and RTL direction.
+        from guardmeter.core.languages import get_language
+        from guardmeter.core.redact import reveal_bidi
+        from guardmeter.gate.checker import parity_gap
+
+        lang_slices = results.candidate_language_slices.get("strict", {})
+        language_rows = []
+        for key in sorted(lang_slices, key=lambda k: -lang_slices[k].recall):
+            b = lang_slices[key]
+            code = str(key[0])
+            la = get_language(code)
+            language_rows.append({
+                "language": code, "recall": b.recall, "fpr": b.fpr, "f1": b.f1,
+                "n": b.tp + b.fp + b.tn + b.fn,
+                "direction": la.direction if la else "ltr",
+                "script": la.script if la else "?",
+            })
+        language_gap, _ = parity_gap(lang_slices)
+
+        # RTL-safe samples: bidi controls revealed, direction per language.
+        rtl_samples = []
+        for s in results.sample_results[:200]:
+            la = get_language(s.language)
+            rtl_samples.append({
+                "text": reveal_bidi(s.text), "label": s.label, "category": s.category,
+                "language": s.language, "direction": la.direction if la else "ltr",
+                "baseline_pred": s.baseline_pred, "candidate_pred": s.candidate_pred,
+                "baseline_score": s.baseline_score, "candidate_score": s.candidate_score,
+                "judge_verdict": s.judge_verdict,
+            })
+
         # Latency arrays for Chart.js: real per-sample latencies (one value per sample)
         base_latencies = [s.baseline_latency_ms for s in results.sample_results]
         cand_latencies = [s.candidate_latency_ms for s in results.sample_results]
@@ -183,6 +214,9 @@ class ReportGenerator:
             strict_base_slices=strict_base_slices,
             strict_cand_slices=strict_cand_slices,
             strict_cand_attack=strict_cand_attack,
+            language_rows=language_rows,
+            language_gap=language_gap,
+            rtl_samples=rtl_samples,
             sample_results=results.sample_results[:200],  # cap at 200 for performance
             has_judge=has_judge,
             base_latencies_json=_safe_json(base_latencies),
