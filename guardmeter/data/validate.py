@@ -47,7 +47,8 @@ def _skeleton(text: str) -> str:
     same numbers (amounts, account/order ids) and URLs; letters and punctuation
     differ. Empty when the row has no such anchor (so plain prose isn't matched).
     """
-    digits = re.findall(r"\d{3,}", text)
+    # 4+ digit runs (fake account/order ids), skipping all-zero/round noise, + URLs.
+    digits = [d for d in re.findall(r"\d{4,}", text) if len(set(d)) > 1]
     urls = re.findall(r"https?://[^\s/]+", text.lower())
     anchors = sorted(set(digits) | set(urls))
     return "|".join(anchors) if anchors else ""
