@@ -689,8 +689,12 @@ def scenarios_audit(suite_path: str, endpoint: str | None, model: str | None,
                f"weak_categories={len(rep.weak_categories)} near_dup={len(rep.near_duplicates)}"
                + (f" flaky={len(rep.flaky)} ({rep.flaky_rate:.1%}) "
                   f"judge_disagree={len(rep.judge_disagree)}" if rep.endpoint_used else ""))
+    verdict = rep.verdict()
     if rep.validated:
-        click.echo("✅ VALIDATED")
+        click.echo(f"✅ {verdict.upper()}")
+        return
+    if verdict.startswith("validated: partial"):
+        click.echo(f"🟡 {verdict}")
         return
     click.echo("❌ NOT VALIDATED")
     sys.exit(1)
