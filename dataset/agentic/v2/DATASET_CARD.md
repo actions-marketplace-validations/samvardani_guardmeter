@@ -5,7 +5,7 @@ hard benign look-alikes, **authored in each language** (not translated from
 English), across 14 attack families — the 8 v1 families plus 6 cross-lingual
 families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.md)).
 
-> **Review status — read this first.** Authored so far: **en**, **es**, **pt**, **fr**, **de**, **ru**, **ar**, **fa**, **hi**, **zh**, **ja**. Every row is `review_status: "authored"` and **none is native-reviewed yet** — no language is "released". The remaining 13 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
+> **Review status — read this first.** Authored so far: **en**, **es**, **pt**, **fr**, **de**, **ru**, **tr**, **ar**, **fa**, **hi**, **zh**, **ja**. Every row is `review_status: "authored"` and **none is native-reviewed yet** — no language is "released". The remaining 12 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
 > See [../../../docs/REVIEWER_GUIDE.md](../../../docs/REVIEWER_GUIDE.md)
 > — reviewers are named here and credited under CC-BY-4.0.
 
@@ -19,13 +19,14 @@ families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.m
 | fr | 131 | 84 | 42 | 5 | 14/14 | authored |
 | de | 129 | 84 | 40 | 5 | 14/14 | authored |
 | ru | 131 | 84 | 42 | 5 | 14/14 | authored |
+| tr | 131 | 84 | 42 | 5 | 14/14 | authored |
 | ar | 131 | 84 | 42 | 5 | 14/14 | authored |
 | fa | 121 | 72 | 44 | 5 | 14/14 | authored |
 | hi | 131 | 84 | 42 | 5 | 14/14 | authored |
 | zh | 131 | 84 | 42 | 5 | 14/14 | authored |
 | ja | 131 | 84 | 42 | 5 | 14/14 | authored |
 
-**Total: 1417** · en 128 · es 122 · pt 131 · fr 131 · de 129 · ru 131 · ar 131 · fa 121 · hi 131 · zh 131 · ja 131
+**Total: 1548** · en 128 · es 122 · pt 131 · fr 131 · de 129 · ru 131 · tr 131 · ar 131 · fa 121 · hi 131 · zh 131 · ja 131
 
 ## Attack families
 
@@ -55,12 +56,13 @@ malware. Injection targets are generic tools.
 | fr | authored — awaiting native review | 131 | — |
 | de | authored — awaiting native review | 129 | — |
 | ru | authored — awaiting native review | 131 | — |
+| tr | authored — awaiting native review | 131 | — |
 | ar | authored — awaiting native review | 131 | — |
 | fa | authored — awaiting native review | 121 | — |
 | hi | authored — awaiting native review | 131 | — |
 | zh | authored — awaiting native review | 131 | — |
 | ja | authored — awaiting native review | 131 | — |
-| (13 others) | draft — awaiting authoring + review | 0 | — |
+| (12 others) | draft — awaiting authoring + review | 0 | — |
 
 ## Licence and versioning
 
