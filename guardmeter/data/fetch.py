@@ -70,7 +70,7 @@ AGENTIC_V2 = DatasetRelease(
     assets=(
         DatasetAsset(
             "data.jsonl",
-            "712b43849c61881425a17bf2340a20bd4febed656c12895d44fb38f6dbcf4f5b",
+            "b0a8a1c867bb733ba11c686b2b1a7a37dd40cef9f6be45f26b3ad6d3efc117b2",
         ),
         DatasetAsset("DATASET_CARD.md", None),
         DatasetAsset(
