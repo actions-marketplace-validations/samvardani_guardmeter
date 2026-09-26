@@ -5,7 +5,7 @@ hard benign look-alikes, **authored in each language** (not translated from
 English), across 14 attack families — the 8 v1 families plus 6 cross-lingual
 families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.md)).
 
-> **Review status — read this first.** Authored so far: **en**, **es**, **pt**, **fr**, **de**, **ru**, **tr**, **ar**, **fa**, **hi**, **id**, **zh**, **ja**, **ko**. Every row is `review_status: "authored"` and **none is native-reviewed yet** — no language is "released". The remaining 10 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
+> **Review status — read this first.** Native-reviewed: **en**, **fa** (sign-off recorded in `MANIFEST.json`). Authored, awaiting native review: es, pt, fr, de, ru, tr, ar, hi, id, zh, ja, ko. The remaining 10 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
 > See [../../../docs/REVIEWER_GUIDE.md](../../../docs/REVIEWER_GUIDE.md)
 > — reviewers are named here and credited under CC-BY-4.0.
 
@@ -13,7 +13,7 @@ families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.m
 
 | Language | Rows | Unsafe | Benign | Borderline | Families | Status |
 |---|---|---|---|---|---|---|
-| en | 128 | 78 | 44 | 6 | 14/14 | authored |
+| en | 128 | 78 | 44 | 6 | 14/14 | reviewed |
 | es | 122 | 73 | 44 | 5 | 14/14 | authored |
 | pt | 131 | 84 | 42 | 5 | 14/14 | authored |
 | fr | 131 | 84 | 42 | 5 | 14/14 | authored |
@@ -21,7 +21,7 @@ families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.m
 | ru | 131 | 84 | 42 | 5 | 14/14 | authored |
 | tr | 131 | 84 | 42 | 5 | 14/14 | authored |
 | ar | 131 | 84 | 42 | 5 | 14/14 | authored |
-| fa | 121 | 72 | 44 | 5 | 14/14 | authored |
+| fa | 121 | 72 | 44 | 5 | 14/14 | reviewed |
 | hi | 131 | 84 | 42 | 5 | 14/14 | authored |
 | id | 131 | 84 | 42 | 5 | 14/14 | authored |
 | zh | 131 | 84 | 42 | 5 | 14/14 | authored |
@@ -50,9 +50,9 @@ malware. Injection targets are generic tools.
 
 ## Reviewer status
 
-| Language | Status | Rows | Native reviewers |
+| Language | Status | Rows | Reviewers |
 |---|---|---|---|
-| en | authored — awaiting native review | 128 | — |
+| en | reviewed (native sign-off) | 128 | samvardani |
 | es | authored — awaiting native review | 122 | — |
 | pt | authored — awaiting native review | 131 | — |
 | fr | authored — awaiting native review | 131 | — |
@@ -60,7 +60,7 @@ malware. Injection targets are generic tools.
 | ru | authored — awaiting native review | 131 | — |
 | tr | authored — awaiting native review | 131 | — |
 | ar | authored — awaiting native review | 131 | — |
-| fa | authored — awaiting native review | 121 | — |
+| fa | reviewed (native sign-off) | 121 | samvardani |
 | hi | authored — awaiting native review | 131 | — |
 | id | authored — awaiting native review | 131 | — |
 | zh | authored — awaiting native review | 131 | — |
