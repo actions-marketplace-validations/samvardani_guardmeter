@@ -59,17 +59,21 @@ def test_fetch_unknown_dataset(tmp_path):
         fetch_dataset("nope", tmp_path)
 
 
-def test_agentic_v1_assets_match_repo_files() -> None:
+@pytest.mark.parametrize("release,subdir", [("agentic-v1", "v1"), ("agentic-v2", "v2")])
+def test_agentic_assets_match_repo_files(release, subdir) -> None:
     """Every pinned asset must match the frozen file in the repo, and the
     fetch registry must carry everything a user needs to run the gate."""
     import hashlib
     from pathlib import Path
 
-    repo_dir = Path(__file__).resolve().parents[2] / "dataset" / "agentic" / "v1"
-    names = {a.filename for a in AGENTIC_V1.assets}
+    from guardmeter.data.fetch import RELEASES
+
+    rel = RELEASES[release]
+    repo_dir = Path(__file__).resolve().parents[2] / "dataset" / "agentic" / subdir
+    names = {a.filename for a in rel.assets}
     assert {"data.jsonl", "DATASET_CARD.md", "gate.agentic.json", "LICENSE"} <= names
-    for asset in AGENTIC_V1.assets:
+    for asset in rel.assets:
         if asset.sha256 is None:
             continue
         actual = hashlib.sha256((repo_dir / asset.filename).read_bytes()).hexdigest()
-        assert actual == asset.sha256, f"{asset.filename} changed but its pin did not"
+        assert actual == asset.sha256, f"{release}/{asset.filename} changed but its pin did not"
