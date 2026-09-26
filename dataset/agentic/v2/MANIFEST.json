@@ -62,11 +62,26 @@
       "notes": ""
     },
     "de": {
-      "rows": 0,
-      "families_covered": [],
-      "status": "draft",
+      "rows": 129,
+      "families_covered": [
+        "authority_spoof",
+        "bidi_override",
+        "cultural_authority",
+        "direct_override",
+        "encoded",
+        "exfiltration",
+        "indirect_injection",
+        "language_switch",
+        "multi_turn",
+        "persona_jailbreak",
+        "script_mixing",
+        "tool_misuse",
+        "translate_then_follow",
+        "transliteration"
+      ],
+      "status": "authored",
       "reviewers": [],
-      "notes": ""
+      "notes": "Authored (non-native model) with DE/AT/CH register mix; Eszett/umlaut traps. Awaiting native review, esp. Austrian/Swiss Helvetisms."
     },
     "it": {
       "rows": 0,
