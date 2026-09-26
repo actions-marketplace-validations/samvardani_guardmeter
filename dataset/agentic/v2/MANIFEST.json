@@ -264,11 +264,26 @@
       "notes": ""
     },
     "zh": {
-      "rows": 0,
-      "families_covered": [],
-      "status": "draft",
+      "rows": 131,
+      "families_covered": [
+        "authority_spoof",
+        "bidi_override",
+        "cultural_authority",
+        "direct_override",
+        "encoded",
+        "exfiltration",
+        "indirect_injection",
+        "language_switch",
+        "multi_turn",
+        "persona_jailbreak",
+        "script_mixing",
+        "tool_misuse",
+        "translate_then_follow",
+        "transliteration"
+      ],
+      "status": "authored",
       "reviewers": [],
-      "notes": ""
+      "notes": "Authored (non-native model), Simplified Mandarin (zh-CN); Pinyin transliteration. Traditional (TW/HK) not yet covered. Awaiting native review."
     },
     "ja": {
       "rows": 0,
