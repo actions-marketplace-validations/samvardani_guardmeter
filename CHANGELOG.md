@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.10.2] - 2026-09-26
+### Changed
+- **en and fa recorded as native-reviewed.** Both languages were reviewed by
+  samvardani (native Farsi; English reviewer) and signed off through the review
+  workflow (`dataset review queue` → accept-all packet → `apply`), flipping them
+  to status `reviewed` with a per-language sign-off sha256. `dataset review
+  apply` now derives the manifest status from the reviewed fraction (`reviewed`
+  ≥90%, else `in_review`, else `authored`) instead of always `in_review`.
+- **Docs refresh.** README restructured top-down for 0.10.x (what-it-is, "three
+  things it measures", results-at-a-glance table, field notes, native-reviewer
+  call); added `docs/README.md` index, `docs/BUILDORADO_PROBE.md` field note, a
+  CONTRIBUTING release checklist + new-language authoring guide, and a markdown
+  link-checker test. Attribution normalized to **SEATECHONE LLC** everywhere;
+  added `CITATION.cff` and project authors.
+### Note
+- No library behaviour changed. This release re-cuts the v2 dataset assets so
+  `guardmeter dataset fetch agentic-v2` serves the review-signed `data.jsonl`
+  (the fetch tag moves to v0.10.2).
+
 ## [0.10.1] - 2026-09-26
 ### Data
 - **Agentic dataset v2 expanded to 14 authored languages (from 3), 1810 rows.**
