@@ -85,6 +85,36 @@ guardmeter dataset stats    path/to/data.jsonl --markdown
 Bump the dataset's own `CHANGELOG.md` and `DATASET_CARD.md` composition table in
 the same PR.
 
+### Authoring rows in a new language
+
+Each language in v2 is authored natively, not translated. To add one:
+
+1. Write `docs/languages/<code>.md` **first** — registers/markets, romanization
+   system, and the script traps a reviewer should watch for (see the existing
+   notes for the shape).
+2. Author ≥ 6 unsafe + ≥ 3 benign rows per family across all 14 families, plus
+   ≥ 5 borderline. Reason in the language; do not translate the English rows.
+   Give cross-lingual families (`language_switch`, `script_mixing`, `encoded`)
+   payloads distinct from other languages to avoid cross-language near-dups.
+3. `guardmeter dataset validate <data.jsonl> --language <code>` and the full-file
+   validate must both pass, then update `MANIFEST.json` and the card.
+4. The language ships as `authored`. It becomes `reviewed` only after a native
+   speaker signs off through the review workflow — see
+   [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md).
+
 ## Releases
 
-Maintainers cut releases by bumping the version in `pyproject.toml` and `guardmeter/__init__.py`, updating `CHANGELOG.md`, and pushing a `vX.Y.Z` tag. The `release.yml` workflow builds, publishes to PyPI via trusted publishing, and creates the GitHub release.
+Maintainers cut releases by bumping the version, updating `CHANGELOG.md`, and
+pushing a `vX.Y.Z` tag. `release.yml` builds, publishes to PyPI via trusted
+publishing, attaches the current `dataset/agentic/v2/` files, and creates the
+GitHub release.
+
+**Release checklist:**
+
+- [ ] Version bumped in **three** places: `pyproject.toml`, `guardmeter/__init__.py`, `action.yml` (`default` + the `@vX.Y.Z` example).
+- [ ] `CHANGELOG.md` entry added.
+- [ ] Fetch pins in `guardmeter/data/fetch.py` updated if any dataset file changed, and the release **tag** on the affected `DatasetRelease` retargeted to the new version (fetch downloads assets from that tag's GitHub release).
+- [ ] Results docs regenerated if numbers changed (`docs/AGENTIC_RESULTS.md`, `docs/OPOD_SCENARIO_RESULTS.md`, `docs/MULTILINGUAL_RESULTS.md`).
+- [ ] Dataset card status table and `MANIFEST.json` current (row counts, review status).
+- [ ] README badges current — including the hard-coded **languages** badge (`N · X authored · Y reviewed`).
+- [ ] `ruff` / `mypy` / `pytest` clean; after publish, a clean-venv `pip install` → `dataset fetch` → `validate`.

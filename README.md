@@ -62,6 +62,7 @@ The multilingual per-language table carries a **reviewed-vs-authored** column: o
 ## Field notes
 
 - **Opod** — the 30-scenario endpoint-behaviour suite above was run against two locally-served [Opod](https://github.com/opod-io/opod-core) models; see [docs/OPOD_SCENARIO_RESULTS.md](docs/OPOD_SCENARIO_RESULTS.md) and the rollout webhook in [docs/OPOD_INTEGRATION.md](docs/OPOD_INTEGRATION.md).
+- **Buildorado** — ten hand-run probes of an AI-built lead-scoring workflow: the model resisted 5/5 injections but the pipeline dropped 4/4 good leads and failed silently on base64 input. Manual, unpublished workflow, our own account — see [docs/BUILDORADO_PROBE.md](docs/BUILDORADO_PROBE.md).
 
 ---
 
