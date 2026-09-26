@@ -18,6 +18,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from guardmeter.core.languages import get_language, script_ratio
 from guardmeter.data.loader import load_dataset
 from guardmeter.data.schema import ATTACK_FAMILIES, DatasetRecord
 
@@ -37,6 +38,19 @@ def _norm(text: str) -> str:
 
 def _tokens(text: str) -> set[str]:
     return set(re.findall(r"\w+", _norm(text), flags=re.UNICODE))
+
+
+def _skeleton(text: str) -> str:
+    """A digit/URL skeleton: the sorted set of 3+ digit runs and URL hosts.
+
+    Two rows in different languages that translate one template usually keep the
+    same numbers (amounts, account/order ids) and URLs; letters and punctuation
+    differ. Empty when the row has no such anchor (so plain prose isn't matched).
+    """
+    digits = re.findall(r"\d{3,}", text)
+    urls = re.findall(r"https?://[^\s/]+", text.lower())
+    anchors = sorted(set(digits) | set(urls))
+    return "|".join(anchors) if anchors else ""
 
 
 def _arabic_ratio(text: str) -> float:
@@ -119,14 +133,43 @@ def validate_records(records: list[DatasetRecord]) -> list[str]:
                             f"near-duplicate {ra.id}~{rb.id} in {fam} (jaccard={jac:.2f})"
                         )
 
-    # language script ratios
+    # language script ratios — registry-driven, per language.
+    # Families that legitimately mix scripts, romanize, or obfuscate are exempt.
+    _MIXED = {"transliteration", "script_mixing", "bidi_override", "encoded"}
     for r in records:
         rid = r.id or _norm(r.text)[:30]
-        ratio = _arabic_ratio(r.text)
-        if r.language == "fa" and ratio < 0.60:
-            problems.append(f"{rid}: language=fa but Arabic-script ratio {ratio:.2f} < 0.60")
-        if r.language == "en" and ratio >= 0.10:
-            problems.append(f"{rid}: language=en but Arabic-script ratio {ratio:.2f} >= 0.10")
+        if r.attack_family in _MIXED:
+            continue
+        lang = get_language(r.language)
+        if lang is None:
+            continue
+        ratio = script_ratio(r.text, lang.script)
+        if ratio < lang.min_script_ratio:
+            problems.append(
+                f"{rid}: {r.language} native-script ratio {ratio:.2f} < min {lang.min_script_ratio}")
+        # A non-Latin language row that's mostly ASCII letters is probably an
+        # unlabelled transliteration or a mislabel.
+        if lang.script != "Latin":
+            letters = [c for c in r.text if c.isalpha()]
+            ascii_letters = sum(1 for c in letters if c.isascii())
+            if letters and ascii_letters / len(letters) > 0.50:
+                problems.append(
+                    f"{rid}: {r.language} row is {ascii_letters / len(letters):.0%} ASCII letters "
+                    "(use family transliteration/script_mixing if intentional)")
+
+    # cross-language template detection: rows in different languages sharing an
+    # identical digit/URL skeleton are likely translated from one template.
+    skeletons: dict[str, tuple[str, str]] = {}  # skeleton → (id, language)
+    for r in records:
+        skel = _skeleton(r.text)
+        if not skel:
+            continue
+        prev = skeletons.get(skel)
+        if prev and prev[1] != r.language:
+            problems.append(
+                f"cross-language template {prev[0]}~{r.id} ({prev[1]}/{r.language}) share skeleton {skel!r}")
+        else:
+            skeletons[skel] = (str(r.id), r.language)
 
     # label/target consistency (only when target is used)
     for r in records:

@@ -1,0 +1,175 @@
+{
+  "dataset": "agentic",
+  "version": "v2",
+  "description": "Multilingual agentic attack dataset. Every language begins 'authored' and is released only after native review.",
+  "languages": {
+    "en": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "es": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "pt": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "fr": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "de": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "it": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "nl": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "pl": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "ru": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "uk": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "tr": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "ar": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "fa": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "he": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "ur": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "hi": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "bn": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "id": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "vi": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "th": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "zh": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "ja": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "ko": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    },
+    "sw": {
+      "rows": 0,
+      "families_covered": [],
+      "status": "draft",
+      "reviewers": [],
+      "notes": ""
+    }
+  }
+}

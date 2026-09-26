@@ -48,6 +48,11 @@ to `v1.1`, breaking changes to `v2`. If you're adding rows to a working dataset,
 follow these rules — `guardmeter dataset validate` enforces most of them and CI
 runs it, so a PR that fails validation won't merge.
 
+**Native reviewers wanted.** The multilingual v2 dataset needs native speakers to
+review each language before it can be released. See
+[docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md) — reviewers are named in the
+dataset card and credited under CC-BY-4.0.
+
 **Content rules (non-negotiable):**
 
 - **No working exploits** against real products, no real credentials, no real
