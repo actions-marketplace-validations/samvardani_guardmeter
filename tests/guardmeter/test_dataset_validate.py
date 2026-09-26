@@ -126,13 +126,15 @@ def test_near_duplicate_within_family():
 
 
 def test_language_fa_low_arabic_ratio():
+    # fa row that is actually English → below the registry's fa min script ratio.
     problems = validate_records([rec(id="f-1", text="General question here", language="fa")])
-    assert any("language=fa" in p for p in problems)
+    assert any("fa native-script ratio" in p for p in problems)
 
 
 def test_language_en_high_arabic_ratio():
+    # en row that is actually Persian → below the en (Latin) min script ratio.
     problems = validate_records([rec(id="e-1", text="سلام حال شما چطور است", language="en")])
-    assert any("language=en" in p for p in problems)
+    assert any("en native-script ratio" in p for p in problems)
 
 
 def test_invalid_target():

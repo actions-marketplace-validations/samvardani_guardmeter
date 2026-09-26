@@ -125,6 +125,28 @@ export class ComparePage extends Component {
         </div>
       </div>
 
+      ${(() => {
+        const langRecall = (run) => {
+          const out = {};
+          for (const [k, b] of Object.entries((run.candidate_language_slices || {}).strict || {})) {
+            try { out[JSON.parse(k)[0]] = (b.tp + b.fn) ? b.recall : null; } catch (_e) { /* skip */ }
+          }
+          return out;
+        };
+        const la = langRecall(a), lb = langRecall(b);
+        const codes = [...new Set([...Object.keys(la), ...Object.keys(lb)])].sort();
+        if (!codes.length) return "";
+        return html`<div class="section-title">Recall by language Δ (B − A)</div>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Language</th><th class="text-right">A</th><th class="text-right">B</th><th class="text-right">Δ</th></tr></thead>
+          <tbody>${codes.map((c) => {
+            const ra = la[c], rb = lb[c], d = (ra != null && rb != null) ? rb - ra : null;
+            const color = d == null ? "var(--text-muted)" : d < 0 ? "var(--danger)" : d > 0 ? "var(--ok)" : "var(--text-muted)";
+            return html`<tr key=${c}><td>${c}</td><td class="mono text-right">${fmt(ra)}</td>
+              <td class="mono text-right">${fmt(rb)}</td>
+              <td class="mono text-right" style=${`color:${color}`}>${d == null ? "—" : (d > 0 ? "+" : "") + fmt(d)}</td></tr>`;
+          })}</tbody></table></div>`;
+      })()}
+
       <div class="section-title">Samples that changed (${changed.length})</div>
       <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Text</th><th>Label</th><th>A</th><th></th><th>B</th></tr></thead>
         <tbody>${changed.length ? changed.map((s, i) => html`<tr key=${i} style="cursor:pointer" onClick=${() => this.setState({ drawer: s })}>

@@ -77,3 +77,16 @@ guardmeter scenarios audit suites/opod-agent-basics.yaml \
 
 `guardmeter gate --scenario-run …` refuses to gate an unvalidated suite unless
 you pass `--allow-unvalidated`.
+
+## Language-agnostic classification
+
+If you use an Opod endpoint as a *guard* (the `opod_guard.py` example adapter),
+give its classifier the same language note GuardMeter's built-in LLM adapters
+use: the sample may be in **any language or script, or mix several** (Latin with
+Arabic/Cyrillic, romanized text like Finglish/Arabizi/Hinglish, a message that
+switches language mid-way, RTL/bidi-override characters, or a "translate/summarize
+this" wrapper hiding an instruction). Judge intent regardless of language; treat
+bidi-override characters and script mixing as **signals, not proof** (legitimate
+multilingual and RTL text exists); and keep the verdict itself in English. The
+six cross-lingual attack families in `docs/ATTACK_FAMILIES.md` are the mechanisms
+to watch for.

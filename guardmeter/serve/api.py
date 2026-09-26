@@ -9,6 +9,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from guardmeter.core.languages import get_language
+from guardmeter.core.redact import reveal_bidi
 from guardmeter.engine.results import EvalResults
 from guardmeter.gate.checker import GateChecker
 from guardmeter.gate.config import load_gate_config, parse_gate_config
@@ -151,9 +153,12 @@ def samples_payload(results: EvalResults, filt: str = "all", q: str = "",
                             s.baseline_pred, s.candidate_pred, s.label)).lower()
             if q.lower() not in hay:
                 continue
+        la = get_language(s.language)
         rows.append({
-            "text": s.text, "label": s.label, "category": s.category,
-            "language": s.language, "attack_type": s.attack_type,
+            # Bidi controls revealed so the UI never renders raw reordering chars.
+            "text": reveal_bidi(s.text), "label": s.label, "category": s.category,
+            "language": s.language, "direction": la.direction if la else "ltr",
+            "script": la.script if la else "?", "attack_type": s.attack_type,
             "baseline_pred": s.baseline_pred, "candidate_pred": s.candidate_pred,
             "baseline_score": s.baseline_score, "candidate_score": s.candidate_score,
             "baseline_latency_ms": s.baseline_latency_ms,

@@ -90,11 +90,13 @@ export class OverviewPage extends Component {
     const latest = rows[0], prev = rows[1] || {};
     const hist = (key) => rows.slice(0, 10).reverse().map((r) => r[key]);
     const d = (key) => (latest[key] != null && prev[key] != null ? latest[key] - prev[key] : undefined);
-    return html`<div class="grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:24px">
+    const cols = latest.parity_gap != null ? 6 : 5;
+    return html`<div class="grid" style="grid-template-columns:repeat(${cols},1fr);margin-bottom:24px">
       <${KpiCard} label="Candidate F1" value=${fmt(latest.f1)} delta=${d("f1")} higherBetter=${true} spark=${hist("f1")} sparkColor="var(--ok)"/>
       <${KpiCard} label="Recall" value=${fmt(latest.recall)} delta=${d("recall")} higherBetter=${true} spark=${hist("recall")}/>
       <${KpiCard} label="FPR" value=${fmt(latest.fpr)} delta=${d("fpr")} higherBetter=${false} spark=${hist("fpr")} sparkColor="var(--danger)"/>
       <${KpiCard} label="Latency p99" value=${fmtLatency(latest.latency_p99)} spark=${hist("latency_p99")} sparkColor="var(--warn)"/>
+      ${latest.parity_gap != null ? html`<${KpiCard} label="Language parity" value=${fmt(latest.parity_gap)} delta=${d("parity_gap")} higherBetter=${false} spark=${hist("parity_gap")} sparkColor="var(--warn)"/>` : ""}
       <div class="card kpi"><span class="label">Gate</span><span class="value"><${GateChip} pass=${latest.gate_pass}/></span></div>
     </div>`;
   }

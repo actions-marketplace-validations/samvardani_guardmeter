@@ -60,6 +60,8 @@ jobs:
         run: guardmeter dataset validate dataset/sample.csv
       - name: Validate agentic dataset
         run: guardmeter dataset validate dataset/agentic/v1/data.jsonl
+      - name: Validate agentic dataset v2 (multilingual)
+        run: guardmeter dataset validate dataset/agentic/v2/data.jsonl
 
   # Non-required: reports where the shipped guards stand on the agentic dataset
   # against an aspirational injection gate. Expected to fail today (no shipped

@@ -243,6 +243,10 @@ The same options exist as `GUARDMETER_HTTP_URL`, `GUARDMETER_HTTP_HEADERS` (JSON
 
   The shipped regex/keyword guards score near zero on it — that's the point. See [docs/AGENTIC_RESULTS.md](docs/AGENTIC_RESULTS.md) for the honest baseline and [`gate.agentic.json`](dataset/agentic/v1/gate.agentic.json) for the bar a real injection guard has to clear.
 
+- **`dataset/agentic/v2/`** — the **Agentic Attack Dataset v2 (multilingual)**: 371 rows across **English, Spanish, and Farsi** (128 / 122 / 121), each authored natively in its language — not translated — spanning all 14 attack families including the six cross-lingual ones (script mixing, transliteration, language switch, bidi override, translate-then-follow, cultural authority). Same content rules as v1 (generic targets, no real PII/exploits). It ships a [dataset card](dataset/agentic/v2/DATASET_CARD.md), [changelog](dataset/agentic/v2/CHANGELOG.md), CC-BY-4.0 [licence](dataset/agentic/v2/LICENSE), and a multilingual [`gate.agentic.json`](dataset/agentic/v2/gate.agentic.json) with per-language and recall-parity thresholds. Fetch with `guardmeter dataset fetch agentic-v2`.
+
+  **en and fa are natively reviewed (samvardani); es is authored-only** and its metrics are provisional. The v2 registry defines 24 Tier-1 languages — the remaining 21 are scaffolded and await native authors/reviewers, so partial progress is usable. See [docs/MULTILINGUAL_RESULTS.md](docs/MULTILINGUAL_RESULTS.md) for the anthropic-vs-heuristic run.
+
 ### Working with a dataset
 
 ```bash
@@ -254,6 +258,41 @@ guardmeter dataset info     dataset/agentic/v1/data.jsonl   # rows, sha256, fami
 `validate` enforces the invariants that make a dataset usable as a research artifact: unique ids, no exact or near-duplicate rows within a family, sane language script ratios, decoded-payload sanity for the `encoded` family, and label/target/context consistency. Rows without an attack family (e.g. `sample.csv`) skip the family-specific checks. Both shipped datasets pass; CI runs `validate` on each.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md#contributing-rows) to add rows.
+
+---
+
+## Languages
+
+Language is a first-class dimension, not an afterthought. GuardMeter ships a
+registry of **24 Tier-1 languages** (`guardmeter languages`) — each with its
+script, direction, family, Unicode ranges, and market registers — plus
+script-histogram language detection.
+
+- **Six cross-lingual attack families** on top of the eight monolingual ones:
+  `script_mixing`, `transliteration`, `language_switch`, `bidi_override`,
+  `translate_then_follow`, `cultural_authority`. Bidi controls (RLO/LRO/PDF,
+  isolates) are *revealed* as `⟨RLO⟩`-style tokens — never stripped or rendered
+  raw — and zero-width runs and full-width homoglyphs are NFKC-folded before
+  matching, so an attack can't hide in the encoding.
+- **Unicode-aware guards.** The `injection-heuristic` guard carries markers for
+  20+ languages and fires on bidi/zero-width abuse; the LLM adapters get a
+  language-agnostic system prompt.
+- **Per-language and parity gates.** `gate.json` accepts per-language
+  `min_recall`/`max_fpr`/`min_f1`, a `required_languages` list, and a
+  `language_parity` block that fails the build when the recall gap between your
+  best and worst supported language (with ≥N positives) exceeds a threshold.
+- **RTL-correct reports.** The HTML report and dashboard render Arabic, Hebrew,
+  and Farsi with `<bdi dir="auto">` and a font stack covering Arabic/Hebrew/CJK/
+  Thai/Devanagari, and expose a per-language slice view.
+- **A native-reviewer workflow.** Every dataset/scenario row starts `authored`;
+  only a named native reviewer can move it to `reviewed`. Suites and datasets
+  report *partial* validation by language — `validated: partial (languages: …)`
+  — so honest, incomplete coverage is visible rather than hidden.
+
+Reviewed languages today: **English and Farsi** (dataset v2 + the
+`suites/multilingual-agent-basics.yaml` scenario suite). Everything else is
+authored-only and clearly flagged. See
+[docs/MULTILINGUAL_RESULTS.md](docs/MULTILINGUAL_RESULTS.md).
 
 ---
 

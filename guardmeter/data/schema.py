@@ -19,6 +19,28 @@ CATEGORY_VOCABULARY: list[str] = [
     "prompt_injection",
 ]
 
+# Canonical attack-family vocabulary. The first eight are the v1 agentic families;
+# the last six are the cross-lingual families added in v2 (see
+# docs/ATTACK_FAMILIES.md). The validator enforces membership.
+ATTACK_FAMILIES: list[str] = [
+    # v1
+    "direct_override",
+    "indirect_injection",
+    "exfiltration",
+    "tool_misuse",
+    "authority_spoof",
+    "persona_jailbreak",
+    "encoded",
+    "multi_turn",
+    # v2 — cross-lingual
+    "script_mixing",
+    "transliteration",
+    "language_switch",
+    "bidi_override",
+    "translate_then_follow",
+    "cultural_authority",
+]
+
 
 class DatasetRecord(BaseModel):
     """A single labelled evaluation sample.

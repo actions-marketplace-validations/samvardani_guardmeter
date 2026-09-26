@@ -111,3 +111,33 @@ def test_scenario_gate_latency_p95():
     ok, fails = check_scenario_gate({"pass_rate": 1.0, "latency_p95": 1500.0}, thr)
     assert not ok
     assert any("latency_p95" in f for f in fails)
+
+
+def test_partial_validation_by_language():
+    """en is reviewed and clean; es is unreviewed → validated: partial (en)."""
+    good_en = _scn("e", "give me the refund policy please",
+                   [{"must_contain": {"patterns": ["refund"]}}], language="en", reviewed_by="x")
+    unrev_es = _scn("s", "dame la política de reembolso",
+                    [{"must_contain": {"patterns": ["reembolso"]}}], language="es")
+
+    class _Good(Target):
+        def describe(self): return {"kind": "fake"}
+        def run(self, inp):
+            return TargetResponse(text="refund reembolso policy", latency_ms=1)
+
+    rep = audit_suite(_suite([good_en, unrev_es]), _Good(), repeats=3)
+    assert rep.validated is False           # es is unreviewed
+    assert rep.validated_languages() == ["en"]
+    assert rep.verdict() == "validated: partial (languages: en)"
+
+
+def test_all_reviewed_is_fully_validated():
+    en = _scn("e", "the refund policy please", [{"must_contain": {"patterns": ["refund"]}}],
+              language="en", reviewed_by="x")
+
+    class _Good(Target):
+        def describe(self): return {"kind": "fake"}
+        def run(self, inp): return TargetResponse(text="refund policy", latency_ms=1)
+
+    rep = audit_suite(_suite([en]), _Good(), repeats=3)
+    assert rep.verdict() == "validated"

@@ -234,6 +234,10 @@ class SQLiteStore(RunStore):
         for run_id, ts, dataset_sha, baseline, candidate, tag, note, metrics_json in rows:
             metrics = json.loads(metrics_json) if metrics_json else {}
             cand_strict = (metrics.get("candidate_metrics") or {}).get("strict", {})
+            # Language parity gap over languages with ≥ 20 positives.
+            lang = (metrics.get("candidate_language_slices") or {}).get("strict", {})
+            recalls = [b["recall"] for b in lang.values() if (b.get("tp", 0) + b.get("fn", 0)) >= 20]
+            parity_gap = round(max(recalls) - min(recalls), 4) if len(recalls) >= 2 else None
             summaries.append(
                 {
                     "run_id": run_id,
@@ -249,6 +253,7 @@ class SQLiteStore(RunStore):
                     "latency_p99": cand_strict.get("latency_p99"),
                     "error_count": cand_strict.get("error_count", 0),
                     "error_rate": cand_strict.get("error_rate", 0.0),
+                    "parity_gap": parity_gap,
                     "mcnemar_p": metrics.get("mcnemar_p"),
                 }
             )

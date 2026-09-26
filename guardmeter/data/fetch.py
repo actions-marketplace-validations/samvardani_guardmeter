@@ -63,7 +63,28 @@ AGENTIC_V1 = DatasetRelease(
     ),
 )
 
-RELEASES: dict[str, DatasetRelease] = {AGENTIC_V1.name: AGENTIC_V1}
+AGENTIC_V2 = DatasetRelease(
+    name="agentic-v2",
+    tag="v0.10.0",
+    dest="dataset/agentic/v2",
+    assets=(
+        DatasetAsset(
+            "data.jsonl",
+            "e5adc8e58b0422f29a623d63076f1f747ffbd41a23ec4bba47ccb7ff1ba7a095",
+        ),
+        DatasetAsset("DATASET_CARD.md", None),
+        DatasetAsset(
+            "gate.agentic.json",
+            "b4893adf58ddeed77d2588bb12fdd8ff2445507641724e9e4b9cf9a6a087af7f",
+        ),
+        DatasetAsset(
+            "LICENSE",
+            "298e8ed304723a58c79165136adbca9bad39a9d4d12f1f54046a6d9ffa6c0bfc",
+        ),
+    ),
+)
+
+RELEASES: dict[str, DatasetRelease] = {AGENTIC_V1.name: AGENTIC_V1, AGENTIC_V2.name: AGENTIC_V2}
 
 
 def _download(url: str) -> bytes:

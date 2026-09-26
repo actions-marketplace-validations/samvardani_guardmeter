@@ -35,11 +35,33 @@ class AuditReport:
     judge_disagree: list[str] = field(default_factory=list)
     flaky_rate: float = 0.0
     endpoint_used: bool = False
+    # id → language, for per-language partial validation.
+    languages: dict[str, str] = field(default_factory=dict)
 
     @property
     def validated(self) -> bool:
         return (not self.unreviewed and not self.cannot_fail
                 and self.endpoint_used and self.flaky_rate < FLAKY_MAX)
+
+    def validated_languages(self) -> list[str]:
+        """Languages whose scenarios are all reviewed, none cannot-fail, none flaky."""
+        if not self.endpoint_used:
+            return []
+        by_lang: dict[str, list[str]] = {}
+        for sid, lang in self.languages.items():
+            by_lang.setdefault(lang, []).append(sid)
+        bad = set(self.unreviewed) | set(self.cannot_fail) | set(self.flaky)
+        return sorted(lang for lang, ids in by_lang.items()
+                      if ids and not any(i in bad for i in ids))
+
+    def verdict(self) -> str:
+        """Overall verdict string, supporting partial validation by language."""
+        if self.validated:
+            return "validated"
+        langs = self.validated_languages()
+        if langs:
+            return f"validated: partial (languages: {', '.join(langs)})"
+        return "not validated"
 
 
 def _scenario_text(scenario: Any) -> str:
@@ -54,6 +76,7 @@ def _scenario_text(scenario: Any) -> str:
 def audit_suite(suite: Suite, target: Target | None = None, *, repeats: int = 3) -> AuditReport:
     """Run the static and (if a target is given) dynamic audit checks."""
     rep = AuditReport(suite_name=suite.suite.name, total=len(suite.scenarios))
+    rep.languages = {s.id: s.language for s in suite.scenarios}
 
     # Review coverage.
     rep.unreviewed = [s.id for s in suite.scenarios if not s.reviewed_by]
@@ -106,7 +129,7 @@ def render_validation_md(rep: AuditReport) -> str:
         "",
         "## Verdict",
         "",
-        f"**{'✅ VALIDATED' if rep.validated else '❌ NOT VALIDATED'}**",
+        f"**{rep.verdict()}**",
         "",
     ]
     if not rep.validated:

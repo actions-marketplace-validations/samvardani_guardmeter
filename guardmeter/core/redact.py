@@ -6,6 +6,29 @@ import re
 
 _MASK = "***REDACTED***"
 
+# Bidirectional control/isolate characters. Left raw, they silently reorder text
+# in a terminal or a browser — a real attack surface. We render them as visible
+# tokens (never strip them, so the evidence still shows they were present).
+BIDI_CONTROLS: dict[str, str] = {
+    "\u202a": "\u27e8LRE\u27e9", "\u202b": "\u27e8RLE\u27e9", "\u202c": "\u27e8PDF\u27e9",
+    "\u202d": "\u27e8LRO\u27e9", "\u202e": "\u27e8RLO\u27e9",
+    "\u2066": "\u27e8LRI\u27e9", "\u2067": "\u27e8RLI\u27e9", "\u2068": "\u27e8FSI\u27e9", "\u2069": "\u27e8PDI\u27e9",
+    "\u200e": "\u27e8LRM\u27e9", "\u200f": "\u27e8RLM\u27e9",
+}
+_BIDI_RE = re.compile("[" + "".join(BIDI_CONTROLS) + "]")
+
+
+def has_bidi_controls(text: str) -> bool:
+    """True if the text contains any bidi control/isolate character."""
+    return bool(text) and _BIDI_RE.search(text) is not None
+
+
+def reveal_bidi(text: str) -> str:
+    """Replace bidi control characters with visible ⟨RLO⟩-style tokens."""
+    if not text:
+        return text
+    return _BIDI_RE.sub(lambda m: BIDI_CONTROLS[m.group()], text)
+
 # Order matters: prefix-anchored provider tokens first, then generic long runs.
 _SUBS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"(?i)\bbearer\s+[A-Za-z0-9._~+/-]{8,}=*"), "Bearer " + _MASK),
@@ -25,7 +48,7 @@ def redact(text: str) -> str:
     """
     if not text:
         return text
-    out = text
+    out = reveal_bidi(text)  # make bidi controls visible before anything else
     for pattern, replacement in _SUBS:
         out = pattern.sub(replacement, out)
     return out

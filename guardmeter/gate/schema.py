@@ -48,6 +48,22 @@ class ScenarioThresholds(BaseModel):
     max_latency_p95_ms: int | None = None
 
 
+class LanguageThresholds(BaseModel):
+    """Per-language thresholds. A "*" key applies to any language not named."""
+
+    min_recall: float | None = None
+    max_fpr: float | None = None
+    min_f1: float | None = None
+
+
+class LanguageParity(BaseModel):
+    """Cross-language fairness: cap the recall gap between languages."""
+
+    max_recall_gap: float = 0.15
+    reference: str = "best"  # "best" (max-min) or a language code (e.g. "en")
+    min_support: int = 20    # languages need this many positives to count
+
+
 class GateConfig(BaseModel):
     """Full CI gate configuration."""
 
@@ -59,4 +75,9 @@ class GateConfig(BaseModel):
     slices: dict[str, SliceThresholds] = {}
     comparison: ComparisonThresholds | None = None
     scenarios: ScenarioThresholds | None = None
+    # Per-language thresholds (keys are language codes or "*"), a parity cap, and
+    # languages the run must cover (else the gate fails with "language not covered").
+    languages: dict[str, LanguageThresholds] = {}
+    language_parity: LanguageParity | None = None
+    required_languages: list[str] = []
     on_failure: Literal["block", "warn"] = "block"

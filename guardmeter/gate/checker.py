@@ -62,6 +62,25 @@ class GateCheckResult:
     checks: list[GateCheck] = field(default_factory=list)
 
 
+def parity_gap(
+    lang_slices: dict[tuple[Any, ...], MetricsBundle],
+    reference: str = "best",
+    min_support: int = 20,
+) -> tuple[float | None, dict[str, float]]:
+    """Recall gap across languages with ≥ min_support positives.
+
+    Returns (gap, {lang: recall}). gap is best/ref recall minus worst recall, or
+    None when fewer than two languages qualify.
+    """
+    recalls = {str(k[0]): b.recall for k, b in lang_slices.items()
+               if (b.tp + b.fn) >= min_support}
+    if len(recalls) < 2:
+        return None, recalls
+    worst = min(recalls.values())
+    ref = max(recalls.values()) if reference == "best" else recalls.get(reference, max(recalls.values()))
+    return round(ref - worst, 4), recalls
+
+
 def _scope_of(label: str) -> str:
     """Clean a checker label into a JUnit-friendly scope name."""
     if label == "global/candidate":
@@ -200,6 +219,9 @@ class GateChecker:
             thr = _effective_thresholds(attack_val, global_thr, attack_overrides)
             _check_bundle(bundle, thr, f"attack:{attack_val}", failures, structured, checks)
 
+        # Per-language, parity, and required-language coverage.
+        self._check_languages(results, policy, failures, structured, checks)
+
         # Regression check against previous run
         if self.config.comparison and self.store is not None:
             prev = None
@@ -253,3 +275,52 @@ class GateChecker:
             passed=passed, failures=failures, warnings=warnings,
             structured_failures=structured, checks=checks,
         )
+
+    def _check_languages(
+        self,
+        results: EvalResults,
+        policy: str,
+        failures: list[str],
+        structured: list[GateFailure],
+        checks: list[GateCheck],
+    ) -> None:
+        """Per-language thresholds, parity gap, and required-language coverage."""
+        lang_slices = results.candidate_language_slices.get(policy, {})
+        # {(lang,): bundle} → apply the "<code>" or "*" language threshold.
+        for key, bundle in lang_slices.items():
+            code = str(key[0])
+            override = self.config.languages.get(code) or self.config.languages.get("*")
+            if override is not None:
+                merged = self.config.global_thresholds.model_copy()
+                for attr in ("min_recall", "max_fpr", "min_f1"):
+                    val = getattr(override, attr)
+                    if val is not None:
+                        setattr(merged, attr, val)
+                _check_bundle(bundle, merged, f"lang:{code}", failures, structured, checks)
+
+        # Required-language coverage.
+        covered = {str(k[0]) for k in lang_slices}
+        for req in self.config.required_languages:
+            ok = req in covered
+            checks.append(GateCheck(scope=f"lang:{req}", metric="required", value=1.0 if ok else 0.0,
+                                    threshold=1.0, passed=ok,
+                                    message="" if ok else f"language {req} not covered"))
+            if not ok:
+                failures.append(f"lang:{req}: language {req} not covered by this run")
+                structured.append(GateFailure(scope=f"lang:{req}", metric="required",
+                                              value=0.0, threshold=1.0))
+
+        # Parity gap over languages with enough positives.
+        par = self.config.language_parity
+        if par is not None:
+            gap, _ = parity_gap(lang_slices, par.reference, par.min_support)
+            if gap is not None:
+                ok = gap <= par.max_recall_gap
+                checks.append(GateCheck(scope="language_parity", metric="max_recall_gap",
+                                        value=gap, threshold=par.max_recall_gap, passed=ok,
+                                        message="" if ok else f"recall gap {gap:.4f} > {par.max_recall_gap}"))
+                if not ok:
+                    failures.append(f"language_parity: recall gap {gap:.4f} > max_recall_gap "
+                                    f"{par.max_recall_gap} (ref={par.reference})")
+                    structured.append(GateFailure(scope="language_parity", metric="recall_gap",
+                                                  value=gap, threshold=par.max_recall_gap))

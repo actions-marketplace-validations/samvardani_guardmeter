@@ -419,10 +419,22 @@ def gate(
         _log(f"Webhook {'delivered' if ok else 'failed'}")
 
     if json_out:
+        from guardmeter.gate.checker import parity_gap
+        pol = gate_config.mode
+        lang_slices = results.candidate_language_slices.get(pol, {})
+        par = gate_config.language_parity
+        gap, _recalls = parity_gap(lang_slices, par.reference if par else "best",
+                                  par.min_support if par else 20)
         payload = {
             "passed": check_result.passed,
             "failures": [f.to_dict() for f in check_result.structured_failures],
             "run_id": results.run_id,
+            "languages": {
+                str(k[0]): {"recall": b.recall, "fpr": b.fpr, "f1": b.f1,
+                            "n": b.tp + b.fp + b.tn + b.fn}
+                for k, b in lang_slices.items()
+            },
+            "language_parity_gap": gap,
         }
         click.echo(json.dumps(payload, indent=2))
 
@@ -475,6 +487,37 @@ def runs_show(run_id: str, store_path: str | None) -> None:
     store = _get_store(store_path)
     results = store.get_run(run_id)
     click.echo(json.dumps(results.to_dict(), indent=2))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# guardmeter languages
+# ─────────────────────────────────────────────────────────────────────────────
+
+@cli.command()
+@click.option("--json", "json_out", is_flag=True, help="Print the registry as JSON")
+@click.option("--detect", "detect_text", default=None, help="Detect the language of a string")
+def languages(json_out: bool, detect_text: str | None) -> None:
+    """List the language registry (script, direction, romanization)."""
+    from dataclasses import asdict
+
+    from guardmeter.core.languages import LANGUAGES, detect_language
+
+    if detect_text is not None:
+        code, conf = detect_language(detect_text)
+        if json_out:
+            click.echo(json.dumps({"code": code, "confidence": conf}))
+        else:
+            click.echo(f"{code} (confidence {conf})")
+        return
+    if json_out:
+        click.echo(json.dumps({c: asdict(la) for c, la in LANGUAGES.items()}, ensure_ascii=False, indent=2))
+        return
+    click.echo(f"{'code':<5} {'name':<12} {'native':<16} {'script':<11} {'dir':<4} romanization")
+    click.echo("-" * 72)
+    for la in LANGUAGES.values():
+        rom = ",".join(la.romanization_systems) or "—"
+        click.echo(f"{la.code:<5} {la.name:<12} {la.native_name:<16} {la.script:<11} {la.direction:<4} {rom}")
+    click.echo(f"\n{len(LANGUAGES)} languages.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -646,8 +689,12 @@ def scenarios_audit(suite_path: str, endpoint: str | None, model: str | None,
                f"weak_categories={len(rep.weak_categories)} near_dup={len(rep.near_duplicates)}"
                + (f" flaky={len(rep.flaky)} ({rep.flaky_rate:.1%}) "
                   f"judge_disagree={len(rep.judge_disagree)}" if rep.endpoint_used else ""))
+    verdict = rep.verdict()
     if rep.validated:
-        click.echo("✅ VALIDATED")
+        click.echo(f"✅ {verdict.upper()}")
+        return
+    if verdict.startswith("validated: partial"):
+        click.echo(f"🟡 {verdict}")
         return
     click.echo("❌ NOT VALIDATED")
     sys.exit(1)
@@ -664,16 +711,21 @@ def dataset() -> None:
 
 @dataset.command("validate")
 @click.argument("path", type=click.Path(exists=True))
-def dataset_validate(path: str) -> None:
+@click.option("--language", default=None, help="Validate only one language's rows")
+def dataset_validate(path: str, language: str | None) -> None:
     """Validate a dataset (schema, duplicates, near-duplicates, language, decoded).
 
     Exits 1 on any problem. Rows without an attack_family (e.g. sample.csv) skip
-    the family-specific checks.
+    the family-specific checks. --language restricts to one language's rows.
     """
     from guardmeter.data.loader import load_dataset
     from guardmeter.data.validate import dataset_stats, validate_records
 
     records = load_dataset(path)
+    if language:
+        records = [r for r in records if r.language == language]
+        if not records:
+            raise click.ClickException(f"no rows for language {language!r} in {path}")
     problems = validate_records(records)
     st = dataset_stats(records)
     click.echo(f"Dataset: {path}")
@@ -765,6 +817,100 @@ def dataset_fetch(name: str, dest: str) -> None:
     for p in paths:
         click.echo(f"  ✓ {p}")
     click.echo(f"✅ Fetched {len(paths)} file(s), sha256 verified.")
+
+
+@dataset.group("review")
+def dataset_review() -> None:
+    """Native-reviewer workflow: queue packets, apply decisions, show status."""
+
+
+@dataset_review.command("queue")
+@click.argument("path", type=click.Path(exists=True))
+@click.option("--language", required=True, help="Language code to review")
+@click.option("--reviewer", required=True, help="Reviewer name")
+@click.option("--out", "out_dir", default=".", show_default=True, help="Directory for the packet")
+def dataset_review_queue(path: str, language: str, reviewer: str, out_dir: str) -> None:
+    """Write a review packet (JSONL + Markdown checklist) for a language."""
+    from guardmeter.data.loader import load_dataset
+    from guardmeter.data.review import build_packet
+
+    records = load_dataset(path)
+    jsonl, md = build_packet(records, language, reviewer)
+    if not jsonl:
+        raise click.ClickException(f"no unreviewed rows for language {language!r}")
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    (out / f"review-{language}.jsonl").write_text(jsonl + "\n", encoding="utf-8")
+    (out / f"review-{language}.md").write_text(md, encoding="utf-8")
+    click.echo(f"Wrote review-{language}.jsonl and review-{language}.md to {out}")
+
+
+@dataset_review.command("apply")
+@click.argument("packet", type=click.Path(exists=True))
+@click.option("--dataset-path", "dataset_path", required=True, type=click.Path(exists=True))
+@click.option("--manifest", "manifest_path", default=None, help="MANIFEST.json to update")
+@click.option("--reviewer", required=True, help="Reviewer name")
+@click.option("--handle", default="", help="Reviewer handle")
+@click.option("--native/--not-native", default=True, help="Is the reviewer a native speaker?")
+@click.option("--reviewed-at", "reviewed_at", required=True, help="ISO date of the review")
+def dataset_review_apply(packet: str, dataset_path: str, manifest_path: str | None,
+                         reviewer: str, handle: str, native: bool, reviewed_at: str) -> None:
+    """Ingest a reviewer's decisions: update rows and the manifest, record a sign-off."""
+    import csv as _csv
+
+    from guardmeter.data.loader import load_dataset
+    from guardmeter.data.review import (
+        apply_packet,
+        load_manifest,
+        refresh_language,
+        save_manifest,
+    )
+
+    decisions = [json.loads(line) for line in Path(packet).read_text(encoding="utf-8").splitlines() if line.strip()]
+    records = load_dataset(dataset_path)
+    summary = apply_packet(records, decisions, reviewer, native, reviewed_at)
+    summary["reviewer"]["handle"] = handle
+
+    # Rewrite the dataset (JSONL only; CSV round-trip is out of scope here).
+    p = Path(dataset_path)
+    if p.suffix == ".jsonl":
+        p.write_text("\n".join(json.dumps(r.model_dump(), ensure_ascii=False) for r in records) + "\n",
+                     encoding="utf-8")
+    else:
+        with p.open("w", newline="", encoding="utf-8") as f:
+            fields = list(records[0].model_dump().keys())
+            w = _csv.DictWriter(f, fieldnames=fields)
+            w.writeheader()
+            w.writerows(r.model_dump() for r in records)
+
+    if manifest_path:
+        manifest = load_manifest(manifest_path)
+        langs = {r.language for d in decisions for r in records if r.id == d.get("id")}
+        for code in langs:
+            refresh_language(manifest, code, records)
+            entry = manifest["languages"][code]
+            entry.setdefault("reviewers", []).append(summary["reviewer"])
+            entry["status"] = "in_review"
+        save_manifest(manifest_path, manifest)
+    click.echo(f"Applied: {summary['counts']} · sign-off {summary['reviewer']['sign_off_sha'][:12]}")
+
+
+@dataset_review.command("status")
+@click.option("--manifest", "manifest_path", required=True, type=click.Path(exists=True))
+@click.option("--dataset-path", "dataset_path", default=None, type=click.Path(exists=True))
+def dataset_review_status(manifest_path: str, dataset_path: str | None) -> None:
+    """Show a language × status × counts table."""
+    from guardmeter.data.loader import load_dataset
+    from guardmeter.data.review import load_manifest, status_table
+
+    records = load_dataset(dataset_path) if dataset_path else None
+    rows = status_table(load_manifest(manifest_path), records)
+    click.echo(f"{'lang':<6}{'status':<12}{'rows':>6}{'fam':>5}{'reviewed%':>11}  reviewers")
+    click.echo("-" * 60)
+    for r in rows:
+        rp = "—" if r["reviewed_pct"] is None else f"{r['reviewed_pct']:.0%}"
+        click.echo(f"{r['language']:<6}{r['status']:<12}{r['rows']:>6}{r['families']:>5}{rp:>11}  "
+                   f"{','.join(r['reviewers']) or '—'}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

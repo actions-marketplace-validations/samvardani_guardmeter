@@ -21,16 +21,18 @@ jobs:
         run: python -m build --outdir "$GITHUB_WORKSPACE/dist"
       - uses: actions/upload-artifact@v7
         with: { name: dist, path: dist/ }
-      # Agentic dataset is a repo artifact, not part of the wheel — attach it as
-      # release assets so `guardmeter dataset fetch agentic-v1` can download it.
+      # Agentic datasets are repo artifacts, not part of the wheel — attach the
+      # current dataset's files as release assets so `guardmeter dataset fetch`
+      # can download them. fetch.py pins each dataset to the release tag that
+      # froze it (v1 → v0.7.0, v2 → v0.10.0); v2 is the one cut with this tag.
       - name: Stage dataset release assets
         if: startsWith(github.ref_name, 'v')
         run: |
           mkdir -p release-assets
-          cp dataset/agentic/v1/data.jsonl release-assets/
-          cp dataset/agentic/v1/DATASET_CARD.md release-assets/
-          cp dataset/agentic/v1/gate.agentic.json release-assets/
-          cp dataset/agentic/v1/LICENSE release-assets/
+          cp dataset/agentic/v2/data.jsonl release-assets/
+          cp dataset/agentic/v2/DATASET_CARD.md release-assets/
+          cp dataset/agentic/v2/gate.agentic.json release-assets/
+          cp dataset/agentic/v2/LICENSE release-assets/
       - uses: actions/upload-artifact@v7
         if: startsWith(github.ref_name, 'v')
         with: { name: release-assets, path: release-assets/ }
