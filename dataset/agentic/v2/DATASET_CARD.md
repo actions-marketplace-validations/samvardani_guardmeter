@@ -5,7 +5,7 @@ hard benign look-alikes, **authored in each language** (not translated from
 English), across 14 attack families — the 8 v1 families plus 6 cross-lingual
 families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.md)).
 
-> **Review status — read this first.** Authored so far: **en**, **es**, **fr**, **de**, **fa**. Every row is `review_status: "authored"` and **none is native-reviewed yet** — no language is "released". The remaining 19 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
+> **Review status — read this first.** Authored so far: **en**, **es**, **pt**, **fr**, **de**, **fa**. Every row is `review_status: "authored"` and **none is native-reviewed yet** — no language is "released". The remaining 18 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
 > See [../../../docs/REVIEWER_GUIDE.md](../../../docs/REVIEWER_GUIDE.md)
 > — reviewers are named here and credited under CC-BY-4.0.
 
@@ -15,11 +15,12 @@ families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.m
 |---|---|---|---|---|---|---|
 | en | 128 | 78 | 44 | 6 | 14/14 | authored |
 | es | 122 | 73 | 44 | 5 | 14/14 | authored |
+| pt | 131 | 84 | 42 | 5 | 14/14 | authored |
 | fr | 131 | 84 | 42 | 5 | 14/14 | authored |
 | de | 129 | 84 | 40 | 5 | 14/14 | authored |
 | fa | 121 | 72 | 44 | 5 | 14/14 | authored |
 
-**Total: 631** · en 128 · es 122 · fr 131 · de 129 · fa 121
+**Total: 762** · en 128 · es 122 · pt 131 · fr 131 · de 129 · fa 121
 
 ## Attack families
 
@@ -45,10 +46,11 @@ malware. Injection targets are generic tools.
 |---|---|---|---|
 | en | authored — awaiting native review | 128 | — |
 | es | authored — awaiting native review | 122 | — |
+| pt | authored — awaiting native review | 131 | — |
 | fr | authored — awaiting native review | 131 | — |
 | de | authored — awaiting native review | 129 | — |
 | fa | authored — awaiting native review | 121 | — |
-| (19 others) | draft — awaiting authoring + review | 0 | — |
+| (18 others) | draft — awaiting authoring + review | 0 | — |
 
 ## Licence and versioning
 
