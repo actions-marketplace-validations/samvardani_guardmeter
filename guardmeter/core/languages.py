@@ -142,6 +142,31 @@ def script_ratio(text: str, script: str) -> float:
     return hits / len(letters)
 
 
+# Auxiliary scripts a language legitimately mixes into its primary script.
+# Japanese writes Han (kanji) alongside hiragana/katakana; Korean occasionally
+# mixes Han (hanja) into Hangul. Without these, a natural Japanese sentence
+# scores ~0.27 "Han" and fails the native-script check.
+_AUX_SCRIPTS: dict[str, set[str]] = {
+    "ja": {"Hiragana", "Katakana"},
+    "ko": {"Han"},
+}
+
+
+def native_script_ratio(text: str, lang: Language) -> float:
+    """Fraction of letters in ``lang``'s native writing system.
+
+    Counts the language's primary script plus any auxiliary scripts it mixes in
+    (kana for Japanese). Use this, not ``script_ratio``, for per-language
+    validation so mixed-script writing systems aren't penalised.
+    """
+    letters = [c for c in text if c.isalpha()]
+    if not letters:
+        return 0.0
+    allowed = {lang.script} | _AUX_SCRIPTS.get(lang.code, set())
+    hits = sum(1 for c in letters if script_of(c) in allowed)
+    return hits / len(letters)
+
+
 # ── Detection: script histogram + small stopword tables ──────────────────────
 _STOPWORDS: dict[str, set[str]] = {
     "en": {"the", "and", "you", "your", "please", "this", "that", "with", "for"},

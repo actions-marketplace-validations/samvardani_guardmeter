@@ -18,7 +18,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from guardmeter.core.languages import get_language, script_ratio
+from guardmeter.core.languages import get_language, native_script_ratio
 from guardmeter.data.loader import load_dataset
 from guardmeter.data.schema import ATTACK_FAMILIES, DatasetRecord
 
@@ -145,7 +145,7 @@ def validate_records(records: list[DatasetRecord]) -> list[str]:
         lang = get_language(r.language)
         if lang is None:
             continue
-        ratio = script_ratio(r.text, lang.script)
+        ratio = native_script_ratio(r.text, lang)
         if ratio < lang.min_script_ratio:
             problems.append(
                 f"{rid}: {r.language} native-script ratio {ratio:.2f} < min {lang.min_script_ratio}")
