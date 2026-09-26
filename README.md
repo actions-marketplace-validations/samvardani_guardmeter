@@ -396,4 +396,4 @@ Logo assets are in the `branding/` directory.
 
 ---
 
-*Built by [SeaTechOne LLC](https://seatechone.com) · Seattle, WA*
+*Built by [SEATECHONE LLC](https://seatechone.com) · Seattle, WA*
