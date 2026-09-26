@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from guardmeter.data.loader import load_dataset
-from guardmeter.data.schema import DatasetRecord
+from guardmeter.data.schema import ATTACK_FAMILIES, DatasetRecord
 
 _ZERO_WIDTH = "\u200b‌‍⁠﻿"
 _TARGETS = {"override", "exfiltrate", "tool_action", "persona", "none"}
@@ -81,13 +81,15 @@ def validate_records(records: list[DatasetRecord]) -> list[str]:
             problems.append(f"{r.id}: duplicate id")
         seen_ids[r.id] = i
 
-    # schema-ish: label + target enums
+    # schema-ish: label + target + family enums
     for r in records:
         rid = r.id or f"'{r.text[:30]}'"
         if r.label not in _LABELS:
             problems.append(f"{rid}: invalid label {r.label!r}")
         if r.target is not None and r.target not in _TARGETS:
             problems.append(f"{rid}: invalid target {r.target!r}")
+        if r.attack_family is not None and r.attack_family not in ATTACK_FAMILIES:
+            problems.append(f"{rid}: unknown attack_family {r.attack_family!r}")
 
     # exact duplicates (normalised text)
     seen_text: dict[str, str] = {}
