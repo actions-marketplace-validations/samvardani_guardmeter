@@ -863,6 +863,7 @@ def dataset_review_apply(packet: str, dataset_path: str, manifest_path: str | No
         apply_packet,
         load_manifest,
         refresh_language,
+        reviewed_status,
         save_manifest,
     )
 
@@ -890,7 +891,9 @@ def dataset_review_apply(packet: str, dataset_path: str, manifest_path: str | No
             refresh_language(manifest, code, records)
             entry = manifest["languages"][code]
             entry.setdefault("reviewers", []).append(summary["reviewer"])
-            entry["status"] = "in_review"
+            # Status reflects how much was actually reviewed: fully-reviewed
+            # languages become "reviewed"; partial coverage stays "in_review".
+            entry["status"] = reviewed_status(records, code)
         save_manifest(manifest_path, manifest)
     click.echo(f"Applied: {summary['counts']} · sign-off {summary['reviewer']['sign_off_sha'][:12]}")
 

@@ -65,12 +65,12 @@ AGENTIC_V1 = DatasetRelease(
 
 AGENTIC_V2 = DatasetRelease(
     name="agentic-v2",
-    tag="v0.10.1",
+    tag="v0.10.2",
     dest="dataset/agentic/v2",
     assets=(
         DatasetAsset(
             "data.jsonl",
-            "32370efbba5821566372c2e7ceac6e552e4b3ebf5f782b5ef0432333b8195636",
+            "d9f505015038e4fa5d9497288be60eae8ac3b86e436a12e1a958ab281183e798",
         ),
         DatasetAsset("DATASET_CARD.md", None),
         DatasetAsset(

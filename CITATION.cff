@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+title: GuardMeter
+message: "If you use GuardMeter or its datasets, please cite it."
+type: software
+authors:
+  - given-names: Sam
+    family-names: Vardani
+  - name: SEATECHONE LLC
+    city: Seattle
+    region: WA
+    country: US
+repository-code: "https://github.com/samvardani/guardmeter"
+url: "https://seatechone.com/guardmeter/"
+license: MIT
+version: 0.10.2

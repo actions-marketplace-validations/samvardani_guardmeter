@@ -1,9 +1,10 @@
 [project]
 name = "guardmeter"
-version = "0.10.1"
+version = "0.10.2"
 description = "Benchmark, compare, and gate AI safety guards"
 readme = "README.md"
 license = { text = "MIT" }
+authors = [{ name = "Sam Vardani" }, { name = "SEATECHONE LLC", email = "hello@seatechone.com" }]
 keywords = ["ai-safety", "guardrails", "evaluation", "benchmark", "llm"]
 classifiers = [
     "Development Status :: 4 - Beta",

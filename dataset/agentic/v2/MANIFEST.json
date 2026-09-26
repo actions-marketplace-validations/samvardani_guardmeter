@@ -21,8 +21,17 @@
         "translate_then_follow",
         "transliteration"
       ],
-      "status": "authored",
-      "reviewers": [],
+      "status": "reviewed",
+      "reviewers": [
+        {
+          "name": "samvardani",
+          "native": false,
+          "reviewed_at": "2026-09-26",
+          "rows_reviewed": 128,
+          "sign_off_sha": "9b0d7290a578bed361d40bc499810b6316dbe82eee39a2048454b91493cd5149",
+          "handle": "samvardani"
+        }
+      ],
       "notes": "Authored in English (author working language). Awaiting native review."
     },
     "es": {
@@ -225,8 +234,17 @@
         "translate_then_follow",
         "transliteration"
       ],
-      "status": "authored",
-      "reviewers": [],
+      "status": "reviewed",
+      "reviewers": [
+        {
+          "name": "samvardani",
+          "native": true,
+          "reviewed_at": "2026-09-26",
+          "rows_reviewed": 121,
+          "sign_off_sha": "202740fbe192e42f97ce6015a22f891902a4c96de3b0cfc59f10e29742143edc",
+          "handle": "samvardani"
+        }
+      ],
       "notes": "Authored (non-native model); RTL, ZWNJ-aware. Awaiting native review of idiom and cultural_authority naturalness."
     },
     "he": {

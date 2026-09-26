@@ -62,6 +62,20 @@ def reviewed_fraction(records: list[DatasetRecord], code: str) -> float:
     return sum(1 for r in rows if r.review_status == "reviewed") / len(rows)
 
 
+def reviewed_status(records: list[DatasetRecord], code: str) -> str:
+    """Manifest status implied by how many of a language's rows are reviewed.
+
+    ``reviewed`` at ≥ RELEASE_MIN_REVIEWED, ``in_review`` when partially
+    reviewed (the "partially reviewed" state), else ``authored``/``draft``.
+    """
+    frac = reviewed_fraction(records, code)
+    if frac >= RELEASE_MIN_REVIEWED:
+        return "reviewed"
+    if frac > 0:
+        return "in_review"
+    return "authored" if any(r.language == code for r in records) else "draft"
+
+
 def can_release(records: list[DatasetRecord], code: str, validator_ok: bool) -> tuple[bool, str]:
     """Whether a language may be marked released. Returns (ok, reason)."""
     frac = reviewed_fraction(records, code)

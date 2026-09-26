@@ -8,6 +8,7 @@ from guardmeter.data.review import (
     can_release,
     refresh_language,
     reviewed_fraction,
+    reviewed_status,
     status_table,
 )
 from guardmeter.data.schema import DatasetRecord
@@ -40,6 +41,17 @@ def test_apply_packet_marks_reviewed_and_signs_off():
     assert summary["counts"] == {"accept": 1, "relabel": 1, "rewrite": 0, "reject": 0, "missing": 0}
     assert len(summary["reviewer"]["sign_off_sha"]) == 64
     assert summary["reviewer"]["native"] is True
+
+
+def test_reviewed_status_full_partial_none():
+    recs = [_rec("a", "aaa", "de", "direct_override", target="override", status="reviewed"),
+            _rec("b", "bbb", "de", "direct_override", target="override", status="reviewed")]
+    assert reviewed_status(recs, "de") == "reviewed"          # 100% ≥ 90%
+    recs[1].review_status = "authored"
+    assert reviewed_status(recs, "de") == "in_review"          # 50% → partial
+    recs[0].review_status = "authored"
+    assert reviewed_status(recs, "de") == "authored"           # 0% but rows exist
+    assert reviewed_status(recs, "zz") == "draft"              # no rows
 
 
 def test_reject_sets_rejected():
