@@ -4,31 +4,46 @@ Copy and numbers for the **results strip** and the **Leaderboard** section on th
 site. Source of truth: [LEADERBOARD.md](LEADERBOARD.md) + [FIELD_NOTE_NVIDIA.md](FIELD_NOTE_NVIDIA.md),
 runs 2026-09-26, Agentic Attack Dataset, strict policy, no tuning.
 
-## Results strip (one line)
+## Results strip (25-word headline)
 
-> **GuardMeter grades safety models — locally or hosted.** Running Llama Guard 3
-> **locally** scored the full 14-language dataset with **zero errors** (recall
-> 0.283, parity gap 0.18); on NVIDIA's free tier, five of six hosted safety
-> endpoints wouldn't answer. We grade the model, not the hosting.
+> Graded content-safety models as agent guardrails: on the same rows, Claude
+> Sonnet 4.5 caught 92%, NVIDIA's Nemotron 62%, Llama Guard 17% — injection
+> judgement beats a content taxonomy.
 
-## Leaderboard section
+## Leaderboard section (Agentic v1, strict recall)
 
-| Model | Hosting | Answered | Recall | FPR | F1 |
-|---|---|---|---|---|---|
-| Llama Guard 3 (8B) | **local (Ollama)** | 1810/1810 | 0.283 | 0.003 | 0.441 |
-| Llama Guard 3 (8B) | local, v1 (en/fa) | 421/421 | 0.177 | 0.029 | 0.299 |
-| Nemotron 3.5 Content Safety | NVIDIA free tier | 263/421 | 0.615 | 0.074 | 0.750 |
-| Llama Guard 4 / NeMoGuard / Nemotron-safety | NVIDIA free tier | 0 (hung/500) | — | — | — |
+Full-v1 recall, **Answered** (scored/sent), and **Matched** = recall on exactly
+the 263 rows NVIDIA's Nemotron answered — the apples-to-apples column.
+
+| Model | Type | Answered | Full-v1 recall | Matched (263 rows) |
+|---|---|---|---|---|
+| Claude Sonnet 4.5 | chat model | 421/421 | 0.927 | **0.918** |
+| Nemotron 3.5 Content Safety | content-safety (NVIDIA) | 263/421 | 0.615 | **0.615** |
+| Llama Guard 3 (8B) | content-safety (local Ollama) | 421/421 | 0.177 | **0.174** |
+| injection-heuristic | keyword baseline | 421/421 | 0.089 | 0.062 |
+| regex-enhanced / regex-baseline | regex baseline | 421/421 | 0.003 / 0.000 | 0.005 / 0.000 |
+
+**Matched-rows sentence.** Scored on the identical 263 rows, Nemotron (0.62)
+keeps its lead over local Llama Guard 3 (0.17), but Claude Sonnet 4.5 (0.92) is
+well ahead of both dedicated safety models — for agentic injection, injection
+judgement beats a content-safety taxonomy.
+
+**Local full 14-language run** (Llama Guard 3, Agentic v2): **1810/1810 scored,
+zero errors**, recall 0.283, **parity gap 0.18** — strongest German (0.38),
+weakest Japanese (0.20). The complete multilingual run NVIDIA's free tier
+couldn't sustain.
+
+Content-safety models (Llama Guard, NVIDIA NeMoGuard/Nemotron) are hate/violence
+classifiers, not injection detectors; this measures them as agent guardrails,
+how teams commonly deploy them.
 
 ### One paragraph per model
 
-- **Llama Guard 3, local** — the honest result the framework is built to produce:
-  it answered **every** row (0 errors, p99 ~1 s), and it caught only ~28% of the
-  agentic attacks. That's expected — Llama Guard is a *content* filter, not a
-  prompt-injection detector — and it's the point: GuardMeter turns "wrong tool
-  for the job" into a number, per language and per family. Its cross-lingual
-  blind spot is real: recall ranges from 0.38 (German) to 0.20 (Japanese), a
-  0.18 parity gap.
+- **Llama Guard 3, local** — the result the framework is built to produce: it
+  answered **every** row (0 errors, p99 ~1 s), and caught ~28% of the agentic
+  attacks. As a content-safety classifier used as an agent guardrail, that's the
+  measurement — per language and per family. Its cross-lingual range is wide:
+  recall from 0.38 (German) to 0.20 (Japanese), a 0.18 parity gap.
 - **Nemotron 3.5 Content Safety, NVIDIA** — the one hosted safety endpoint that
   answered, and it scored higher (0.615) — but only on the 63% of rows the free
   tier returned before timing out.
@@ -52,4 +67,5 @@ Local chat models on the 30-scenario agent-behaviour suite: `llama3.2:3b`
 
 Results use the **GuardMeter Agentic Attack Dataset**, CC-BY-4.0. On the site,
 credit: *"Evaluated on the GuardMeter Agentic Attack Dataset (CC-BY-4.0),
-github.com/samvardani/guardmeter."* GuardMeter is MIT-licensed.
+github.com/samvardani/guardmeter."* GuardMeter is MIT-licensed and built by
+**SEATECHONE LLC**.

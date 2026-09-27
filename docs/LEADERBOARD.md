@@ -12,23 +12,45 @@ those calls are excluded from the metrics (never counted as a pass).
 
 ## Leaderboard
 
-| Guard | Hosting | Dataset | Recall | FPR | F1 | Answered | p99 ms |
-|---|---|---|---|---|---|---|---|
-| `ollama:llama-guard3` | **local** | Agentic v2 (14 langs) | 0.283 | 0.003 | 0.441 | **1810/1810** | 1019 |
-| `ollama:llama-guard3` | **local** | Agentic v1 (en/fa) | 0.177 | 0.029 | 0.299 | **421/421** | 3311 |
-| `nvidia:nemotron-3.5-content-safety` | NVIDIA free tier | Agentic v1 (en/fa) | 0.615 | 0.074 | 0.750 | 263/421 | 85616 |
-| `nvidia:llama-guard-4` | NVIDIA free tier | — | — | — | — | 0/40 (hung) | — |
-| `nvidia:nemoguard-content-safety` | NVIDIA free tier | — | — | — | — | 0/40 (hung) | — |
-| `nvidia:nemotron-safety-guard-8b-v3` | NVIDIA free tier | — | — | — | — | 0/40 (hung) | — |
-| `nvidia:nemoguard-topic-control` | NVIDIA free tier | — | — | — | — | 0 (500) | — |
-| `nvidia:llama-guard-3-8b` | NVIDIA free tier | — | — | — | — | not hosted | — |
+Agentic v1 (421 rows, en/fa), strict recall. **Answered** = scored/sent.
+**Matched** = strict recall on exactly the **263 rows `nemotron-3.5` answered**
+(195 positives), so every guard is compared on the same rows — computed with
+`guardmeter compare --rows-from <nemotron run>` for the local guards and from the
+stored Sonnet 4.5 / nemotron predictions (no new API calls).
 
-**Reading it.** Llama Guard is a *content*-safety model, so it flags overtly
-harmful content but passes most agentic **injection** (tool-misuse, override,
-persona) as benign — hence the low recall, honestly reported. The lesson isn't
-"Llama Guard is bad"; it's that a content filter is the wrong tool for
-prompt-injection, and GuardMeter makes that a number. `nemotron-3.5-content-safety`
-scores higher (0.615) but only on the 63% of rows NVIDIA's free tier returned.
+| Guard | Type | Full-v1 recall | Answered | **Recall on nemotron's 263 rows** |
+|---|---|---|---|---|
+| `anthropic` (Claude Sonnet 4.5) | chat model | 0.927 | 421/421 | **0.918** |
+| `nvidia:nemotron-3.5-content-safety` | content-safety (hosted) | 0.615 | 263/421 | **0.615** |
+| `ollama:llama-guard3` | content-safety (local) | 0.177 | 421/421 | **0.174** |
+| `injection-heuristic` | keyword baseline | 0.089 | 421/421 | **0.062** |
+| `regex-enhanced` | regex baseline | 0.003 | 421/421 | **0.005** |
+| `regex-baseline` | regex baseline | 0.000 | 421/421 | **0.000** |
+
+> **What these models are.** Llama Guard 3 and the NVIDIA safety models are
+> **content-safety classifiers** (hate, violence, self-harm, etc.), not
+> prompt-injection detectors. This table measures how they do when used as an
+> **agent guardrail** — which is how teams commonly deploy them.
+
+**The matched-rows finding.** On the identical 263 rows, `nemotron-3.5` (0.615)
+holds its lead over the local content-safety guard `llama-guard3` (0.174) — its
+partial run wasn't flattering it. But a general-purpose chat model used as a
+guard, **Claude Sonnet 4.5 (0.918)**, is well ahead of both dedicated safety
+models on agentic injection, and the keyword/regex baselines are near zero. For
+this workload, injection-aware judgement beats a content-safety taxonomy.
+
+### NVIDIA endpoints that didn't answer
+
+| Guard | Model | Answered |
+|---|---|---|
+| `nvidia:llama-guard-4` | `meta/llama-guard-4-12b` | 0/40 (hung) |
+| `nvidia:nemoguard-content-safety` | `nvidia/llama-3.1-nemoguard-8b-content-safety` | 0/40 (hung) |
+| `nvidia:nemotron-safety-guard-8b-v3` | `nvidia/llama-3.1-nemotron-safety-guard-8b-v3` | 0/40 (hung) |
+| `nvidia:nemoguard-topic-control` | `nvidia/llama-3.1-nemoguard-8b-topic-control` | 0 (500) |
+| `nvidia:llama-guard-3-8b` | `meta/llama-guard-3-8b` | not hosted |
+
+See [FIELD_NOTE_NVIDIA.md](FIELD_NOTE_NVIDIA.md). Every number above traces to a
+run file under [`evidence/leaderboard/`](evidence/leaderboard/).
 
 ## Local `ollama:llama-guard3` — full 14-language v2 (strict recall)
 
