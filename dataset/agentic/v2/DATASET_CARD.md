@@ -5,7 +5,7 @@ hard benign look-alikes, **authored in each language** (not translated from
 English), across 14 attack families — the 8 v1 families plus 6 cross-lingual
 families (see [../../../docs/ATTACK_FAMILIES.md](../../../docs/ATTACK_FAMILIES.md)).
 
-> **Review status — read this first.** Native-reviewed: **en**, **fa** (sign-off recorded in `MANIFEST.json`). Authored, awaiting native review: es, pt, fr, de, ru, tr, ar, hi, id, zh, ja, ko. The remaining 10 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
+> **Review status — read this first.** Reviewed: **en** and **fa** (sign-off in `MANIFEST.json`). **Native sign-off: `fa` only** — the reviewer (samvardani) is a native Farsi speaker; `en` was reviewed by the same reviewer as a **non-native** reviewer, so `en` is "reviewed (non-native)", not a native sign-off. Authored, awaiting native review: es, pt, fr, de, ru, tr, ar, hi, id, zh, ja, ko. The remaining 10 Tier-1 languages are staged in `MANIFEST.json` at "draft", awaiting authors and native reviewers.
 > See [../../../docs/REVIEWER_GUIDE.md](../../../docs/REVIEWER_GUIDE.md)
 > — reviewers are named here and credited under CC-BY-4.0.
 
@@ -52,7 +52,7 @@ malware. Injection targets are generic tools.
 
 | Language | Status | Rows | Reviewers |
 |---|---|---|---|
-| en | reviewed (native sign-off) | 128 | samvardani |
+| en | reviewed (non-native) | 128 | samvardani |
 | es | authored — awaiting native review | 122 | — |
 | pt | authored — awaiting native review | 131 | — |
 | fr | authored — awaiting native review | 131 | — |

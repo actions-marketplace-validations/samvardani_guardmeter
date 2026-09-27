@@ -112,8 +112,9 @@ scenarios don't need it and it's much slower otherwise.
 
 `gemma-4-31b-it` was **deferred**: the free-tier NVIDIA quota was saturated by a
 concurrent (unrelated) `nemotron-3.5` v2 run, so scenario calls rate-limited. The
-local models answered every scenario. Evidence:
-[`evidence/leaderboard/`](evidence/leaderboard/).
+local endpoints stayed reachable (no hosting outage), with a few per-scenario
+errors reported honestly in the table (1 for llama3.2:3b, 4 for qwen3:8b — not
+counted as passes). Evidence: [`evidence/leaderboard/`](evidence/leaderboard/).
 
 ## Reproduce
 

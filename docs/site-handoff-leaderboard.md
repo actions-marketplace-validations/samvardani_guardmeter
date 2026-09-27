@@ -61,7 +61,8 @@ becomes a silent pass: it's an `error`, surfaced in the *Answered* column, with
 ## Endpoint scenarios (bonus)
 
 Local chat models on the 30-scenario agent-behaviour suite: `llama3.2:3b`
-**48%** pass, `qwen3:8b` **58%** pass (`/no_think`). Both answered every scenario.
+**48%** pass, `qwen3:8b` **58%** pass (`/no_think`). Both ran locally (reachable
+throughout); a few per-scenario errors are reported in the table, not counted as passes.
 
 ## Credit (required)
 

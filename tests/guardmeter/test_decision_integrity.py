@@ -127,3 +127,20 @@ def test_latest_run_can_exclude_current(tmp_path, sample_records, regex_baseline
     prev = store.latest_run(exclude_run_id=latest.run_id)
     assert prev is not None and prev.run_id == first.run_id
     assert store.latest_run(exclude_run_id=first.run_id).run_id == latest.run_id
+
+
+# ── review item 9: packet must not default to accept ─────────────────────────
+
+def test_pending_decision_does_not_mark_reviewed():
+    from guardmeter.data.review import apply_packet, build_packet
+    from guardmeter.data.schema import DatasetRecord
+
+    recs = [DatasetRecord(id="agn-1", text="متن حمله فارسی", language="fa", label="unsafe",
+                          category="prompt_injection", attack_family="direct_override", target="override")]
+    jsonl, _md = build_packet(recs, "fa", "rev")
+    # The generated packet defaults every row to "pending", not "accept".
+    assert '"decision": "pending"' in jsonl and '"decision": "accept"' not in jsonl
+    import json as _json
+    decisions = [_json.loads(line) for line in jsonl.splitlines() if line.strip()]
+    apply_packet(recs, decisions, "rev", native=True, when="2026-09-27")
+    assert recs[0].review_status != "reviewed"  # pending row is not signed off

@@ -38,7 +38,8 @@ def test_apply_packet_marks_reviewed_and_signs_off():
     summary = apply_packet(recs, decisions, "Sam", native=True, when="2026-10-01")
     assert recs[0].review_status == "reviewed"
     assert recs[1].review_status == "reviewed" and recs[1].label == "borderline"
-    assert summary["counts"] == {"accept": 1, "relabel": 1, "rewrite": 0, "reject": 0, "missing": 0}
+    assert summary["counts"] == {"accept": 1, "relabel": 1, "rewrite": 0, "reject": 0,
+                                 "pending": 0, "missing": 0}
     assert len(summary["reviewer"]["sign_off_sha"]) == 64
     assert summary["reviewer"]["native"] is True
 
