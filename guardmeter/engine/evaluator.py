@@ -257,10 +257,12 @@ class Evaluator:
             base_language_slices[pol] = compute_slices(base_preds, self.dataset, pol, ["language"])
             cand_language_slices[pol] = compute_slices(cand_preds, self.dataset, pol, ["language"])
 
-        # McNemar significance test on primary policy
+        # McNemar significance test on primary policy (errored pairs excluded)
+        mcnemar_excluded = 0
         try:
             import scipy.stats  # noqa: F401  (availability check)
-            _, mcnemar_p = mcnemar_test(base_preds, cand_preds, self.dataset, policy=self.config.policy)
+            _, mcnemar_p, mcnemar_excluded = mcnemar_test(
+                base_preds, cand_preds, self.dataset, policy=self.config.policy)
         except ImportError:
             logger.warning("scipy not available; skipping McNemar test")
             mcnemar_p = None
@@ -332,5 +334,6 @@ class Evaluator:
                 "python_version": platform.python_version(),
                 "policy": self.config.policy,
                 "dataset_path": self.config.dataset_path,
+                "mcnemar_excluded_pairs": mcnemar_excluded,
             },
         )
