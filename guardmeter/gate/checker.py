@@ -226,7 +226,8 @@ class GateChecker:
         if self.config.comparison and self.store is not None:
             prev = None
             try:
-                prev = self.store.latest_run()  # type: ignore[attr-defined]
+                # Never let a run be its own "previous" — exclude the current run_id.
+                prev = self.store.latest_run(exclude_run_id=results.run_id)  # type: ignore[attr-defined]
             except Exception as exc:  # noqa: BLE001 (intentional resilience boundary)
                 logger.warning("Could not load previous run for comparison: %s", exc)
             if prev is not None:

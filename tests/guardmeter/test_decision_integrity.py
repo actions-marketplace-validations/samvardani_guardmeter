@@ -110,3 +110,20 @@ def test_language_slices_survive_sqlite_roundtrip(tmp_path, sample_records, rege
     store.save_run(results)
     loaded = store.get_run(results.run_id)
     assert loaded.candidate_language_slices == results.candidate_language_slices
+
+
+# ── review item 3: a run must not be its own "previous" (gate self-comparison) ─
+
+def test_latest_run_can_exclude_current(tmp_path, sample_records, regex_baseline, regex_enhanced):
+    from guardmeter.engine.evaluator import EvalConfig, Evaluator
+    from guardmeter.store.sqlite import SQLiteStore
+
+    store = SQLiteStore(db_path=str(tmp_path / "h.db"))
+    first = Evaluator(regex_baseline, regex_enhanced, sample_records, EvalConfig()).run()
+    store.save_run(first)
+    latest = Evaluator(regex_baseline, regex_enhanced, sample_records, EvalConfig()).run()
+    store.save_run(latest)
+    # Excluding the latest run yields the earlier one — never itself.
+    prev = store.latest_run(exclude_run_id=latest.run_id)
+    assert prev is not None and prev.run_id == first.run_id
+    assert store.latest_run(exclude_run_id=first.run_id).run_id == latest.run_id

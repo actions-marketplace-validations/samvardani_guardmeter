@@ -286,12 +286,20 @@ class SQLiteStore(RunStore):
             conn.commit()
             return cur.rowcount > 0
 
-    def latest_run(self) -> EvalResults | None:
-        """Return the most recently saved EvalResults, or None if empty."""
+    def latest_run(self, exclude_run_id: str | None = None) -> EvalResults | None:
+        """Return the most recently saved EvalResults, optionally excluding one run.
+
+        ``exclude_run_id`` prevents a gate from comparing a run against itself.
+        """
         with closing(self._connect()) as conn:
-            row = conn.execute(
-                f"SELECT {self._RUN_COLS} FROM runs ORDER BY timestamp DESC LIMIT 1"
-            ).fetchone()
+            if exclude_run_id:
+                row = conn.execute(
+                    f"SELECT {self._RUN_COLS} FROM runs WHERE run_id != ? "
+                    "ORDER BY timestamp DESC LIMIT 1", (exclude_run_id,)).fetchone()
+            else:
+                row = conn.execute(
+                    f"SELECT {self._RUN_COLS} FROM runs ORDER BY timestamp DESC LIMIT 1"
+                ).fetchone()
         if row is None:
             return None
         return self._row_to_results(row)

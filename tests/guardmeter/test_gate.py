@@ -151,7 +151,7 @@ class TestRegressionCheck:
         # Override latest_run to return prev as the baseline
 
         class MockStore:
-            def latest_run(self):
+            def latest_run(self, exclude_run_id=None):
                 return prev
 
         checker.store = MockStore()

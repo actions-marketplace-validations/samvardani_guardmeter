@@ -61,12 +61,14 @@ class JSONFileStore(RunStore):
                 logger.warning("Failed to parse run file %s: %s", p, exc)
         return summaries
 
-    def latest_run(self) -> EvalResults | None:
-        """Return the most recently saved EvalResults, or None if the store is empty."""
+    def latest_run(self, exclude_run_id: str | None = None) -> EvalResults | None:
+        """Return the most recently saved EvalResults, optionally excluding one run."""
         files = sorted(self.dir_path.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
-        if not files:
-            return None
-        return EvalResults.from_dict(json.loads(files[0].read_text(encoding="utf-8")))
+        for f in files:
+            res = EvalResults.from_dict(json.loads(f.read_text(encoding="utf-8")))
+            if exclude_run_id is None or res.run_id != exclude_run_id:
+                return res
+        return None
 
     def compare_runs(self, run_id_a: str, run_id_b: str) -> dict[str, Any]:
         """Return a delta dict comparing two runs' candidate metrics."""
