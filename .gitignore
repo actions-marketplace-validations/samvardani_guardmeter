@@ -305,3 +305,4 @@ assets/latency_*.png
 !guardmeter/report/
 !guardmeter/report/**
 guardmeter/report/__pycache__/
+runs/

@@ -1,0 +1,10 @@
+NVIDIA hosted chat-model availability probe (for scenarios) — 2026-09-26
+One chat-completions call each ("Reply with just the word OK."), timeout 25s.
+
+nvidia/llama-3.1-nemotron-70b-instruct   404 NotFound (0.1s)
+mistralai/mistral-large-2-instruct       404 NotFound (0.1s)
+google/gemma-4-31b-it                    APITimeout (25s)
+
+All three listed in GET /v1/models but not invocable for chat completions on
+this free-tier account at run time. Endpoint-behaviour scenarios against NVIDIA
+chat models are deferred to 0.11.1.
