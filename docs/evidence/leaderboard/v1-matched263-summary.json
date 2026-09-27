@@ -1,0 +1,19 @@
+{
+  "matched_from_run": "afbf2891 (nvidia:nemotron-3.5-content-safety)",
+  "matched_rows": 263,
+  "positives": 195,
+  "strict_recall_on_matched": {
+    "anthropic (Claude Sonnet 4.5)": 0.918,
+    "nvidia:nemotron-3.5-content-safety": 0.615,
+    "ollama:llama-guard3": 0.174,
+    "injection-heuristic": 0.062,
+    "regex-enhanced": 0.005,
+    "regex-baseline": 0.0
+  },
+  "source_runs": {
+    "nemotron": "afbf2891",
+    "anthropic": "45c2b4c3",
+    "llama-guard3(matched)": "9f0b9fd7",
+    "regex(matched)": "3e539a36"
+  }
+}

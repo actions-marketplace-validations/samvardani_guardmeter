@@ -44,6 +44,20 @@ def _load_gate_config(config_path: str):
         raise click.ClickException(str(exc)) from exc
 
 
+def _norm_row_text(text: str) -> str:
+    """Whitespace-normalised row text, for matching rows across runs (no stored id)."""
+    return " ".join(text.split())
+
+
+def _answered_texts(store, run_id: str) -> set[str]:
+    """Normalised texts of rows a stored run's candidate actually answered (non-error)."""
+    try:
+        run = store.get_run(run_id)
+    except KeyError as exc:
+        raise click.ClickException(f"--rows-from: run {run_id!r} not found in the store.") from exc
+    return {_norm_row_text(s.text) for s in run.sample_results if s.candidate_pred != "error"}
+
+
 @click.group()
 @click.version_option()
 def cli() -> None:
@@ -120,6 +134,9 @@ def probe_nvidia(timeout: float) -> None:
               help="Max requests/min for hosted guards (nvidia default 35); caps rate to the account limit")
 @click.option("--resume", "resume_path", default=None, type=click.Path(),
               help="Checkpoint file: skip rows already scored so a crash/sleep doesn't restart from zero")
+@click.option("--rows-from", "rows_from", default=None,
+              help="Restrict to the rows a prior RUN_ID actually answered (its candidate's "
+                   "non-error rows) — for apples-to-apples scoring on a partial run's matched subset")
 def compare(
     baseline: str,
     candidate: str,
@@ -132,6 +149,7 @@ def compare(
     candidate_config: str | None,
     rpm: float | None,
     resume_path: str | None,
+    rows_from: str | None,
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
     from guardmeter.data.loader import load_dataset
@@ -147,6 +165,15 @@ def compare(
     _log(f"Loading dataset: {dataset}")
     records = load_dataset(dataset)
     _log(f"  {len(records)} records loaded")
+
+    if rows_from:
+        answered = _answered_texts(_get_store(store_path), rows_from)
+        before = len(records)
+        records = [r for r in records if _norm_row_text(r.text) in answered]
+        _log(f"  --rows-from {rows_from[:8]}: kept {len(records)}/{before} rows that run answered")
+        if not records:
+            raise click.ClickException(
+                f"No dataset rows matched the answered rows of run {rows_from!r}.")
 
     _log(f"Instantiating guards: baseline={baseline!r}, candidate={candidate!r}")
     base_guard = _resolve_guard(baseline, baseline_config, rpm=rpm)
