@@ -5,7 +5,9 @@ from __future__ import annotations
 import datetime
 import json
 import logging
+import os
 import platform
+import threading
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -93,6 +95,50 @@ class EvalConfig:
     include_lenient: bool = True  # also compute lenient-policy metrics
     concurrency: int = 1  # >1 evaluates guard calls in a thread pool
     dataset_path: str | None = None  # recorded in environment for reproducibility
+    resume_path: str | None = None  # checkpoint file: skip already-scored rows
+
+
+def _guard_key(guard: Guard) -> str:
+    """Stable identity for a guard's checkpoint rows (name + model if any)."""
+    try:
+        model = str(guard.describe().get("model", ""))
+    except Exception:  # noqa: BLE001 — describe is best-effort metadata
+        model = ""
+    return f"{guard.name}|{model}"
+
+
+class _Checkpoint:
+    """Append-only JSONL of scored rows, keyed by (guard, row index).
+
+    Lets a long hosted run resume after a crash or sleep instead of paying for
+    every row again. Thread-safe appends; reused rows are loaded up front.
+    """
+
+    def __init__(self, path: str | None) -> None:
+        self.path = path
+        self._done: dict[tuple[str, int], GuardResult] = {}
+        self._lock = threading.Lock()
+        if path and os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    r = json.loads(line)
+                    self._done[(r["guard"], r["i"])] = GuardResult(
+                        prediction=r["pred"], score=r["score"], latency_ms=r["lat"],
+                        metadata=r.get("meta", {}))
+
+    def get(self, key: str, i: int) -> GuardResult | None:
+        return self._done.get((key, i))
+
+    def put(self, key: str, i: int, res: GuardResult) -> None:
+        if not self.path:
+            return
+        row = {"guard": key, "i": i, "pred": res.prediction, "score": res.score,
+               "lat": res.latency_ms, "meta": res.metadata}
+        with self._lock, open(self.path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 class Evaluator:
@@ -114,6 +160,7 @@ class Evaluator:
         self.config = config or EvalConfig()
         self.judge = judge
         self.on_progress = on_progress
+        self._checkpoint = _Checkpoint(self.config.resume_path)
 
     def _predict_all(self, guard: Guard, records: list[DatasetRecord], done: int, total: int) -> list[Any]:
         """Predict all records; pass per-record context and report progress.
@@ -124,9 +171,16 @@ class Evaluator:
         miscounted. Results stay in input order regardless of completion order.
         """
         preds: list[Any] = [None] * len(records)
+        ckpt = self._checkpoint
+        key = _guard_key(guard)
 
         def work(i: int, rec: DatasetRecord) -> tuple[int, GuardResult]:
-            return i, call_with_retry(guard, rec.text, rec.context)
+            cached = ckpt.get(key, i)
+            if cached is not None:
+                return i, cached
+            res = call_with_retry(guard, rec.text, rec.context)
+            ckpt.put(key, i, res)
+            return i, res
 
         if self.config.concurrency > 1:
             with ThreadPoolExecutor(max_workers=self.config.concurrency) as ex:
@@ -138,7 +192,7 @@ class Evaluator:
                         self.on_progress(done + n + 1, total)
         else:
             for i, rec in enumerate(records):
-                preds[i] = call_with_retry(guard, rec.text, rec.context)
+                _, preds[i] = work(i, rec)
                 if self.on_progress is not None:
                     self.on_progress(done + i + 1, total)
         return preds
