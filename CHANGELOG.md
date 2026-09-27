@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.11.2] - 2026-09-27
+### Added
+- **`compare --rows-from RUN_ID`** — restrict a run to exactly the rows a prior
+  run's candidate answered (non-error), matched by normalised text, so a partial
+  hosted run becomes comparable. Used to re-score every v1 guard on NVIDIA
+  nemotron's 263 answered rows.
+### Changed
+- **Comparable leaderboard.** `docs/LEADERBOARD.md` gains a "Recall on nemotron's
+  263 rows" matched column and full-v1 context rows for the regex/keyword
+  baselines and Claude Sonnet 4.5 (every number traces to a run file under
+  `docs/evidence/leaderboard/`). Matched: Sonnet 4.5 0.918, nemotron-3.5 0.615,
+  llama-guard3 0.174, injection-heuristic 0.062, regex ~0. Neutral framing added
+  (content-safety classifiers measured as agent guardrails); site handoff updated.
+
+## [0.11.1] - 2026-09-26
+### Added
+- **Ollama local guard family.** `ollama:<preset>` / `ollama:chat:<model>` over
+  the local OpenAI-compatible endpoint (`http://localhost:11434/v1`) — no rate
+  limit, no key. `ollama:llama-guard3` reuses the shared safety parsers
+  (extracted to `guardmeter/guards/_hosted.py`, shared with the nvidia family).
+- **`guardmeter probe nvidia`** — one call per NVIDIA safety preset (listed /
+  answered / 404 / hung + latency) so you can see which endpoints answer before
+  committing wall-clock. Schedules nothing.
+- **Leaderboard rerun on endpoints that answer.** `docs/LEADERBOARD.md` gains
+  Hosting (local / NVIDIA free tier) and Answered (scored/sent) columns.
+  `ollama:llama-guard3` graded the **full 14-language v2 locally with zero
+  errors** (recall 0.283, FPR 0.003, F1 0.441, parity gap 0.18) — the run
+  NVIDIA's free tier couldn't sustain. NVIDIA outage detail moved to
+  `docs/FIELD_NOTE_NVIDIA.md` (1 of 6 endpoints answered). Endpoint scenarios via
+  local Ollama chat models (`llama3.2:3b`, `qwen3:8b` with `/no_think`).
+### Notes
+- Grading Llama Guard shows it's a *content* filter, not an injection detector:
+  it answered every row but caught ~28% of agentic attacks (honestly reported),
+  weakest on Japanese (0.20) vs German (0.38). The GGUF import for
+  `nemotron-safety-guard-8b-v3` fits 18 GB but behaves as a chat model without
+  its system prompt (skipped, documented); `nemoguard-content-safety` has no
+  GGUF. The 0.11.0 detached NVIDIA v2 run was left untouched.
+
 ## [0.11.0] - 2026-09-26
 ### Added
 - **NVIDIA-hosted guard family.** `nvidia:<preset>` grades NVIDIA's dedicated

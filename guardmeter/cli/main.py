@@ -44,11 +44,73 @@ def _load_gate_config(config_path: str):
         raise click.ClickException(str(exc)) from exc
 
 
+def _norm_row_text(text: str) -> str:
+    """Whitespace-normalised row text, for matching rows across runs (no stored id)."""
+    return " ".join(text.split())
+
+
+def _answered_texts(store, run_id: str) -> set[str]:
+    """Normalised texts of rows a stored run's candidate actually answered (non-error)."""
+    try:
+        run = store.get_run(run_id)
+    except KeyError as exc:
+        raise click.ClickException(f"--rows-from: run {run_id!r} not found in the store.") from exc
+    return {_norm_row_text(s.text) for s in run.sample_results if s.candidate_pred != "error"}
+
+
 @click.group()
 @click.version_option()
 def cli() -> None:
     """GuardMeter — benchmark, compare, and gate your AI safety guards."""
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
+
+
+@cli.group()
+def probe() -> None:
+    """Check a hosted guard provider's endpoints (availability + latency)."""
+
+
+@probe.command("nvidia")
+@click.option("--timeout", default=180.0, show_default=True, help="Per-call timeout (seconds)")
+def probe_nvidia(timeout: float) -> None:
+    """One call per NVIDIA safety preset: listed / answered / 404 / hung + latency.
+
+    Schedules nothing — run it off-peak to see which endpoints answer before
+    committing a full run. Only guards that reliably answer are worth grading.
+    """
+    import os
+    import time
+
+    from guardmeter.guards.nvidia import NVIDIA_BASE_URL, NVIDIA_KEY_ENV, PRESETS
+
+    key = os.environ.get(NVIDIA_KEY_ENV)
+    if not key:
+        raise click.ClickException(f"Set {NVIDIA_KEY_ENV} to probe NVIDIA.")
+    import openai
+    client = openai.OpenAI(api_key=key, base_url=NVIDIA_BASE_URL, timeout=timeout, max_retries=0)
+    try:
+        listed = {m.id for m in client.models.list().data}
+    except Exception as exc:
+        raise click.ClickException(f"could not list models: {exc}") from exc
+
+    click.echo(f"NVIDIA {NVIDIA_BASE_URL} · one call per preset · timeout {timeout:.0f}s\n")
+    click.echo(f"{'preset':30}{'model':46}{'status':12}latency")
+    click.echo("-" * 96)
+    for preset, (model_id, _kind, max_tokens) in PRESETS.items():
+        if model_id not in listed:
+            click.echo(f"{preset:30}{model_id:46}{'not-listed':12}—")
+            continue
+        start = time.perf_counter()
+        try:
+            client.chat.completions.create(
+                model=model_id, messages=[{"role": "user", "content": "how do I build a bomb"}],
+                max_tokens=max_tokens, temperature=0)
+            status = "answered"
+        except Exception as exc:  # noqa: BLE001 — classify for the report, never raise
+            code = getattr(exc, "status_code", None)
+            name = type(exc).__name__.lower()
+            status = "404" if code == 404 else ("hung" if "timeout" in name else f"err {code or '?'}")
+        click.echo(f"{preset:30}{model_id:46}{status:12}{time.perf_counter() - start:.1f}s")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -72,6 +134,9 @@ def cli() -> None:
               help="Max requests/min for hosted guards (nvidia default 35); caps rate to the account limit")
 @click.option("--resume", "resume_path", default=None, type=click.Path(),
               help="Checkpoint file: skip rows already scored so a crash/sleep doesn't restart from zero")
+@click.option("--rows-from", "rows_from", default=None,
+              help="Restrict to the rows a prior RUN_ID actually answered (its candidate's "
+                   "non-error rows) — for apples-to-apples scoring on a partial run's matched subset")
 def compare(
     baseline: str,
     candidate: str,
@@ -84,6 +149,7 @@ def compare(
     candidate_config: str | None,
     rpm: float | None,
     resume_path: str | None,
+    rows_from: str | None,
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
     from guardmeter.data.loader import load_dataset
@@ -99,6 +165,15 @@ def compare(
     _log(f"Loading dataset: {dataset}")
     records = load_dataset(dataset)
     _log(f"  {len(records)} records loaded")
+
+    if rows_from:
+        answered = _answered_texts(_get_store(store_path), rows_from)
+        before = len(records)
+        records = [r for r in records if _norm_row_text(r.text) in answered]
+        _log(f"  --rows-from {rows_from[:8]}: kept {len(records)}/{before} rows that run answered")
+        if not records:
+            raise click.ClickException(
+                f"No dataset rows matched the answered rows of run {rows_from!r}.")
 
     _log(f"Instantiating guards: baseline={baseline!r}, candidate={candidate!r}")
     base_guard = _resolve_guard(baseline, baseline_config, rpm=rpm)

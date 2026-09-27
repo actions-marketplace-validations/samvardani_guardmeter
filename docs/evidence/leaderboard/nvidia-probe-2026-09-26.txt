@@ -1,0 +1,11 @@
+NVIDIA https://integrate.api.nvidia.com/v1 · one call per preset · timeout 60s
+
+preset                        model                                         status      latency
+------------------------------------------------------------------------------------------------
+llama-guard-3-8b              meta/llama-guard-3-8b                         not-listed  —
+llama-guard-4                 meta/llama-guard-4-12b                        hung        60.0s
+nemoguard-content-safety      nvidia/llama-3.1-nemoguard-8b-content-safety  hung        60.2s
+nemoguard-topic-control       nvidia/llama-3.1-nemoguard-8b-topic-control   err 500     0.9s
+nemotron-safety-guard-8b-v3   nvidia/llama-3.1-nemotron-safety-guard-8b-v3  hung        60.0s
+nemotron-3.5-content-safety   nvidia/nemotron-3.5-content-safety            err 429     0.3s
+(nemotron-3.5-content 429 because the untouched nvidia-v2 job was consuming the 35-rpm quota at probe time)

@@ -250,3 +250,37 @@ def test_compare_end_to_end(runner, tmp_path):
     ])
     assert result.exit_code == 0, result.output
     assert "Run ID:" in result.output
+
+
+def test_probe_nvidia_requires_key(runner, monkeypatch):
+    """`probe nvidia` fails cleanly (non-zero, clear message) when the key is unset."""
+    from guardmeter.cli.main import cli
+
+    monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
+    result = runner.invoke(cli, ["probe", "nvidia"])
+    assert result.exit_code != 0
+    assert "NVIDIA_API_KEY" in result.output
+
+
+def test_rows_from_helpers():
+    """--rows-from matches rows by normalised text and keeps only answered ones."""
+    from guardmeter.cli.main import _answered_texts, _norm_row_text
+
+    assert _norm_row_text("  a   b\tc ") == "a b c"
+
+    class _Row:
+        def __init__(self, text, pred):
+            self.text = text
+            self.candidate_pred = pred
+
+    class _Run:
+        def __init__(self):
+            self.sample_results = [_Row("keep me", "flag"), _Row("also keep", "pass"),
+                                   _Row("drop me", "error")]
+
+    class _Store:
+        def get_run(self, rid):
+            return _Run()
+
+    answered = _answered_texts(_Store(), "r1")
+    assert answered == {"keep me", "also keep"}  # the error row is excluded

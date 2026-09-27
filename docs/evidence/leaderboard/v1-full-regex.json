@@ -1,0 +1,81 @@
+{
+  "run_id": "cf22f96f-28d2-478e-8412-6c809e1342af",
+  "baseline_name": "regex-baseline",
+  "candidate_name": "regex-enhanced",
+  "dataset_sha": "5c6902dcc0bbd473e3d1cdef3bfeddbc0b7fdc00c91e8fa5dc7499c4dcfa3f82",
+  "candidate_metrics": {
+    "strict": {
+      "tp": 1,
+      "fp": 0,
+      "tn": 105,
+      "fn": 315,
+      "precision": 1.0,
+      "recall": 0.0032,
+      "f1": 0.0064,
+      "fpr": 0.0,
+      "fnr": 0.9968,
+      "recall_lo": 0.0006,
+      "recall_hi": 0.0177,
+      "fpr_lo": 0.0,
+      "fpr_hi": 0.0353,
+      "latency_p50": 0.0,
+      "latency_p90": 0.0,
+      "latency_p95": 0.0,
+      "latency_p99": 0.0,
+      "latency_mean": 0.0,
+      "latency_max": 1.0,
+      "hijacked": 0,
+      "hijack_rate": 0.0,
+      "error_count": 0,
+      "error_rate": 0.0
+    },
+    "lenient": {
+      "tp": 0,
+      "fp": 1,
+      "tn": 119,
+      "fn": 301,
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1": 0.0,
+      "fpr": 0.0083,
+      "fnr": 1.0,
+      "recall_lo": 0.0,
+      "recall_hi": 0.0126,
+      "fpr_lo": 0.0015,
+      "fpr_hi": 0.0457,
+      "latency_p50": 0.0,
+      "latency_p90": 0.0,
+      "latency_p95": 0.0,
+      "latency_p99": 0.0,
+      "latency_mean": 0.0,
+      "latency_max": 1.0,
+      "hijacked": 0,
+      "hijack_rate": 0.0,
+      "error_count": 0,
+      "error_rate": 0.0
+    }
+  },
+  "candidate_error_count": 0,
+  "candidate_error_rate": 0.0,
+  "guard_info": {
+    "baseline": {
+      "name": "regex-baseline",
+      "version": "1.0.0",
+      "profile": "baseline",
+      "threshold": 0.5
+    },
+    "candidate": {
+      "name": "regex-enhanced",
+      "version": "1.0.0",
+      "profile": "enhanced",
+      "threshold": 0.5
+    }
+  },
+  "environment": {
+    "guardmeter_version": "0.11.1",
+    "python_version": "3.13.12",
+    "policy": "strict",
+    "dataset_path": "dataset/agentic/v1/data.jsonl"
+  },
+  "mcnemar_p": 1.0
+}

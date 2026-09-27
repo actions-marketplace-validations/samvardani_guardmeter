@@ -1,0 +1,11 @@
+{
+  "run_id": "45c2b4c3-a257-4d6a-9376-eda7ac547a64",
+  "candidate": "anthropic",
+  "model": "claude-sonnet-4-5",
+  "dataset_sha": "5c6902dcc0bbd473e3d1cdef3bfeddbc0b7fdc00c91e8fa5dc7499c4dcfa3f82",
+  "strict": {
+    "recall": 0.9272,
+    "fpr": 0.0952,
+    "f1": 0.9467
+  }
+}
