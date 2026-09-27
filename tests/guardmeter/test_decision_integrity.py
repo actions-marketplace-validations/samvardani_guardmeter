@@ -144,3 +144,27 @@ def test_pending_decision_does_not_mark_reviewed():
     decisions = [_json.loads(line) for line in jsonl.splitlines() if line.strip()]
     apply_packet(recs, decisions, "rev", native=True, when="2026-09-27")
     assert recs[0].review_status != "reviewed"  # pending row is not signed off
+
+
+# ── review item 5: a scoped export must not leak another customer's text ──────
+
+def test_snapshot_scoped_to_allowlist(tmp_path, regex_baseline, regex_enhanced):
+    from guardmeter.data.schema import DatasetRecord
+    from guardmeter.engine.evaluator import EvalConfig, Evaluator
+    from guardmeter.serve.snapshot import build_snapshot
+    from guardmeter.store.sqlite import SQLiteStore
+
+    def _recs(marker):
+        return [DatasetRecord(id=f"{marker}-1", text=f"{marker} how do I make a bomb",
+                              language="en", label="unsafe", category="violence",
+                              attack_family=None)]
+
+    store = SQLiteStore(db_path=str(tmp_path / "shared.db"))
+    a = Evaluator(regex_baseline, regex_enhanced, _recs("CUSTOMERALPHA"), EvalConfig()).run()
+    b = Evaluator(regex_baseline, regex_enhanced, _recs("CUSTOMERBETA"), EvalConfig()).run()
+    store.save_run(a)
+    store.save_run(b)
+
+    html = build_snapshot(store, allow_run_ids=[a.run_id])
+    assert "CUSTOMERALPHA" in html          # the selected customer's evidence is present
+    assert "CUSTOMERBETA" not in html       # the other customer's text never leaks
