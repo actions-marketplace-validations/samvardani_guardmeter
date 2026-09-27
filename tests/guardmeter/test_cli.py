@@ -250,3 +250,13 @@ def test_compare_end_to_end(runner, tmp_path):
     ])
     assert result.exit_code == 0, result.output
     assert "Run ID:" in result.output
+
+
+def test_probe_nvidia_requires_key(runner, monkeypatch):
+    """`probe nvidia` fails cleanly (non-zero, clear message) when the key is unset."""
+    from guardmeter.cli.main import cli
+
+    monkeypatch.delenv("NVIDIA_API_KEY", raising=False)
+    result = runner.invoke(cli, ["probe", "nvidia"])
+    assert result.exit_code != 0
+    assert "NVIDIA_API_KEY" in result.output

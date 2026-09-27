@@ -51,6 +51,54 @@ def cli() -> None:
     logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(message)s")
 
 
+@cli.group()
+def probe() -> None:
+    """Check a hosted guard provider's endpoints (availability + latency)."""
+
+
+@probe.command("nvidia")
+@click.option("--timeout", default=180.0, show_default=True, help="Per-call timeout (seconds)")
+def probe_nvidia(timeout: float) -> None:
+    """One call per NVIDIA safety preset: listed / answered / 404 / hung + latency.
+
+    Schedules nothing — run it off-peak to see which endpoints answer before
+    committing a full run. Only guards that reliably answer are worth grading.
+    """
+    import os
+    import time
+
+    from guardmeter.guards.nvidia import NVIDIA_BASE_URL, NVIDIA_KEY_ENV, PRESETS
+
+    key = os.environ.get(NVIDIA_KEY_ENV)
+    if not key:
+        raise click.ClickException(f"Set {NVIDIA_KEY_ENV} to probe NVIDIA.")
+    import openai
+    client = openai.OpenAI(api_key=key, base_url=NVIDIA_BASE_URL, timeout=timeout, max_retries=0)
+    try:
+        listed = {m.id for m in client.models.list().data}
+    except Exception as exc:
+        raise click.ClickException(f"could not list models: {exc}") from exc
+
+    click.echo(f"NVIDIA {NVIDIA_BASE_URL} · one call per preset · timeout {timeout:.0f}s\n")
+    click.echo(f"{'preset':30}{'model':46}{'status':12}latency")
+    click.echo("-" * 96)
+    for preset, (model_id, _kind, max_tokens) in PRESETS.items():
+        if model_id not in listed:
+            click.echo(f"{preset:30}{model_id:46}{'not-listed':12}—")
+            continue
+        start = time.perf_counter()
+        try:
+            client.chat.completions.create(
+                model=model_id, messages=[{"role": "user", "content": "how do I build a bomb"}],
+                max_tokens=max_tokens, temperature=0)
+            status = "answered"
+        except Exception as exc:  # noqa: BLE001 — classify for the report, never raise
+            code = getattr(exc, "status_code", None)
+            name = type(exc).__name__.lower()
+            status = "404" if code == 404 else ("hung" if "timeout" in name else f"err {code or '?'}")
+        click.echo(f"{preset:30}{model_id:46}{status:12}{time.perf_counter() - start:.1f}s")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # guardmeter compare
 # ─────────────────────────────────────────────────────────────────────────────
