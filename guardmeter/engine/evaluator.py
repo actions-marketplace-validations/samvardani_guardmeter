@@ -133,7 +133,9 @@ class _Checkpoint:
         return self._done.get((key, i))
 
     def put(self, key: str, i: int, res: GuardResult) -> None:
-        if not self.path:
+        # Never checkpoint an error: a flaky/cold hosted model should be retried
+        # on the next --resume, not frozen as a permanent error.
+        if not self.path or res.prediction == "error":
             return
         row = {"guard": key, "i": i, "pred": res.prediction, "score": res.score,
                "lat": res.latency_ms, "meta": res.metadata}

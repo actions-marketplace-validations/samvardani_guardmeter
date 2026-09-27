@@ -128,7 +128,10 @@ class NvidiaSafetyGuard(Guard):
         key = api_key or os.environ.get(NVIDIA_KEY_ENV)
         if not key:
             raise ValueError(f"No NVIDIA API key: set {NVIDIA_KEY_ENV}.")
-        self._client = _openai.OpenAI(api_key=key, base_url=self.base_url, timeout=90)
+        # Fail fast: our own call_with_retry owns retries, so disable the SDK's
+        # internal retry (which otherwise stacks timeouts into ~75s per call).
+        self._client = _openai.OpenAI(api_key=key, base_url=self.base_url,
+                                      timeout=30, max_retries=0)
 
         if resolve and self.model_id not in _available_models(self._client, self.base_url):
             raise ValueError(
