@@ -58,6 +58,7 @@ class HttpGuard(Guard):
         body_template: str | None = None,
         verdict_path: str | None = None,
         flag_values: list[str] | None = None,
+        pass_values: list[str] | None = None,
         score_path: str | None = None,
         timeout: float | None = None,
     ) -> None:
@@ -85,6 +86,13 @@ class HttpGuard(Guard):
             raw_fv = env("GUARDMETER_HTTP_FLAG_VALUES")
             flag_values = [v.strip() for v in raw_fv.split(",")] if raw_fv else list(_DEFAULT_FLAG_VALUES)
         self.flag_values = {str(v).strip().lower() for v in flag_values}
+        if pass_values is None:
+            raw_pv = env("GUARDMETER_HTTP_PASS_VALUES")
+            pass_values = [v.strip() for v in raw_pv.split(",")] if raw_pv else None
+        # When configured, any verdict in neither set is an error (strict). When
+        # unset, a non-flag value stays a pass (legacy) but a missing verdict
+        # (None) is always an error — never a silent pass.
+        self.pass_values = {str(v).strip().lower() for v in pass_values} if pass_values is not None else None
         self.score_path = score_path or env("GUARDMETER_HTTP_SCORE_PATH") or None
         self.timeout = timeout if timeout is not None else float(env("GUARDMETER_HTTP_TIMEOUT") or 10.0)
 
@@ -99,6 +107,7 @@ class HttpGuard(Guard):
                 json.dumps(cfg["body"]) if cfg.get("body") is not None else None),
             verdict_path=cfg.get("verdict_path"),
             flag_values=[str(v) for v in cfg["flag_values"]] if cfg.get("flag_values") is not None else None,
+            pass_values=[str(v) for v in cfg["pass_values"]] if cfg.get("pass_values") is not None else None,
             score_path=cfg.get("score_path"),
             timeout=cfg.get("timeout"),
         )
@@ -120,7 +129,19 @@ class HttpGuard(Guard):
     def _flagged(self, verdict: Any) -> str:
         if isinstance(verdict, bool):
             return "flag" if verdict else "pass"
-        return "flag" if str(verdict).strip().lower() in self.flag_values else "pass"
+        if verdict is None:
+            raise ValueError(
+                f"HTTP guard {self.url}: no verdict at {self.verdict_path!r} — recorded as error")
+        v = str(verdict).strip().lower()
+        if v in self.flag_values:
+            return "flag"
+        if self.pass_values is not None:
+            if v in self.pass_values:
+                return "pass"
+            raise ValueError(
+                f"HTTP guard {self.url}: unknown verdict {verdict!r} "
+                f"(not in flag_values or pass_values) — recorded as error")
+        return "pass"
 
     def predict(self, text: str, **meta: Any) -> GuardResult:
         """Call the endpoint and map its response to a GuardResult.

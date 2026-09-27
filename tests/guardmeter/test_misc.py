@@ -30,18 +30,20 @@ class TestSignificance:
         """Identical predictions → no discordant pairs → p_value = 1.0."""
         from guardmeter.engine.significance import mcnemar_test
         preds = regex_enhanced.batch_predict([r.text for r in sample_records])
-        _, p = mcnemar_test(preds, preds, sample_records)
+        _, p, excluded = mcnemar_test(preds, preds, sample_records)
         assert p == 1.0
+        assert excluded == 0
 
     def test_returns_float_tuple(self, sample_records, regex_enhanced, regex_baseline):
-        """mcnemar_test should return (float, float)."""
+        """mcnemar_test should return (statistic, p_value, n_excluded)."""
         from guardmeter.engine.significance import mcnemar_test
         base_preds = regex_baseline.batch_predict([r.text for r in sample_records])
         cand_preds = regex_enhanced.batch_predict([r.text for r in sample_records])
-        stat, p = mcnemar_test(base_preds, cand_preds, sample_records)
+        stat, p, excluded = mcnemar_test(base_preds, cand_preds, sample_records)
         assert isinstance(stat, float)
         assert isinstance(p, float)
         assert 0.0 <= p <= 1.0
+        assert excluded == 0
 
 
 class TestIOUtils:

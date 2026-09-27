@@ -73,7 +73,9 @@ class SQLiteStore(RunStore):
                     baseline_latency_ms REAL,
                     candidate_latency_ms REAL,
                     baseline_meta TEXT,
-                    candidate_meta TEXT
+                    candidate_meta TEXT,
+                    case_id  TEXT,
+                    context  TEXT
                 )
             """)
             # Migrate existing databases created before the score/latency columns.
@@ -88,6 +90,10 @@ class SQLiteStore(RunStore):
                 conn.execute("ALTER TABLE sample_results ADD COLUMN attack_type TEXT")
             # Per-guard result metadata (error/hijacked/attempts/verdict_retries) as JSON.
             for col in ("baseline_meta", "candidate_meta"):
+                if col not in existing:
+                    conn.execute(f"ALTER TABLE sample_results ADD COLUMN {col} TEXT")
+            # Stable case identity (id + context) for reproducible --rows-from matching.
+            for col in ("case_id", "context"):
                 if col not in existing:
                     conn.execute(f"ALTER TABLE sample_results ADD COLUMN {col} TEXT")
             # Migrate runs table for user tag/note metadata.
@@ -171,6 +177,8 @@ class SQLiteStore(RunStore):
                 "candidate_slices": data["candidate_slices"],
                 "baseline_attack_slices": data["baseline_attack_slices"],
                 "candidate_attack_slices": data["candidate_attack_slices"],
+                "baseline_language_slices": data.get("baseline_language_slices", {}),
+                "candidate_language_slices": data.get("candidate_language_slices", {}),
                 "mcnemar_p": data["mcnemar_p"],
                 "judge_agreement_rate": data["judge_agreement_rate"],
                 "guard_info": data.get("guard_info", {}),
@@ -194,8 +202,8 @@ class SQLiteStore(RunStore):
                 "INSERT INTO sample_results (run_id, row_idx, text, label, category, language, "
                 "baseline_pred, candidate_pred, baseline_score, candidate_score, "
                 "baseline_latency_ms, candidate_latency_ms, attack_type, "
-                "baseline_meta, candidate_meta) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "baseline_meta, candidate_meta, case_id, context) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 [
                     (
                         results.run_id, i,
@@ -205,6 +213,7 @@ class SQLiteStore(RunStore):
                         s.baseline_latency_ms, s.candidate_latency_ms,
                         s.attack_type,
                         json.dumps(s.baseline_meta), json.dumps(s.candidate_meta),
+                        s.case_id, s.context,
                     )
                     for i, s in enumerate(results.sample_results)
                 ],
@@ -284,18 +293,28 @@ class SQLiteStore(RunStore):
             conn.commit()
             return cur.rowcount > 0
 
-    def latest_run(self) -> EvalResults | None:
-        """Return the most recently saved EvalResults, or None if empty."""
+    def latest_run(self, exclude_run_id: str | None = None) -> EvalResults | None:
+        """Return the most recently saved EvalResults, optionally excluding one run.
+
+        ``exclude_run_id`` prevents a gate from comparing a run against itself.
+        """
         with closing(self._connect()) as conn:
-            row = conn.execute(
-                f"SELECT {self._RUN_COLS} FROM runs ORDER BY timestamp DESC LIMIT 1"
-            ).fetchone()
+            if exclude_run_id:
+                row = conn.execute(
+                    f"SELECT {self._RUN_COLS} FROM runs WHERE run_id != ? "
+                    "ORDER BY timestamp DESC LIMIT 1", (exclude_run_id,)).fetchone()
+            else:
+                row = conn.execute(
+                    f"SELECT {self._RUN_COLS} FROM runs ORDER BY timestamp DESC LIMIT 1"
+                ).fetchone()
         if row is None:
             return None
         return self._row_to_results(row)
 
     def compare_runs(self, run_id_a: str, run_id_b: str) -> dict[str, Any]:
         """Return a delta dict comparing two runs' candidate metrics."""
+        if run_id_a == run_id_b:
+            return {"error": "Cannot compare a run against itself"}
         a = self.get_run(run_id_a)
         b = self.get_run(run_id_b)
         a_m = a.candidate_metrics.get("strict")
@@ -317,7 +336,7 @@ class SQLiteStore(RunStore):
             rows = conn.execute(
                 "SELECT text, label, category, language, baseline_pred, candidate_pred, "
                 "baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms, "
-                "attack_type, baseline_meta, candidate_meta "
+                "attack_type, baseline_meta, candidate_meta, case_id, context "
                 "FROM sample_results WHERE run_id=? ORDER BY row_idx",
                 (run_id,),
             ).fetchall()
@@ -336,10 +355,12 @@ class SQLiteStore(RunStore):
                 "attack_type": attack_type,
                 "baseline_meta": json.loads(baseline_meta) if baseline_meta else {},
                 "candidate_meta": json.loads(candidate_meta) if candidate_meta else {},
+                "case_id": case_id,
+                "context": context,
             }
             for (text, label, category, language, baseline_pred, candidate_pred,
                  baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms,
-                 attack_type, baseline_meta, candidate_meta) in rows
+                 attack_type, baseline_meta, candidate_meta, case_id, context) in rows
         ]
 
     def _row_to_results(self, row: tuple[Any, ...]) -> EvalResults:
@@ -359,6 +380,8 @@ class SQLiteStore(RunStore):
             "candidate_slices": metrics.get("candidate_slices", {}),
             "baseline_attack_slices": metrics.get("baseline_attack_slices", {}),
             "candidate_attack_slices": metrics.get("candidate_attack_slices", {}),
+            "baseline_language_slices": metrics.get("baseline_language_slices", {}),
+            "candidate_language_slices": metrics.get("candidate_language_slices", {}),
             "sample_results": self._load_sample_results(run_id),
             "mcnemar_p": metrics.get("mcnemar_p"),
             "judge_agreement_rate": metrics.get("judge_agreement_rate"),

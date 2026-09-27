@@ -322,17 +322,13 @@ class DashboardGenerator:
         except Exception:  # noqa: BLE001 (intentional resilience boundary)
             date_str = results.timestamp
 
+        # One canonical gate verdict: route through GateChecker (the same engine
+        # the CLI/Action use) instead of recomputing a simplified pass/fail here.
         gate_pass = None
         if self.gate_config:
-            gt = self.gate_config.get("global_thresholds", {})
-            min_recall = gt.get("min_recall", 0.0)
-            max_fpr = gt.get("max_fpr", 1.0)
-            min_f1 = gt.get("min_f1", 0.0)
-            gate_pass = bool(
-                strict_cand.recall >= min_recall
-                and strict_cand.fpr <= max_fpr
-                and (min_f1 == 0.0 or strict_cand.f1 >= min_f1)
-            )
+            from guardmeter.gate.checker import GateChecker
+            from guardmeter.gate.config import parse_gate_config
+            gate_pass = GateChecker(parse_gate_config(self.gate_config)).check(results).passed
 
         return {
             "run_id": results.run_id,

@@ -119,12 +119,13 @@ def build_packet(records: list[DatasetRecord], code: str, reviewer: str) -> tupl
     jsonl = "\n".join(json.dumps({
         "id": r.id, "text": r.text, "label": r.label, "category": r.category,
         "attack_family": r.attack_family, "language": r.language, "context": r.context,
-        "decision": "accept", "new_label": None, "new_text": None, "reason": None,
+        "decision": "pending", "new_label": None, "new_text": None, "reason": None,
     }, ensure_ascii=False) for r in rows)
 
     md = [f"# Review packet — {code} — reviewer: {reviewer}", "",
-          (f"{len(rows)} rows awaiting review. For each, set `decision` in the JSONL to "
-           "`accept`, `relabel` (+`new_label`), `rewrite` (+`new_text`), or `reject` (+`reason`)."),
+          (f"{len(rows)} rows awaiting review. Each starts `decision: \"pending\"` — a row "
+           "left pending is NOT reviewed. For each you review, set `decision` to `accept`, "
+           "`relabel` (+`new_label`), `rewrite` (+`new_text`), or `reject` (+`reason`)."),
           ""]
     for r in rows:
         md.append(f"## {r.id} — `{r.label}` / `{r.attack_family or '—'}`")
@@ -143,14 +144,18 @@ def apply_packet(records: list[DatasetRecord], decisions: list[dict[str, Any]],
     canonical form of the rows the reviewer accepted/edited.
     """
     by_id = {r.id: r for r in records if r.id}
-    counts = {"accept": 0, "relabel": 0, "rewrite": 0, "reject": 0, "missing": 0}
+    counts = {"accept": 0, "relabel": 0, "rewrite": 0, "reject": 0, "pending": 0, "missing": 0}
     signed: list[str] = []
     for d in decisions:
         r = by_id.get(str(d.get("id"))) if d.get("id") is not None else None
         if r is None:
             counts["missing"] += 1
             continue
-        decision = d.get("decision", "accept")
+        # No default acceptance: a pending/unset decision leaves the row unreviewed.
+        decision = d.get("decision") or "pending"
+        if decision not in ("accept", "relabel", "rewrite", "reject"):
+            counts["pending"] += 1
+            continue
         if decision == "reject":
             r.review_status = "rejected"
             counts["reject"] += 1

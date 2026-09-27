@@ -77,15 +77,18 @@ def run_rollout_hook(store: Any, body: dict[str, Any], timeout: float) -> dict[s
 
     cfg = current_gate_config()
     thr = (cfg.scenarios if cfg else None) or ScenarioThresholds()
-    passed, failures = check_scenario_gate(agg, thr)
+    verdict, reasons = check_scenario_gate(agg, thr)
     regressions = [r.id for r in results.results
                    if prev_status.get(r.id) == "pass" and r.status != "pass"]
+    if regressions and verdict == "pass":
+        verdict = "fail"
     return {
-        "passed": passed and not regressions,
+        "verdict": verdict,
+        "passed": verdict == "pass",
         "run_id": results.run_id,
         "pass_rate": agg.get("pass_rate"),
         "regressions": regressions,
-        "gate_failures": failures,
+        "gate_failures": reasons,
     }
 
 

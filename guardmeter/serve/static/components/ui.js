@@ -44,7 +44,8 @@ export function GateChip({ pass }) {
 }
 
 export function VerdictChip({ prediction, error }) {
-  if (error) return html`<span class="chip warn">ERROR</span>`;
+  // An errored prediction has no verdict — never render it as PASS.
+  if (error || prediction === "error") return html`<span class="chip warn">ERROR</span>`;
   return prediction === "flag"
     ? html`<span class="chip danger">FLAG</span>`
     : html`<span class="chip ok">PASS</span>`;

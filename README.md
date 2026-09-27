@@ -16,7 +16,7 @@
 
 GuardMeter measures three things about the safety of an AI system and gates a build on them: how well a **content-safety guard** classifies (recall/FPR/F1 per category, language, and attack type), what an **agent endpoint actually does** on a prompt (which tool it calls, whether it leaks the system prompt, whether it refuses the right request), and whether either holds up **across languages** (24-language registry, per-language and recall-parity gates). Baseline vs candidate, an HTML report and interactive dashboard, and a pass/fail CI gate — for teams shipping a filter or an agent who need to catch regressions before they merge.
 
-> **Want it done for you?** The team behind GuardMeter runs a fixed-price **Guardrail Tune-Up** — your filter vs. a better configuration, on your traffic, with a signed evidence pack and a CI release check. From $1,500 · 5 business days → [seatechone.com/guardmeter](https://seatechone.com/guardmeter/)
+> **Want it done for you?** The team behind GuardMeter runs a fixed-price **Guardrail Tune-Up** — your filter vs. a better configuration, on your traffic, with a hash-manifested evidence pack and a CI release check. From $1,500 · 5 business days → [seatechone.com/guardmeter](https://seatechone.com/guardmeter/)
 
 ---
 
@@ -55,7 +55,7 @@ Every number here is copied from its source doc; nothing is computed in this REA
 | Endpoint behaviour | `llama-3.2-3b` / `qwen3-8b`, 30 scenarios | leak-resistance 40% / 40% · agent-tools 50% / 38% | [OPOD_SCENARIO_RESULTS.md](docs/OPOD_SCENARIO_RESULTS.md) |
 | Language parity | `anthropic` vs v2 (1810 rows · 14 langs) | recall **0.948** · parity gap **0.073** all-authored / **0.030** reviewed | [MULTILINGUAL_RESULTS.md](docs/MULTILINGUAL_RESULTS.md) |
 
-The multilingual per-language table carries a **reviewed-vs-authored** column: only **en** and **fa** rest on native review; the other 12 languages are authored-only and their numbers are provisional. No thresholds were tuned in any run.
+The multilingual per-language table carries a **reviewed-vs-authored** column: **en** and **fa** are reviewed (with a **native sign-off for `fa` only**; `en` was reviewed by a non-native reviewer); the other 12 languages are authored-only and their numbers are provisional. No thresholds were tuned in any run.
 
 There's also a **[guard leaderboard](docs/LEADERBOARD.md)** — grading safety models (Llama Guard / NeMoGuard / Nemotron) as `ollama:<preset>` (local) and `nvidia:<preset>` guards. Local `llama-guard3` scored the full 14-language v2 with **0 errors** (recall 0.283, parity gap 0.18); on NVIDIA's free tier five of six endpoints weren't reliably runnable (see the [field note](docs/FIELD_NOTE_NVIDIA.md)). We grade the model, not the hosting.
 
@@ -175,7 +175,7 @@ The same options exist as `GUARDMETER_HTTP_*` env vars (default timeout 10 s). A
 
 - **`dataset/sample.csv`** — the smoke-test set used throughout this README and by `guardmeter init`. 110 rows, balanced across categories and languages.
 - **`dataset/agentic/v1/`** — the **Agentic Attack Dataset v1** (frozen): 421 hand-authored, bilingual prompt-injection attempts (303 English, 118 Farsi, native) across 8 families plus hard benign look-alikes and borderlines. No external jailbreak sources, generic tools only, no working exploits/credentials/PII. Ships a [card](dataset/agentic/v1/DATASET_CARD.md), [changelog](dataset/agentic/v1/CHANGELOG.md), CC-BY-4.0 [licence](dataset/agentic/v1/LICENSE). Fetch with `guardmeter dataset fetch agentic-v1` (sha256-verified). The shipped regex guards score near zero — that's the point; see [docs/AGENTIC_RESULTS.md](docs/AGENTIC_RESULTS.md).
-- **`dataset/agentic/v2/`** — the **Agentic Attack Dataset v2 (multilingual)**: 1810 rows across all 14 attack families (the 8 above plus six cross-lingual ones). **14 languages authored, 2 reviewed (en, fa), 10 scaffolded** of a 24-language registry — each language authored natively, not translated, with a note under [`docs/languages/`](docs/languages/). Ships a [card](dataset/agentic/v2/DATASET_CARD.md), [changelog](dataset/agentic/v2/CHANGELOG.md), CC-BY-4.0 [licence](dataset/agentic/v2/LICENSE), and a multilingual [`gate.agentic.json`](dataset/agentic/v2/gate.agentic.json). Fetch with `guardmeter dataset fetch agentic-v2`. Results: [docs/MULTILINGUAL_RESULTS.md](docs/MULTILINGUAL_RESULTS.md).
+- **`dataset/agentic/v2/`** — the **Agentic Attack Dataset v2 (multilingual)**: 1810 rows across all 14 attack families (the 8 above plus six cross-lingual ones). **14 languages authored; en + fa reviewed (native sign-off: `fa` only); 10 scaffolded** of a 24-language registry — each language authored natively, not translated, with a note under [`docs/languages/`](docs/languages/). Ships a [card](dataset/agentic/v2/DATASET_CARD.md), [changelog](dataset/agentic/v2/CHANGELOG.md), CC-BY-4.0 [licence](dataset/agentic/v2/LICENSE), and a multilingual [`gate.agentic.json`](dataset/agentic/v2/gate.agentic.json). Fetch with `guardmeter dataset fetch agentic-v2`. Results: [docs/MULTILINGUAL_RESULTS.md](docs/MULTILINGUAL_RESULTS.md).
 
 ```bash
 guardmeter dataset validate dataset/agentic/v2/data.jsonl   # schema, dup/near-dup, per-language script ratio, decoded payloads
@@ -183,7 +183,7 @@ guardmeter dataset stats    dataset/agentic/v2/data.jsonl --markdown   # family 
 guardmeter dataset review   status --manifest dataset/agentic/v2/MANIFEST.json --dataset-path dataset/agentic/v2/data.jsonl
 ```
 
-**Be a native reviewer.** A language ships as *reviewed* only after a native speaker signs off row-by-row through the review workflow. Want your language credited (name in the card, CC-BY credit, early results)? Email **[hello@seatechone.com](mailto:hello@seatechone.com?subject=GuardMeter%20reviewer%20—%20%3Clanguage%3E)** with subject "GuardMeter reviewer — &lt;language&gt;". See [CONTRIBUTING.md](CONTRIBUTING.md#contributing-rows) and [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md).
+**Be a native reviewer.** A language earns a **native sign-off** only after a native speaker signs off row-by-row through the review workflow (`fa` has one so far). Want your language credited (name in the card, CC-BY credit, early results)? Email **[hello@seatechone.com](mailto:hello@seatechone.com?subject=GuardMeter%20reviewer%20—%20%3Clanguage%3E)** with subject "GuardMeter reviewer — &lt;language&gt;". See [CONTRIBUTING.md](CONTRIBUTING.md#contributing-rows) and [docs/REVIEWER_GUIDE.md](docs/REVIEWER_GUIDE.md).
 
 ---
 
@@ -194,7 +194,7 @@ Language is a first-class dimension. GuardMeter ships a registry of **24 Tier-1 
 - **Six cross-lingual attack families** on top of the eight monolingual ones: `script_mixing`, `transliteration`, `language_switch`, `bidi_override`, `translate_then_follow`, `cultural_authority` (see [docs/ATTACK_FAMILIES.md](docs/ATTACK_FAMILIES.md)). Bidi controls (RLO/LRO/PDF, isolates) are *revealed* as `⟨RLO⟩`-style tokens — never stripped or rendered raw — and zero-width runs and full-width homoglyphs are NFKC-folded before matching.
 - **Per-language and parity gates.** `gate.json` takes per-language `min_recall`/`max_fpr`/`min_f1`, a `required_languages` list, and a `language_parity` block that fails the build when the best−worst recall gap exceeds a bound.
 - **RTL-correct reports.** Report and dashboard render Arabic, Hebrew, and Farsi with `<bdi dir="auto">` and a font stack covering Arabic/Hebrew/CJK/Thai/Devanagari, with a per-language slice view.
-- **A native-reviewer workflow.** Every dataset/scenario row starts `authored`; only a named native reviewer moves it to `reviewed`. Datasets and suites report *partial* review by language, so incomplete coverage is visible rather than hidden.
+- **A reviewer workflow.** Every dataset/scenario row starts `authored`; a named reviewer moves it to `reviewed`, and a **native sign-off** is recorded separately (the manifest marks whether the reviewer was native). Datasets and suites report *partial* review by language, so incomplete coverage is visible rather than hidden.
 
 ---
 

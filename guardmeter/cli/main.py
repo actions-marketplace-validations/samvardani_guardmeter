@@ -45,17 +45,34 @@ def _load_gate_config(config_path: str):
 
 
 def _norm_row_text(text: str) -> str:
-    """Whitespace-normalised row text, for matching rows across runs (no stored id)."""
-    return " ".join(text.split())
+    """Whitespace-normalised row text, for legacy text matching across runs."""
+    return " ".join((text or "").split())
 
 
-def _answered_texts(store, run_id: str) -> set[str]:
-    """Normalised texts of rows a stored run's candidate actually answered (non-error)."""
+def _ctx_hash(context: str | None) -> str:
+    import hashlib
+    return hashlib.sha256((context or "").encode("utf-8")).hexdigest()[:12]
+
+
+def _answered_matcher(store, run_id: str):
+    """A predicate selecting dataset rows a stored run's candidate answered.
+
+    Prefers a **stable case identity** (case id + context hash) when the run
+    stored ids; otherwise falls back to normalised **text (legacy)** — labelled
+    as such, and never mixed with the id-based key in one comparison.
+    Returns ``(mode, predicate)``.
+    """
     try:
         run = store.get_run(run_id)
     except KeyError as exc:
         raise click.ClickException(f"--rows-from: run {run_id!r} not found in the store.") from exc
-    return {_norm_row_text(s.text) for s in run.sample_results if s.candidate_pred != "error"}
+    answered = [s for s in run.sample_results if s.candidate_pred != "error"]
+    have_ids = bool(answered) and all(getattr(s, "case_id", None) for s in answered)
+    if have_ids:
+        keys = {(s.case_id, _ctx_hash(s.context)) for s in answered}
+        return "case id + context hash", (lambda r: (r.id, _ctx_hash(r.context)) in keys)
+    texts = {_norm_row_text(s.text) for s in answered}
+    return "text (legacy)", (lambda r: _norm_row_text(r.text) in texts)
 
 
 @click.group()
@@ -167,10 +184,11 @@ def compare(
     _log(f"  {len(records)} records loaded")
 
     if rows_from:
-        answered = _answered_texts(_get_store(store_path), rows_from)
+        mode, match = _answered_matcher(_get_store(store_path), rows_from)
         before = len(records)
-        records = [r for r in records if _norm_row_text(r.text) in answered]
-        _log(f"  --rows-from {rows_from[:8]}: kept {len(records)}/{before} rows that run answered")
+        records = [r for r in records if match(r)]
+        _log(f"  --rows-from {rows_from[:8]}: kept {len(records)}/{before} rows that run "
+             f"answered (matched by {mode})")
         if not records:
             raise click.ClickException(
                 f"No dataset rows matched the answered rows of run {rows_from!r}.")
@@ -213,6 +231,12 @@ def compare(
         _log(line)
     _log(f"Dataset SHA: {results.dataset_sha[:12]}")
 
+    # Significance is computed on paired predictions; errored pairs are excluded.
+    mcnemar_excluded = int(results.environment.get("mcnemar_excluded_pairs", 0) or 0)
+    if results.mcnemar_p is not None:
+        excl = f" ({mcnemar_excluded} errored pairs excluded)" if mcnemar_excluded else ""
+        _log(f"McNemar p: {results.mcnemar_p:.4g}{excl}")
+
     # An incomplete run (any errored guard call) is a loud, always-stderr warning.
     if strict and strict.error_count:
         click.echo(
@@ -238,6 +262,7 @@ def compare(
             "guard_info": results.guard_info,
             "environment": results.environment,
             "mcnemar_p": results.mcnemar_p,
+            "mcnemar_excluded_pairs": mcnemar_excluded,
         }
         click.echo(json.dumps(payload, indent=2))
 
@@ -633,33 +658,39 @@ def _gate_scenario_run(store, scenario_run, cfg_path, suite_path, allow_unvalida
     cfg = _load_gate_config(cfg_path)
     thr = cfg.scenarios or ScenarioThresholds()
 
-    failures: list[str] = []
-    # Refuse an unvalidated suite unless explicitly allowed.
+    inconclusive: list[str] = []
+    # An unvalidated suite means we can't trust the result → inconclusive, not pass.
     if suite_path:
         from guardmeter.scenarios.audit import audit_suite
         suite = _load_suite_or_exit(suite_path)
         rep = audit_suite(suite, None)  # static + cannot-fail, no endpoint
         if (rep.unreviewed or rep.cannot_fail) and not allow_unvalidated:
-            failures.append(
+            inconclusive.append(
                 f"suite not validated: {len(rep.unreviewed)} unreviewed, "
                 f"{len(rep.cannot_fail)} cannot-fail (use --allow-unvalidated to override)")
     elif not allow_unvalidated:
-        failures.append("no --suite given to verify validation (use --allow-unvalidated to skip)")
+        inconclusive.append("no --suite given to verify validation (use --allow-unvalidated to skip)")
 
-    _passed_thr, thr_failures = check_scenario_gate(aggregate, thr)
-    failures.extend(thr_failures)
-    passed = not failures
+    thr_verdict, thr_reasons = check_scenario_gate(aggregate, thr)
+    failures = thr_reasons if thr_verdict == "fail" else []
+    if thr_verdict == "inconclusive":
+        inconclusive.extend(thr_reasons)
+
+    if failures:
+        verdict, reasons = "fail", failures + inconclusive
+    elif inconclusive:
+        verdict, reasons = "inconclusive", inconclusive
+    else:
+        verdict, reasons = "pass", []
 
     if json_out:
-        click.echo(json.dumps({"passed": passed, "failures": failures,
-                               "run_id": data.get("run_id")}, indent=2))
-    if passed:
-        _log("Scenario Gate: PASSED")
-        sys.exit(0)
-    _log("Scenario Gate: FAILED")
-    for f in failures:
-        _log(f"  ❌ {f}")
-    sys.exit(1)
+        click.echo(json.dumps({"verdict": verdict, "passed": verdict == "pass",
+                               "reasons": reasons, "run_id": data.get("run_id")}, indent=2))
+    label = {"pass": "PASSED", "fail": "FAILED", "inconclusive": "INCONCLUSIVE"}[verdict]
+    _log(f"Scenario Gate: {label}")
+    for r in reasons:
+        _log(f"  ❌ {r}")
+    sys.exit({"pass": 0, "fail": 1, "inconclusive": 2}[verdict])
 
 
 def _build_target(endpoint: str | None, model: str | None, key_env: str | None,

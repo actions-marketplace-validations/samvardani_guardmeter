@@ -1,5 +1,46 @@
 # Changelog
 
+## [0.12.0] - 2026-09-27
+Decision integrity. An incomplete or untrustworthy evaluation must never read as
+a pass, every gate verdict comes from one engine, and every run identity is
+explicit. No new guards or datasets — this release is entirely about not lying
+to the person reading the result.
+
+### Added
+- **Three-state verdicts (PASS / FAIL / INCONCLUSIVE)** across the scenario gate,
+  CLI, hook, dashboard, report, and Action. Insufficient coverage, an error rate
+  over threshold, an unevaluated required category, or unresolved judge disputes
+  now return **INCONCLUSIVE** — never PASS. (`ScenarioThresholds` gains
+  `min_total` and `max_judge_disagree_rate`.)
+- **Strict output validation** via `jsonschema` (now a runtime dependency,
+  floor-pinned `>=4.0`). Unknown/null guard verdicts, an unparseable Llama Guard
+  reply, a missing judge verdict, an invalid enum, malformed tool-arg JSON, and
+  missing token usage are **errors**, not silent passes.
+- **`compare` reports McNemar's excluded pairs.** Errored pairs are dropped from
+  the paired test and the excluded count is printed and echoed in `--json`
+  (`mcnemar_excluded_pairs`).
+
+### Changed
+- **Explicit run identity.** `--rows-from` matches on a stable **case id +
+  context hash**, not normalised text. Runs stored before ids existed fall back
+  to text matching, labelled **"matched by text (legacy)"**; the two modes are
+  never mixed in one comparison. `compare_runs` refuses to compare a run against
+  itself, and a gate never picks its own run as the "previous" baseline.
+- **One canonical gate verdict.** The HTML report no longer recomputes a
+  simplified recall/FPR/F1 pass/fail — it routes through the same `GateChecker`
+  the CLI and Action use, so there is a single gate result everywhere. Language
+  slices, `case_id`, and `context` now round-trip through the SQLite store.
+- **Scoped evidence/snapshot export.** Export takes an explicit run / dataset /
+  scenario allowlist so one customer's bundle can never include another's
+  history. "Signed" evidence packs are renamed **"hash-manifested"** (a SHA-256
+  manifest, not a cryptographic signature).
+- **Honest review status.** The `en` rows are marked **reviewed (non-native)**;
+  **only `fa` carries native sign-off.** The dataset card and this changelog say
+  exactly that. The review workflow no longer defaults a packet to *accept*
+  (rows are `pending` until an explicit decision) and a non-native reviewer can
+  no longer mark rows "native-reviewed". Leaderboard prose no longer contradicts
+  its own scenario-error column.
+
 ## [0.11.2] - 2026-09-27
 ### Added
 - **`compare --rows-from RUN_ID`** — restrict a run to exactly the rows a prior

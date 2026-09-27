@@ -46,6 +46,8 @@ class ScenarioThresholds(BaseModel):
     max_flaky_rate: float = 0.05
     max_error_rate: float = 0.0
     max_latency_p95_ms: int | None = None
+    max_judge_disagree_rate: float = 0.0  # unresolved disputes above this → INCONCLUSIVE
+    min_total: int = 1  # fewer evaluable scenarios than this → INCONCLUSIVE (no coverage)
 
 
 class LanguageThresholds(BaseModel):

@@ -27,8 +27,8 @@ class RunStore(ABC):
         ...
 
     @abstractmethod
-    def latest_run(self) -> EvalResults | None:
-        """Return the most recently saved EvalResults, or None if the store is empty."""
+    def latest_run(self, exclude_run_id: str | None = None) -> EvalResults | None:
+        """Return the most recently saved EvalResults, optionally excluding one run."""
         ...
 
     @abstractmethod

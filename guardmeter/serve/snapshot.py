@@ -32,10 +32,28 @@ def _js_safe(obj: Any) -> str:
     )
 
 
-def _gather_data(store: Any) -> dict[str, Any]:
+def _gather_data(
+    store: Any,
+    allow_run_ids: list[str] | None = None,
+    allow_scenario_run_ids: list[str] | None = None,
+    allow_datasets: list[str] | None = None,
+) -> dict[str, Any]:
+    """Gather snapshot data, optionally scoped to an allowlist.
+
+    When ``allow_run_ids`` / ``allow_scenario_run_ids`` / ``allow_datasets`` are
+    given, only those runs/scenario-runs/datasets are exported — so a customer
+    handoff never carries another customer's runs, samples or dataset rows.
+    ``None`` means "everything" (the local single-tenant default).
+    """
     from guardmeter.core.registry import list_guards
 
+    run_allow = set(allow_run_ids) if allow_run_ids is not None else None
+    scen_allow = set(allow_scenario_run_ids) if allow_scenario_run_ids is not None else None
+    ds_allow = set(allow_datasets) if allow_datasets is not None else None
+
     runs = serve_api.runs_payload(store, limit=200)
+    if run_allow is not None:
+        runs = [r for r in runs if r["run_id"] in run_allow]
     detail: dict[str, Any] = {}
     for r in runs:
         try:
@@ -45,6 +63,8 @@ def _gather_data(store: Any) -> dict[str, Any]:
 
     gate = serve_api.current_gate_config()
     datasets = serve_api.datasets_list()
+    if ds_allow is not None:
+        datasets = [d for d in datasets if d["name"] in ds_allow]
     stats = {d["name"]: serve_api.dataset_stats(d["name"]) for d in datasets}
     rows = {d["name"]: (serve_api.dataset_rows(d["name"], limit=100000) or {}).get("rows", []) for d in datasets}
 
@@ -52,6 +72,8 @@ def _gather_data(store: Any) -> dict[str, Any]:
     scenario_detail: dict[str, Any] = {}
     if hasattr(store, "list_scenario_runs"):
         scenario_runs = store.list_scenario_runs(limit=200)
+        if scen_allow is not None:
+            scenario_runs = [sr for sr in scenario_runs if sr["run_id"] in scen_allow]
         for sr in scenario_runs:
             try:
                 scenario_detail[sr["run_id"]] = store.get_scenario_run(sr["run_id"])
@@ -71,8 +93,16 @@ def _gather_data(store: Any) -> dict[str, Any]:
     }
 
 
-def build_snapshot(store: Any) -> str:
-    """Return a single self-contained HTML document embedding the app + data."""
+def build_snapshot(
+    store: Any,
+    allow_run_ids: list[str] | None = None,
+    allow_scenario_run_ids: list[str] | None = None,
+    allow_datasets: list[str] | None = None,
+) -> str:
+    """Return a single self-contained HTML document embedding the app + data.
+
+    Pass allowlists to scope the export to one customer's runs/datasets.
+    """
     static = _static_dir()
     styles = (static / "styles.css").read_text(encoding="utf-8")
     chartjs = (
@@ -94,7 +124,7 @@ def build_snapshot(store: Any) -> str:
         b64 = base64.b64encode(src.encode("utf-8")).decode("ascii")
         imports[f"{prefix}{rel}"] = f"data:text/javascript;base64,{b64}"
 
-    data = _gather_data(store)
+    data = _gather_data(store, allow_run_ids, allow_scenario_run_ids, allow_datasets)
     generated_at = datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     return f"""<!doctype html>

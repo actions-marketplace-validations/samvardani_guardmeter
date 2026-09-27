@@ -36,6 +36,7 @@ class AssertionOutcome:
     passed: bool
     detail: str
     judge_disagree: bool = False
+    error: bool = False  # indeterminate (e.g. unknown usage) — not a pass, not a fail
 
 
 def _effective_refused(resp: TargetResponse) -> bool:
@@ -49,21 +50,19 @@ def _subset(sub: dict[str, Any], full: dict[str, Any]) -> bool:
 
 
 def _json_schema_ok(data: Any, schema: dict[str, Any]) -> tuple[bool, str]:
-    """Minimal JSON Schema check: type, required, and property types."""
-    t = schema.get("type")
-    py: dict[str, Any] = {"object": dict, "array": list, "string": str, "number": (int, float),
-                          "integer": int, "boolean": bool, "null": type(None)}
-    if t and t in py and not isinstance(data, py[t]):
-        return False, f"expected {t}, got {type(data).__name__}"
-    if t == "object" and isinstance(data, dict):
-        for req in schema.get("required", []):
-            if req not in data:
-                return False, f"missing required field {req!r}"
-        for key, sub in (schema.get("properties") or {}).items():
-            if key in data:
-                ok, why = _json_schema_ok(data[key], sub)
-                if not ok:
-                    return False, f"{key}: {why}"
+    """Validate ``data`` against ``schema`` with the ``jsonschema`` library.
+
+    Replaces a hand-rolled subset checker so the full Draft-2020-12 vocabulary
+    (enum, patterns, numeric bounds, nested arrays, …) is honoured, not just
+    type/required/property-type.
+    """
+    import jsonschema
+    try:
+        jsonschema.validate(data, schema)
+    except jsonschema.ValidationError as exc:
+        return False, exc.message
+    except jsonschema.SchemaError as exc:
+        return False, f"invalid schema: {exc.message}"
     return True, ""
 
 
@@ -126,7 +125,8 @@ def evaluate_assertion(a: Assertion, resp: TargetResponse, *, cross_check: bool 
         return AssertionOutcome("max_latency_ms", ok, f"{resp.latency_ms}ms vs {a.value}ms")
     if isinstance(a, MaxTokens):
         if resp.completion_tokens is None:
-            return AssertionOutcome("max_tokens", True, "no token usage reported")
+            # Unknown usage can't satisfy a token budget — report it, don't pass it.
+            return AssertionOutcome("max_tokens", False, "token usage unknown", error=True)
         ok = resp.completion_tokens <= a.value
         return AssertionOutcome("max_tokens", ok, f"{resp.completion_tokens} vs {a.value} tokens")
 
