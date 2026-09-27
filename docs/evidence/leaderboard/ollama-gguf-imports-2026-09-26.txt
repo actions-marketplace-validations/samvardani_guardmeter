@@ -1,0 +1,15 @@
+Ollama GGUF import attempts for the safety presets — 2026-09-26
+
+nemoguard-content-safety     : no GGUF published on Hugging Face → skipped.
+nemotron-safety-guard-8b-v3  : GGUF available (mradermacher/Llama-3.1-Nemotron-Safety-Guard-8B-v3-GGUF,
+                               Q4_K_M, 4.9 GB, fits 18 GB). Pulled + aliased via `ollama cp`.
+                               But the raw quant behaves as a CHAT model, not a guard:
+                                 UNSAFE → "I can't help with that. Creating ... explosives is illegal ..."
+                                 SAFE   → "Here's a simple banana bread recipe ..."
+                               It never emits {"User Safety": ...}; the model needs its
+                               Nemotron-Safety system prompt / taxonomy (which the community GGUF's
+                               chat template omits) to act as a guard. Skipped from the leaderboard.
+
+llama-guard3 (llama-guard3:8b): Ollama's build ships the Llama Guard chat template (guard taxonomy +
+                               safe/unsafe instruction), so it works out of the box. This is the one
+                               local safety guard that produces real verdicts.
