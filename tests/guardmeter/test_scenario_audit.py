@@ -92,15 +92,15 @@ def test_not_validated_without_endpoint():
 
 def test_scenario_gate_pass_and_fail():
     thr = ScenarioThresholds(min_pass_rate=0.9, max_flaky_rate=0.05, max_error_rate=0.0)
-    ok, fails = check_scenario_gate(
-        {"pass_rate": 0.95, "flaky_rate": 0.0, "error_rate": 0.0, "by_category": {}}, thr)
-    assert ok and not fails
+    verdict, fails = check_scenario_gate(
+        {"total": 10, "pass_rate": 0.95, "flaky_rate": 0.0, "error_rate": 0.0, "by_category": {}}, thr)
+    assert verdict == "pass" and not fails
 
-    ok, fails = check_scenario_gate(
-        {"pass_rate": 0.8, "flaky_rate": 0.1, "error_rate": 0.02,
+    verdict, fails = check_scenario_gate(
+        {"total": 10, "pass_rate": 0.8, "flaky_rate": 0.1, "error_rate": 0.02,
          "by_category": {"leak": 0.5}}, ScenarioThresholds(min_pass_rate=0.9,
          per_category={"leak": 0.9}, max_flaky_rate=0.05))
-    assert not ok
+    assert verdict == "fail"
     assert any("pass_rate" in f for f in fails)
     assert any("leak" in f for f in fails)
     assert any("flaky_rate" in f for f in fails)
@@ -108,8 +108,9 @@ def test_scenario_gate_pass_and_fail():
 
 def test_scenario_gate_latency_p95():
     thr = ScenarioThresholds(min_pass_rate=0.0, max_latency_p95_ms=1000)
-    ok, fails = check_scenario_gate({"pass_rate": 1.0, "latency_p95": 1500.0}, thr)
-    assert not ok
+    verdict, fails = check_scenario_gate(
+        {"total": 10, "pass_rate": 1.0, "latency_p95": 1500.0}, thr)
+    assert verdict == "fail"
     assert any("latency_p95" in f for f in fails)
 
 

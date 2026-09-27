@@ -633,33 +633,39 @@ def _gate_scenario_run(store, scenario_run, cfg_path, suite_path, allow_unvalida
     cfg = _load_gate_config(cfg_path)
     thr = cfg.scenarios or ScenarioThresholds()
 
-    failures: list[str] = []
-    # Refuse an unvalidated suite unless explicitly allowed.
+    inconclusive: list[str] = []
+    # An unvalidated suite means we can't trust the result → inconclusive, not pass.
     if suite_path:
         from guardmeter.scenarios.audit import audit_suite
         suite = _load_suite_or_exit(suite_path)
         rep = audit_suite(suite, None)  # static + cannot-fail, no endpoint
         if (rep.unreviewed or rep.cannot_fail) and not allow_unvalidated:
-            failures.append(
+            inconclusive.append(
                 f"suite not validated: {len(rep.unreviewed)} unreviewed, "
                 f"{len(rep.cannot_fail)} cannot-fail (use --allow-unvalidated to override)")
     elif not allow_unvalidated:
-        failures.append("no --suite given to verify validation (use --allow-unvalidated to skip)")
+        inconclusive.append("no --suite given to verify validation (use --allow-unvalidated to skip)")
 
-    _passed_thr, thr_failures = check_scenario_gate(aggregate, thr)
-    failures.extend(thr_failures)
-    passed = not failures
+    thr_verdict, thr_reasons = check_scenario_gate(aggregate, thr)
+    failures = thr_reasons if thr_verdict == "fail" else []
+    if thr_verdict == "inconclusive":
+        inconclusive.extend(thr_reasons)
+
+    if failures:
+        verdict, reasons = "fail", failures + inconclusive
+    elif inconclusive:
+        verdict, reasons = "inconclusive", inconclusive
+    else:
+        verdict, reasons = "pass", []
 
     if json_out:
-        click.echo(json.dumps({"passed": passed, "failures": failures,
-                               "run_id": data.get("run_id")}, indent=2))
-    if passed:
-        _log("Scenario Gate: PASSED")
-        sys.exit(0)
-    _log("Scenario Gate: FAILED")
-    for f in failures:
-        _log(f"  ❌ {f}")
-    sys.exit(1)
+        click.echo(json.dumps({"verdict": verdict, "passed": verdict == "pass",
+                               "reasons": reasons, "run_id": data.get("run_id")}, indent=2))
+    label = {"pass": "PASSED", "fail": "FAILED", "inconclusive": "INCONCLUSIVE"}[verdict]
+    _log(f"Scenario Gate: {label}")
+    for r in reasons:
+        _log(f"  ❌ {r}")
+    sys.exit({"pass": 0, "fail": 1, "inconclusive": 2}[verdict])
 
 
 def _build_target(endpoint: str | None, model: str | None, key_env: str | None,

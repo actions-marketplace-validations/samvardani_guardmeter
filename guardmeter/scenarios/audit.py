@@ -35,22 +35,32 @@ class AuditReport:
     judge_disagree: list[str] = field(default_factory=list)
     flaky_rate: float = 0.0
     endpoint_used: bool = False
+    errored: list[str] = field(default_factory=list)
+    error_rate: float = 0.0
+    suite_hash: str = ""  # identity of the audited suite, to bind audit → suite
     # id → language, for per-language partial validation.
     languages: dict[str, str] = field(default_factory=dict)
 
     @property
     def validated(self) -> bool:
+        # A validated suite is reviewed, has no cannot-fail scenario, was run
+        # against a real endpoint, and that run was neither flaky nor error-laden.
         return (not self.unreviewed and not self.cannot_fail
-                and self.endpoint_used and self.flaky_rate < FLAKY_MAX)
+                and self.endpoint_used and not self.errored
+                and self.flaky_rate < FLAKY_MAX)
+
+    def audited_suite(self, suite: Any) -> bool:
+        """True only if this report was produced from ``suite`` (binds audit→suite)."""
+        return bool(self.suite_hash) and self.suite_hash == suite_identity(suite)
 
     def validated_languages(self) -> list[str]:
-        """Languages whose scenarios are all reviewed, none cannot-fail, none flaky."""
+        """Languages whose scenarios are all reviewed, none cannot-fail/flaky/errored."""
         if not self.endpoint_used:
             return []
         by_lang: dict[str, list[str]] = {}
         for sid, lang in self.languages.items():
             by_lang.setdefault(lang, []).append(sid)
-        bad = set(self.unreviewed) | set(self.cannot_fail) | set(self.flaky)
+        bad = set(self.unreviewed) | set(self.cannot_fail) | set(self.flaky) | set(self.errored)
         return sorted(lang for lang, ids in by_lang.items()
                       if ids and not any(i in bad for i in ids))
 
@@ -62,6 +72,14 @@ class AuditReport:
         if langs:
             return f"validated: partial (languages: {', '.join(langs)})"
         return "not validated"
+
+
+def suite_identity(suite: Suite) -> str:
+    """A stable hash of a suite's identity (name + version + ordered scenario ids)."""
+    import hashlib
+    ids = "|".join(s.id for s in suite.scenarios)
+    key = f"{suite.suite.name}@{getattr(suite.suite, 'version', '')}::{ids}"
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
 def _scenario_text(scenario: Any) -> str:
@@ -76,6 +94,7 @@ def _scenario_text(scenario: Any) -> str:
 def audit_suite(suite: Suite, target: Target | None = None, *, repeats: int = 3) -> AuditReport:
     """Run the static and (if a target is given) dynamic audit checks."""
     rep = AuditReport(suite_name=suite.suite.name, total=len(suite.scenarios))
+    rep.suite_hash = suite_identity(suite)
     rep.languages = {s.id: s.language for s in suite.scenarios}
 
     # Review coverage.
@@ -109,7 +128,9 @@ def audit_suite(suite: Suite, target: Target | None = None, *, repeats: int = 3)
                         timestamp="1970-01-01T00:00:00Z")
         rep.flaky = [r.id for r in dyn.results if r.status == "flaky"]
         rep.judge_disagree = [r.id for r in dyn.results if r.judge_disagree]
+        rep.errored = [r.id for r in dyn.results if r.status == "error"]
         rep.flaky_rate = round(len(rep.flaky) / rep.total, 4) if rep.total else 0.0
+        rep.error_rate = round(len(rep.errored) / rep.total, 4) if rep.total else 0.0
 
     return rep
 
