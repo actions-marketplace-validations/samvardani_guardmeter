@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.11.2] - 2026-09-27
+### Added
+- **`compare --rows-from RUN_ID`** — restrict a run to exactly the rows a prior
+  run's candidate answered (non-error), matched by normalised text, so a partial
+  hosted run becomes comparable. Used to re-score every v1 guard on NVIDIA
+  nemotron's 263 answered rows.
+### Changed
+- **Comparable leaderboard.** `docs/LEADERBOARD.md` gains a "Recall on nemotron's
+  263 rows" matched column and full-v1 context rows for the regex/keyword
+  baselines and Claude Sonnet 4.5 (every number traces to a run file under
+  `docs/evidence/leaderboard/`). Matched: Sonnet 4.5 0.918, nemotron-3.5 0.615,
+  llama-guard3 0.174, injection-heuristic 0.062, regex ~0. Neutral framing added
+  (content-safety classifiers measured as agent guardrails); site handoff updated.
+
 ## [0.11.1] - 2026-09-26
 ### Added
 - **Ollama local guard family.** `ollama:<preset>` / `ollama:chat:<model>` over
