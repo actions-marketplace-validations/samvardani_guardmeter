@@ -12,6 +12,21 @@ from guardmeter.core.registry import register
 logger = logging.getLogger(__name__)
 
 
+def _parse_llamaguard_reply(content: str) -> tuple[str, float]:
+    """Parse a Llama Guard reply → (prediction, score).
+
+    Llama Guard answers ``safe`` or ``unsafe\\nS<n>``. A reply that is neither
+    (e.g. a refusal or a chat-style answer) is **unparseable** and must be raised
+    so the evaluator records an error — never silently treated as a pass.
+    """
+    c = (content or "").strip().lower()
+    if c.startswith("unsafe"):
+        return "flag", 0.9
+    if c.startswith("safe"):
+        return "pass", 0.1
+    raise ValueError(f"unparseable Llama Guard reply {content[:60]!r} — recorded as error")
+
+
 class LlamaGuardAdapter(Guard):
     """Adapter for Meta LlamaGuard models.
 
@@ -86,10 +101,8 @@ class LlamaGuardAdapter(Guard):
         }
         response = httpx.post(f"{self.endpoint}/chat/completions", json=payload, headers=headers, timeout=30)
         response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"].strip().lower()
-        if content.startswith("unsafe"):
-            return "flag", 0.9
-        return "pass", 0.1
+        content = response.json()["choices"][0]["message"]["content"]
+        return _parse_llamaguard_reply(content)
 
     def _predict_pipeline(self, text: str) -> tuple[str, float]:
         """Run inference via local HuggingFace pipeline."""
@@ -98,10 +111,7 @@ class LlamaGuardAdapter(Guard):
             self._pipeline = pipeline("text-generation", model=self.model, device_map="auto")
         prompt = f"[INST] {text} [/INST]"
         output = self._pipeline(prompt, max_new_tokens=10, return_full_text=False)
-        content = (output[0]["generated_text"] or "").strip().lower()
-        if content.startswith("unsafe"):
-            return "flag", 0.9
-        return "pass", 0.1
+        return _parse_llamaguard_reply(output[0]["generated_text"] or "")
 
     def predict(self, text: str, **meta: Any) -> GuardResult:
         """Score a single text using LlamaGuard and return a GuardResult."""
