@@ -763,10 +763,14 @@ def scenarios_run(suite_path: str, endpoint: str | None, model: str | None, key_
     agg = results.aggregate()
 
     _log(f"\nRun ID: {results.run_id}")
-    _log(f"Pass rate: {agg['pass_rate']} | passed {agg['passed']} failed {agg['failed']} "
+    pass_rate_str = "n/a (no evaluable scenarios)" if agg["pass_rate"] is None else agg["pass_rate"]
+    _log(f"Pass rate: {pass_rate_str} | passed {agg['passed']} failed {agg['failed']} "
          f"| flaky {agg['flaky']} | errors {agg['errored']} | judge-disagree {agg['judge_disagree']}")
     _log(f"Latency p50/p95/p99: {agg['latency_p50']:.0f}/{agg['latency_p95']:.0f}/"
          f"{agg['latency_p99']:.0f} ms")
+    if agg["pass_rate"] is None:
+        _log(f"No pass rate: every evaluable scenario errored or was disputed. "
+             f"For the gate verdict, run: guardmeter gate --scenario-run {results.run_id}")
 
     if summary_md:
         Path(summary_md).write_text(render_summary(results), encoding="utf-8")

@@ -31,6 +31,15 @@ def test_empty_suite_is_not_pass():
     assert verdict in ("inconclusive", "fail")  # → never an unqualified pass
 
 
+def test_all_error_run_coverage_message_excludes_errored():
+    """The coverage reason must not call errored scenarios 'evaluable'."""
+    verdict, reasons = check_scenario_gate(
+        {"pass_rate": None, "total": 2, "errored": 2, "judge_disagree": 0, "by_category": {}},
+        ScenarioThresholds(min_pass_rate=0.9, min_total=1))
+    assert verdict == "inconclusive"
+    assert "insufficient coverage: 0 evaluable of 2 (2 errored, min 1)" in reasons
+
+
 def test_missing_required_category_is_not_pass():
     """A required category absent from the run must not silently PASS."""
     verdict, _ = check_scenario_gate(
