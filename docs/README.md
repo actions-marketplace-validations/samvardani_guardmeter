@@ -13,6 +13,7 @@ Index of everything under `docs/`. Start with the [project README](../README.md)
 - [ATTACK_FAMILIES.md](ATTACK_FAMILIES.md) — the 14 attack families (8 monolingual + 6 cross-lingual) with definitions and examples.
 - [REVIEWER_GUIDE.md](REVIEWER_GUIDE.md) — how a native reviewer signs off a language through the review workflow.
 - [OPOD_INTEGRATION.md](OPOD_INTEGRATION.md) — wiring the gate's rollout webhook into an Opod (or any) deployment.
+- [site-handoff-nvidia.md](site-handoff-nvidia.md) — copy + numbers for the seatechone.com/guardmeter results strip and Leaderboard section.
 - [languages/](languages/) — per-language authoring notes (registers, romanization, script traps) — one file per authored language.
 
 ## Assets
