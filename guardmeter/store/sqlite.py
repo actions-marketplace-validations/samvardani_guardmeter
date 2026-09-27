@@ -73,7 +73,9 @@ class SQLiteStore(RunStore):
                     baseline_latency_ms REAL,
                     candidate_latency_ms REAL,
                     baseline_meta TEXT,
-                    candidate_meta TEXT
+                    candidate_meta TEXT,
+                    case_id  TEXT,
+                    context  TEXT
                 )
             """)
             # Migrate existing databases created before the score/latency columns.
@@ -88,6 +90,10 @@ class SQLiteStore(RunStore):
                 conn.execute("ALTER TABLE sample_results ADD COLUMN attack_type TEXT")
             # Per-guard result metadata (error/hijacked/attempts/verdict_retries) as JSON.
             for col in ("baseline_meta", "candidate_meta"):
+                if col not in existing:
+                    conn.execute(f"ALTER TABLE sample_results ADD COLUMN {col} TEXT")
+            # Stable case identity (id + context) for reproducible --rows-from matching.
+            for col in ("case_id", "context"):
                 if col not in existing:
                     conn.execute(f"ALTER TABLE sample_results ADD COLUMN {col} TEXT")
             # Migrate runs table for user tag/note metadata.
@@ -196,8 +202,8 @@ class SQLiteStore(RunStore):
                 "INSERT INTO sample_results (run_id, row_idx, text, label, category, language, "
                 "baseline_pred, candidate_pred, baseline_score, candidate_score, "
                 "baseline_latency_ms, candidate_latency_ms, attack_type, "
-                "baseline_meta, candidate_meta) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                "baseline_meta, candidate_meta, case_id, context) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 [
                     (
                         results.run_id, i,
@@ -207,6 +213,7 @@ class SQLiteStore(RunStore):
                         s.baseline_latency_ms, s.candidate_latency_ms,
                         s.attack_type,
                         json.dumps(s.baseline_meta), json.dumps(s.candidate_meta),
+                        s.case_id, s.context,
                     )
                     for i, s in enumerate(results.sample_results)
                 ],
@@ -327,7 +334,7 @@ class SQLiteStore(RunStore):
             rows = conn.execute(
                 "SELECT text, label, category, language, baseline_pred, candidate_pred, "
                 "baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms, "
-                "attack_type, baseline_meta, candidate_meta "
+                "attack_type, baseline_meta, candidate_meta, case_id, context "
                 "FROM sample_results WHERE run_id=? ORDER BY row_idx",
                 (run_id,),
             ).fetchall()
@@ -346,10 +353,12 @@ class SQLiteStore(RunStore):
                 "attack_type": attack_type,
                 "baseline_meta": json.loads(baseline_meta) if baseline_meta else {},
                 "candidate_meta": json.loads(candidate_meta) if candidate_meta else {},
+                "case_id": case_id,
+                "context": context,
             }
             for (text, label, category, language, baseline_pred, candidate_pred,
                  baseline_score, candidate_score, baseline_latency_ms, candidate_latency_ms,
-                 attack_type, baseline_meta, candidate_meta) in rows
+                 attack_type, baseline_meta, candidate_meta, case_id, context) in rows
         ]
 
     def _row_to_results(self, row: tuple[Any, ...]) -> EvalResults:

@@ -112,6 +112,22 @@ def test_language_slices_survive_sqlite_roundtrip(tmp_path, sample_records, rege
     assert loaded.candidate_language_slices == results.candidate_language_slices
 
 
+def test_case_id_and_context_survive_sqlite_roundtrip(tmp_path, sample_records, regex_baseline, regex_enhanced):
+    """--rows-from keys on case id + context hash, so both must survive the store round trip."""
+    from guardmeter.engine.evaluator import EvalConfig, Evaluator
+    from guardmeter.store.sqlite import SQLiteStore
+
+    store = SQLiteStore(db_path=str(tmp_path / "h.db"))
+    for i, rec in enumerate(sample_records):
+        rec.id = f"case-{i}"
+    results = Evaluator(regex_baseline, regex_enhanced, sample_records, EvalConfig()).run()
+    assert any(s.case_id for s in results.sample_results), "run should carry case ids"
+    store.save_run(results)
+    loaded = store.get_run(results.run_id)
+    assert [(s.case_id, s.context) for s in loaded.sample_results] == \
+        [(s.case_id, s.context) for s in results.sample_results]
+
+
 # ── review item 3: a run must not be its own "previous" (gate self-comparison) ─
 
 def test_latest_run_can_exclude_current(tmp_path, sample_records, regex_baseline, regex_enhanced):

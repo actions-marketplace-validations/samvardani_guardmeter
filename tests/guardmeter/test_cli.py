@@ -262,25 +262,33 @@ def test_probe_nvidia_requires_key(runner, monkeypatch):
     assert "NVIDIA_API_KEY" in result.output
 
 
-def test_rows_from_helpers():
-    """--rows-from matches rows by normalised text and keeps only answered ones."""
-    from guardmeter.cli.main import _answered_texts, _norm_row_text
+def test_rows_from_matcher_prefers_case_id_else_text():
+    """--rows-from matches on case id + context hash, falling back to text (legacy)."""
+    from guardmeter.cli.main import _answered_matcher, _norm_row_text
 
     assert _norm_row_text("  a   b\tc ") == "a b c"
 
     class _Row:
-        def __init__(self, text, pred):
-            self.text = text
-            self.candidate_pred = pred
+        def __init__(self, pred, text="", case_id=None, context=None):
+            self.text, self.candidate_pred, self.case_id, self.context = text, pred, case_id, context
 
-    class _Run:
-        def __init__(self):
-            self.sample_results = [_Row("keep me", "flag"), _Row("also keep", "pass"),
-                                   _Row("drop me", "error")]
+    class _Rec:
+        def __init__(self, id, text="", context=None):
+            self.id, self.text, self.context = id, text, context
 
-    class _Store:
-        def get_run(self, rid):
-            return _Run()
+    def _store(rows):
+        return type("S", (), {"get_run": lambda self, rid: type("R", (), {"sample_results": rows})()})()
 
-    answered = _answered_texts(_Store(), "r1")
-    assert answered == {"keep me", "also keep"}  # the error row is excluded
+    # Run with case ids → id-based matching (error row excluded).
+    rows = [_Row("flag", case_id="a", context="c1"), _Row("pass", case_id="b", context=None),
+            _Row("error", case_id="z", context=None)]
+    mode, match = _answered_matcher(_store(rows), "r1")
+    assert mode == "case id + context hash"
+    assert match(_Rec("a", context="c1")) and match(_Rec("b"))
+    assert not match(_Rec("z")) and not match(_Rec("a", context="different"))
+
+    # Legacy run without ids → text fallback, clearly labelled.
+    legacy = [_Row("flag", text="keep me"), _Row("error", text="drop me")]
+    mode, match = _answered_matcher(_store(legacy), "r2")
+    assert mode == "text (legacy)"
+    assert match(_Rec("x", text="keep me")) and not match(_Rec("y", text="drop me"))

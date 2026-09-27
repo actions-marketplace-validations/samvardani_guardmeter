@@ -31,6 +31,9 @@ class SampleResult:
     # Per-guard result metadata (error, hijacked, attempts, verdict_retries).
     baseline_meta: dict[str, Any] = field(default_factory=dict)
     candidate_meta: dict[str, Any] = field(default_factory=dict)
+    # Stable case identity for reproducible --rows-from matching.
+    case_id: str | None = None
+    context: str | None = None
 
 
 def _bundle_to_dict(b: MetricsBundle) -> dict[str, Any]:
@@ -117,7 +120,8 @@ class EvalResults:
                  "candidate_latency_ms": s.candidate_latency_ms,
                  "attack_type": s.attack_type,
                  "baseline_meta": s.baseline_meta,
-                 "candidate_meta": s.candidate_meta}
+                 "candidate_meta": s.candidate_meta,
+                 "case_id": s.case_id, "context": s.context}
                 for s in self.sample_results
             ],
             "mcnemar_p": self.mcnemar_p,
@@ -166,6 +170,8 @@ class EvalResults:
                 attack_type=s.get("attack_type"),
                 baseline_meta=s.get("baseline_meta") or {},
                 candidate_meta=s.get("candidate_meta") or {},
+                case_id=s.get("case_id"),
+                context=s.get("context"),
             )
             for s in d.get("sample_results", [])
         ]

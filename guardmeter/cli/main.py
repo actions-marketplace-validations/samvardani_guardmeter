@@ -45,17 +45,34 @@ def _load_gate_config(config_path: str):
 
 
 def _norm_row_text(text: str) -> str:
-    """Whitespace-normalised row text, for matching rows across runs (no stored id)."""
-    return " ".join(text.split())
+    """Whitespace-normalised row text, for legacy text matching across runs."""
+    return " ".join((text or "").split())
 
 
-def _answered_texts(store, run_id: str) -> set[str]:
-    """Normalised texts of rows a stored run's candidate actually answered (non-error)."""
+def _ctx_hash(context: str | None) -> str:
+    import hashlib
+    return hashlib.sha256((context or "").encode("utf-8")).hexdigest()[:12]
+
+
+def _answered_matcher(store, run_id: str):
+    """A predicate selecting dataset rows a stored run's candidate answered.
+
+    Prefers a **stable case identity** (case id + context hash) when the run
+    stored ids; otherwise falls back to normalised **text (legacy)** — labelled
+    as such, and never mixed with the id-based key in one comparison.
+    Returns ``(mode, predicate)``.
+    """
     try:
         run = store.get_run(run_id)
     except KeyError as exc:
         raise click.ClickException(f"--rows-from: run {run_id!r} not found in the store.") from exc
-    return {_norm_row_text(s.text) for s in run.sample_results if s.candidate_pred != "error"}
+    answered = [s for s in run.sample_results if s.candidate_pred != "error"]
+    have_ids = bool(answered) and all(getattr(s, "case_id", None) for s in answered)
+    if have_ids:
+        keys = {(s.case_id, _ctx_hash(s.context)) for s in answered}
+        return "case id + context hash", (lambda r: (r.id, _ctx_hash(r.context)) in keys)
+    texts = {_norm_row_text(s.text) for s in answered}
+    return "text (legacy)", (lambda r: _norm_row_text(r.text) in texts)
 
 
 @click.group()
@@ -167,10 +184,11 @@ def compare(
     _log(f"  {len(records)} records loaded")
 
     if rows_from:
-        answered = _answered_texts(_get_store(store_path), rows_from)
+        mode, match = _answered_matcher(_get_store(store_path), rows_from)
         before = len(records)
-        records = [r for r in records if _norm_row_text(r.text) in answered]
-        _log(f"  --rows-from {rows_from[:8]}: kept {len(records)}/{before} rows that run answered")
+        records = [r for r in records if match(r)]
+        _log(f"  --rows-from {rows_from[:8]}: kept {len(records)}/{before} rows that run "
+             f"answered (matched by {mode})")
         if not records:
             raise click.ClickException(
                 f"No dataset rows matched the answered rows of run {rows_from!r}.")

@@ -285,6 +285,8 @@ class Evaluator:
                     attack_type=rec.attack_type,
                     baseline_meta=dict(pred_b.metadata),
                     candidate_meta=dict(pred_c.metadata),
+                    case_id=rec.id,
+                    context=rec.context,
                 )
             )
 
