@@ -107,27 +107,57 @@ def _guard_key(guard: Guard) -> str:
     return f"{guard.name}|{model}"
 
 
+def _dataset_fingerprint(dataset: list[DatasetRecord]) -> str:
+    """Content hash of the dataset — the same value stored as a run's dataset_sha."""
+    serialised = json.dumps([r.model_dump() for r in dataset], sort_keys=True).encode("utf-8")
+    return hash_content(serialised)
+
+
 class _Checkpoint:
     """Append-only JSONL of scored rows, keyed by (guard, row index).
 
     Lets a long hosted run resume after a crash or sleep instead of paying for
     every row again. Thread-safe appends; reused rows are loaded up front.
+
+    The first line is a header binding the checkpoint to a dataset fingerprint,
+    so ``--resume`` against a *different* dataset (where row index i means a
+    different row) is refused rather than silently reusing wrong answers.
     """
 
-    def __init__(self, path: str | None) -> None:
+    def __init__(self, path: str | None, dataset_sha: str = "") -> None:
         self.path = path
+        self.dataset_sha = dataset_sha
         self._done: dict[tuple[str, int], GuardResult] = {}
         self._lock = threading.Lock()
-        if path and os.path.exists(path):
-            with open(path, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    r = json.loads(line)
-                    self._done[(r["guard"], r["i"])] = GuardResult(
-                        prediction=r["pred"], score=r["score"], latency_ms=r["lat"],
-                        metadata=r.get("meta", {}))
+        if not path:
+            return
+        if not os.path.exists(path):
+            # New checkpoint: stamp the dataset fingerprint as the header line.
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(json.dumps({"checkpoint": "guardmeter", "dataset_sha": dataset_sha}) + "\n")
+            return
+        with open(path, encoding="utf-8") as f:
+            first = f.readline().strip()
+            header = json.loads(first) if first else {}
+            if header.get("checkpoint") != "guardmeter":
+                raise ValueError(
+                    f"Checkpoint {path!r} predates dataset binding (0.12.0); its rows "
+                    "cannot be validated against this dataset. Delete it to start fresh."
+                )
+            if header.get("dataset_sha") != dataset_sha:
+                raise ValueError(
+                    f"Checkpoint {path!r} was written for a different dataset "
+                    f"(sha {header.get('dataset_sha', '')[:12]} != {dataset_sha[:12]}); "
+                    "refusing to resume. Delete it to start fresh."
+                )
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                r = json.loads(line)
+                self._done[(r["guard"], r["i"])] = GuardResult(
+                    prediction=r["pred"], score=r["score"], latency_ms=r["lat"],
+                    metadata=r.get("meta", {}))
 
     def get(self, key: str, i: int) -> GuardResult | None:
         return self._done.get((key, i))
@@ -162,7 +192,8 @@ class Evaluator:
         self.config = config or EvalConfig()
         self.judge = judge
         self.on_progress = on_progress
-        self._checkpoint = _Checkpoint(self.config.resume_path)
+        self._dataset_sha = _dataset_fingerprint(dataset)
+        self._checkpoint = _Checkpoint(self.config.resume_path, self._dataset_sha)
 
     def _predict_all(self, guard: Guard, records: list[DatasetRecord], done: int, total: int) -> list[Any]:
         """Predict all records; pass per-record context and report progress.
@@ -205,11 +236,8 @@ class Evaluator:
         timestamp = datetime.datetime.now(datetime.UTC).isoformat().replace("+00:00", "Z")
         git_commit = git_commit_sha()
 
-        # Hash the dataset for reproducibility
-        serialised = json.dumps(
-            [r.model_dump() for r in self.dataset], sort_keys=True
-        ).encode("utf-8")
-        dataset_sha = hash_content(serialised)
+        # Hash the dataset for reproducibility (also binds the resume checkpoint).
+        dataset_sha = self._dataset_sha
 
         texts = [r.text for r in self.dataset]
 

@@ -156,6 +156,27 @@ def test_compare_runs_rejects_self_comparison(tmp_path, sample_records, regex_ba
     assert "error" in store.compare_runs(run.run_id, run.run_id)
 
 
+# ── review item 11: a checkpoint must not be reused across datasets ──────────
+
+def test_resume_checkpoint_bound_to_dataset(tmp_path, sample_records, regex_baseline, regex_enhanced):
+    """--resume against a different dataset must be refused, not silently reused."""
+    import pytest as _pytest
+
+    from guardmeter.engine.evaluator import EvalConfig, Evaluator
+
+    ckpt = str(tmp_path / "resume.jsonl")
+    Evaluator(regex_baseline, regex_enhanced, sample_records,
+              EvalConfig(resume_path=ckpt)).run()
+    # A different dataset (one row dropped) has a different fingerprint → refuse.
+    with _pytest.raises(ValueError, match="different dataset"):
+        Evaluator(regex_baseline, regex_enhanced, sample_records[:-1],
+                  EvalConfig(resume_path=ckpt)).run()
+    # The same dataset resumes cleanly.
+    again = Evaluator(regex_baseline, regex_enhanced, sample_records,
+                      EvalConfig(resume_path=ckpt)).run()
+    assert again.candidate_metrics.get("strict") is not None
+
+
 # ── review item 4: significance excludes errored pairs and reports the count ──
 
 def test_compare_reports_excluded_pairs(tmp_path):
