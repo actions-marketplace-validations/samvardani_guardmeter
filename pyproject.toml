@@ -25,6 +25,7 @@ dependencies = [
     "scikit-learn>=1.1",
     "matplotlib>=3.5",
     "pydantic>=2.0",
+    "jsonschema>=4.0",
 ]
 
 [project.optional-dependencies]
