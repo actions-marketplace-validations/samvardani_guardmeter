@@ -57,6 +57,8 @@ Every number here is copied from its source doc; nothing is computed in this REA
 
 The multilingual per-language table carries a **reviewed-vs-authored** column: only **en** and **fa** rest on native review; the other 12 languages are authored-only and their numbers are provisional. No thresholds were tuned in any run.
 
+There's also a **[NVIDIA-hosted guard leaderboard](docs/NVIDIA_RESULTS.md)** — grading NVIDIA's Llama Guard / NeMoGuard / Nemotron safety endpoints as guards (`nvidia:<preset>`). Headline: on the free tier, five of six named endpoints weren't reliably runnable; `nemotron-3.5-content-safety` scored recall 0.615 / FPR 0.074 / F1 0.75 on the completed subset. We grade the model, not the hosting.
+
 ---
 
 ## Field notes
@@ -107,7 +109,7 @@ The per-slice overrides in the shipped `gate.json` reflect the built-in regex de
 The composite action runs compare → report → dashboard → gate, writes a Markdown job summary, uploads the HTML report, and fails the job when the gate fails. Pin it to a release tag:
 
 ```yaml
-- uses: samvardani/guardmeter@v0.10.2
+- uses: samvardani/guardmeter@v0.11.0
   with:
     candidate: regex-enhanced
     dataset: dataset/sample.csv

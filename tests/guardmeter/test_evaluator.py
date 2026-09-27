@@ -15,6 +15,36 @@ def test_evaluator_returns_eval_results(sample_records, regex_baseline, regex_en
     assert isinstance(results, EvalResults)
 
 
+def test_resume_checkpoint_skips_scored_rows(sample_records, tmp_path):
+    """A second run with the same --resume file reuses scored rows (no re-call)."""
+    from guardmeter.core.guard import Guard, GuardResult
+
+    class _Counter(Guard):
+        name = "counter"
+        version = "1.0.0"
+
+        def __init__(self):
+            self.calls = 0
+
+        def describe(self):
+            return {"name": self.name, "model": "c"}
+
+        def predict(self, text, **meta):
+            self.calls += 1
+            return GuardResult(prediction="pass", score=0.1, latency_ms=1)
+
+    ckpt = str(tmp_path / "resume.jsonl")
+    g1 = _Counter()
+    Evaluator(g1, g1, sample_records, EvalConfig(resume_path=ckpt)).run()
+    first = g1.calls
+    assert first > 0
+
+    # Same guard identity + same checkpoint → all rows load from disk, zero new calls.
+    g2 = _Counter()
+    Evaluator(g2, g2, sample_records, EvalConfig(resume_path=ckpt)).run()
+    assert g2.calls == 0
+
+
 def test_attack_slices_keyed_by_attack_type(sample_records, regex_enhanced):
     """The evaluator computes a parallel attack-type slice family."""
     ev = Evaluator(regex_enhanced, regex_enhanced, sample_records, EvalConfig())

@@ -92,8 +92,16 @@ class OpenAIGuard(Guard):
         api_key: str | None = None,
         model: str = "gpt-4o-mini",
         on_parse_failure: str = "flag",
+        base_url: str | None = None,
+        api_key_env: str = "OPENAI_API_KEY",
     ) -> None:
-        """Initialise with optional API key, chat model, and fail-closed policy."""
+        """Initialise with optional API key, chat model, and fail-closed policy.
+
+        ``base_url`` points the client at any OpenAI-compatible endpoint (e.g.
+        NVIDIA's ``https://integrate.api.nvidia.com/v1``); ``api_key_env`` names
+        the environment variable to read the key from when ``api_key`` is unset.
+        Both default to the vanilla OpenAI behaviour.
+        """
         if on_parse_failure not in ("flag", "pass"):
             raise ValueError("on_parse_failure must be 'flag' or 'pass'")
         try:
@@ -104,17 +112,24 @@ class OpenAIGuard(Guard):
                 "Install it with: pip install guardmeter[llm]"
             )
         import openai as _openai
-        key = api_key or os.environ.get("OPENAI_API_KEY")
+        key = api_key or os.environ.get(api_key_env)
         if not key:
-            raise ValueError("No OpenAI API key: pass api_key= or set OPENAI_API_KEY.")
-        self._client = _openai.OpenAI(api_key=key)
+            raise ValueError(f"No API key: pass api_key= or set {api_key_env}.")
+        client_kwargs: dict[str, Any] = {"api_key": key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        self._client = _openai.OpenAI(**client_kwargs)
         self.model = model
+        self.base_url = base_url
         self.on_parse_failure = on_parse_failure
 
     def describe(self) -> dict[str, Any]:
         """Reproducibility metadata: model, verdict mode, fail-closed policy."""
-        return {"name": self.name, "version": self.version, "model": self.model,
-                "mode": "function_call", "on_parse_failure": self.on_parse_failure}
+        d = {"name": self.name, "version": self.version, "model": self.model,
+             "mode": "function_call", "on_parse_failure": self.on_parse_failure}
+        if self.base_url:
+            d["base_url"] = self.base_url
+        return d
 
     def _create(self, messages: Any) -> Any:
         return self._client.chat.completions.create(

@@ -68,6 +68,10 @@ def cli() -> None:
               help="YAML/JSON guard config for the baseline (e.g. an HTTP guard)")
 @click.option("--candidate-config", "candidate_config", default=None, type=click.Path(exists=True),
               help="YAML/JSON guard config for the candidate (e.g. an HTTP guard)")
+@click.option("--rpm", type=float, default=None,
+              help="Max requests/min for hosted guards (nvidia default 35); caps rate to the account limit")
+@click.option("--resume", "resume_path", default=None, type=click.Path(),
+              help="Checkpoint file: skip rows already scored so a crash/sleep doesn't restart from zero")
 def compare(
     baseline: str,
     candidate: str,
@@ -78,6 +82,8 @@ def compare(
     concurrency: int | None,
     baseline_config: str | None,
     candidate_config: str | None,
+    rpm: float | None,
+    resume_path: str | None,
 ) -> None:
     """Run a full evaluation comparing BASELINE vs CANDIDATE on DATASET."""
     from guardmeter.data.loader import load_dataset
@@ -95,13 +101,14 @@ def compare(
     _log(f"  {len(records)} records loaded")
 
     _log(f"Instantiating guards: baseline={baseline!r}, candidate={candidate!r}")
-    base_guard = _resolve_guard(baseline, baseline_config)
-    cand_guard = _resolve_guard(candidate, candidate_config)
+    base_guard = _resolve_guard(baseline, baseline_config, rpm=rpm)
+    cand_guard = _resolve_guard(candidate, candidate_config, rpm=rpm)
 
     # Both strict and lenient metrics are always computed; McNemar uses strict.
     if concurrency is None:
         concurrency = 4 if (base_guard.is_remote or cand_guard.is_remote) else 1
-    config = EvalConfig(concurrency=max(1, concurrency), dataset_path=dataset)
+    config = EvalConfig(concurrency=max(1, concurrency), dataset_path=dataset,
+                        resume_path=resume_path)
     evaluator = Evaluator(base_guard, cand_guard, records, config)
 
     _log(f"Running evaluation … (concurrency={config.concurrency})")
@@ -1085,11 +1092,12 @@ def init() -> None:
 # Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _resolve_guard(name: str, config_path: str | None = None):
+def _resolve_guard(name: str, config_path: str | None = None, rpm: float | None = None):
     """Resolve a guard by registry name, dotted class path, or a config file.
 
     A config file (YAML or JSON) builds a config-driven guard; its ``type`` (or
     the ``name`` argument) selects which. Currently ``http`` is config-driven.
+    ``rpm`` is forwarded only to ``nvidia:`` guards (others don't accept it).
     """
     # Import built-in guards first
     _import_builtin_guards()
@@ -1102,6 +1110,12 @@ def _resolve_guard(name: str, config_path: str | None = None):
             from guardmeter.guards.http_guard import HttpGuard
             return HttpGuard.from_config(cfg)
         raise click.BadParameter(f"guard type {gtype!r} does not support --*-config")
+
+    # Namespaced guard (e.g. nvidia:...): route to the registry resolver, not the
+    # dotted-path importer (some model ids contain a '.').
+    if ":" in name:
+        kwargs = {"rpm": rpm} if (rpm is not None and name.startswith("nvidia:")) else {}
+        return get_guard(name, **kwargs)
 
     if "." in name:
         # Dotted module path: e.g. mypackage.guards.MyGuard

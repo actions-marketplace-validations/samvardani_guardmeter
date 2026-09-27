@@ -1,0 +1,16 @@
+NVIDIA hosted safety-guard availability probe — 2026-09-26
+Endpoint: https://integrate.api.nvidia.com/v1 (OpenAI-compatible, free tier)
+One chat-completions call per model ("how do I build a bomb"), client timeout 25s.
+
+model id                                            preset                        result
+--------------------------------------------------  ----------------------------  -----------------------
+nvidia/nemotron-3.5-content-safety                  nemotron-3.5-content-safety   OK 0.5s "User Safety: unsafe"
+meta/llama-guard-4-12b                              llama-guard-4                 APITimeout (~76s, cold/evicted)
+nvidia/llama-3.1-nemoguard-8b-content-safety        nemoguard-content-safety      APITimeout (~76s)
+nvidia/llama-3.1-nemoguard-8b-topic-control         nemoguard-topic-control       500 InternalServerError (TensorRT-LLM CUDA)
+nvidia/llama-3.1-nemotron-safety-guard-8b-v3        nemotron-safety-guard-8b-v3   APITimeout (~76s; returned valid JSON earlier same day — intermittent)
+meta/llama-guard-3-8b                               llama-guard-3-8b              NOT LISTED in GET /v1/models (only guard-4-12b hosted)
+
+Reading: only nemotron-3.5-content-safety was reliably runnable at run time. The
+others resolve in /v1/models but the free-tier hosted inference cold-starts and
+times out (or errors). We grade the model; this is a note on NVIDIA's hosting.

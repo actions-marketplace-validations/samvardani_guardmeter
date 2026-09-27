@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.11.0] - 2026-09-26
+### Added
+- **NVIDIA-hosted guard family.** `nvidia:<preset>` grades NVIDIA's dedicated
+  safety endpoints (Llama Guard 4, NeMoGuard content-safety/topic-control,
+  Nemotron safety-guard-8b-v3, nemotron-3.5-content-safety) as GuardMeter
+  guards, each with its own prompt/parse (unit-tested on real captured outputs);
+  `nvidia:chat:<model>` runs any chat model as a JSON-mode classifier. Model ids
+  are resolved from `GET /v1/models` at runtime with a clear "not hosted" error.
+- **Adapters** gained `base_url` + `api_key_env` (openai-chat, llamaguard;
+  defaults unchanged) so they target any OpenAI-compatible host.
+- **Rate limiting & resume.** `compare --rpm` caps client-side request rate
+  (default 35 for nvidia); 429/`Retry-After` + jittered backoff; API failures
+  after retries become excluded `error` results, never a silent allow.
+  `compare --resume PATH` checkpoints scored rows (keyed by guard × index) so a
+  crash/sleep resumes instead of restarting — and retries only errored rows.
+- **Leaderboard.** `docs/NVIDIA_RESULTS.md` grades the endpoints on Agentic v1
+  (recall/FPR/F1/error-rate/parity + per-family heatmap), with a site handoff
+  (`docs/site-handoff-nvidia.md`) and evidence under `docs/evidence/nvidia/`.
+### Notes
+- Free-tier reality (2026-09-26): five of six named safety endpoints weren't
+  reliably runnable (timeouts/500/not-hosted); `nemotron-3.5-content-safety`
+  scored recall 0.615 / FPR 0.074 / F1 0.75 on the completed subset (37% of
+  calls errored). We grade the model, not the hosting. The 14-language v2
+  leaderboard and NVIDIA chat-model scenarios are deferred to 0.11.1.
+
 ## [0.10.2] - 2026-09-26
 ### Changed
 - **en and fa recorded as native-reviewed.** Both languages were reviewed by

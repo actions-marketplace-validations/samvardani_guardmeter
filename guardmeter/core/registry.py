@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import importlib.metadata
 import logging
+from collections.abc import Callable
 
 from guardmeter.core.guard import Guard
 
 logger = logging.getLogger(__name__)
 
 _REGISTRY: dict[str, type[Guard]] = {}
+# Namespaced factories for dynamic guard names like ``nvidia:<preset>``.
+_RESOLVERS: dict[str, Callable[..., Guard]] = {}
 
 
 def register(name: str, cls: type[Guard]) -> None:
@@ -17,19 +20,35 @@ def register(name: str, cls: type[Guard]) -> None:
     _REGISTRY[name] = cls
 
 
+def register_resolver(prefix: str, factory: Callable[..., Guard]) -> None:
+    """Register a factory for a ``prefix:...`` guard namespace (e.g. ``nvidia``).
+
+    The factory is called as ``factory(full_name, **kwargs)`` and returns a Guard.
+    """
+    _RESOLVERS[prefix] = factory
+
+
 def get_guard(name: str, **kwargs: object) -> Guard:
     """Instantiate a registered guard by name, passing kwargs to its constructor.
 
-    Raises KeyError with a helpful message if the name is not registered.
+    Exact names win; otherwise a ``prefix:...`` name is dispatched to a
+    registered namespace resolver. Raises KeyError with a helpful message if
+    neither matches.
     """
+    import_builtin_guards()
     _load_entry_points()
-    if name not in _REGISTRY:
-        available = list_guards()
-        raise KeyError(
-            f"Guard '{name}' not found. Available guards: {available}. "
-            "To add a third-party guard, register it in entry_points group 'guardmeter.guards'."
-        )
-    return _REGISTRY[name](**kwargs)
+    if name in _REGISTRY:
+        return _REGISTRY[name](**kwargs)
+    if ":" in name:
+        prefix = name.split(":", 1)[0]
+        factory = _RESOLVERS.get(prefix)
+        if factory is not None:
+            return factory(name, **kwargs)
+    available = list_guards()
+    raise KeyError(
+        f"Guard '{name}' not found. Available guards: {available}. "
+        "To add a third-party guard, register it in entry_points group 'guardmeter.guards'."
+    )
 
 
 def list_guards() -> list[str]:
@@ -53,7 +72,7 @@ def import_builtin_guards() -> None:
     import guardmeter.guards.http_guard
     import guardmeter.guards.injection_heuristic
     import guardmeter.guards.regex_guard  # noqa: F401
-    for mod in ("openai_moderation", "openai_guard", "llamaguard", "anthropic_guard"):
+    for mod in ("openai_moderation", "openai_guard", "llamaguard", "anthropic_guard", "nvidia"):
         try:
             importlib.import_module(f"guardmeter.guards.{mod}")
         except ImportError:
