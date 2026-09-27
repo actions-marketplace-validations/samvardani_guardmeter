@@ -35,7 +35,7 @@
 ## Recall parity
 
 - Gap over **all 14 authored** languages (≥20 positives): **0.073** (best `ja` − worst `en`)
-- Gap over **native-reviewed only** (en, fa): **0.030** — the only parity number that rests on reviewed rows
+- Gap over **reviewed rows** (en + fa; native sign-off `fa` only): **0.030** — the only parity number that rests on reviewed rows
 - Best 3: `ja` 0.978, `pt` 0.978, `ar` 0.966
 - Worst 3: `fa` 0.935, `es` 0.910, `en` 0.905
 - Awaiting native review (12): `ar`, `de`, `es`, `fr`, `hi`, `id`, `ja`, `ko`, `pt`, `ru`, `tr`, `zh`

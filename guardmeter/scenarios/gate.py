@@ -23,8 +23,18 @@ def check_scenario_gate(aggregate: dict[str, Any], thr: ScenarioThresholds) -> t
     total = aggregate.get("total")
     pr = aggregate.get("pass_rate")
     if not total or total < thr.min_total or pr is None:
-        inconclusive.append(f"insufficient coverage: {total or 0} evaluable scenarios "
-                            f"(min {thr.min_total})")
+        # Errored/disputed scenarios are not evaluable, so don't count them as
+        # coverage — the denominator that decides the verdict is the evaluable set.
+        errored = aggregate.get("errored", 0) or 0
+        disputed = aggregate.get("judge_disagree", 0) or 0
+        evaluable = (total or 0) - errored - disputed
+        detail = [f"{errored} errored"]
+        if disputed:
+            detail.append(f"{disputed} disputed")
+        detail.append(f"min {thr.min_total}")
+        inconclusive.append(
+            f"insufficient coverage: {evaluable} evaluable of {total or 0} "
+            f"({', '.join(detail)})")
 
     by_cat = aggregate.get("by_category") or {}
     for cat in thr.per_category:

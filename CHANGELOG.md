@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.12.1] - 2026-09-27
+Two small fixes, no new features.
+
+### Fixed
+- **Coverage message no longer contradicts itself.** Gating an all-error
+  scenario run said "insufficient coverage: 2 evaluable scenarios (min 1)" — but
+  errored scenarios aren't evaluable. It now reads "0 evaluable of 2 (2 errored,
+  min 1)". (The verdict was already correct; only the wording was wrong.)
+- **`scenarios run` explains a missing pass rate.** When every evaluable
+  scenario errored, the run printed "Pass rate: None" and exited 0 with no
+  pointer to the verdict. It now prints "n/a (no evaluable scenarios)" and a
+  line directing you to `guardmeter gate --scenario-run <id>`.
+
+### Changed
+- **Honest parity label.** `docs/MULTILINGUAL_RESULTS.md` no longer calls the
+  en+fa parity number "native-reviewed only" — en is reviewed (non-native), so
+  it now reads "reviewed rows (en + fa; native sign-off `fa` only)". The number
+  (0.030, the fa−en recall gap) is unchanged.
+
 ## [0.12.0] - 2026-09-27
 Decision integrity. An incomplete or untrustworthy evaluation must never read as
 a pass, every gate verdict comes from one engine, and every run identity is
