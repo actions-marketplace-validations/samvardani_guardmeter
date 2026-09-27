@@ -145,6 +145,38 @@ def test_latest_run_can_exclude_current(tmp_path, sample_records, regex_baseline
     assert store.latest_run(exclude_run_id=first.run_id).run_id == latest.run_id
 
 
+def test_compare_runs_rejects_self_comparison(tmp_path, sample_records, regex_baseline, regex_enhanced):
+    """A run compared against itself is a nonsensical zero-delta; reject it."""
+    from guardmeter.engine.evaluator import EvalConfig, Evaluator
+    from guardmeter.store.sqlite import SQLiteStore
+
+    store = SQLiteStore(db_path=str(tmp_path / "h.db"))
+    run = Evaluator(regex_baseline, regex_enhanced, sample_records, EvalConfig()).run()
+    store.save_run(run)
+    assert "error" in store.compare_runs(run.run_id, run.run_id)
+
+
+# ── review item 4: significance excludes errored pairs and reports the count ──
+
+def test_compare_reports_excluded_pairs(tmp_path):
+    """compare --json reports how many errored pairs significance excluded."""
+    import json as _json
+
+    from click.testing import CliRunner
+
+    from guardmeter.cli.main import cli
+    dataset = (
+        __import__("pathlib").Path(__file__).parent.parent.parent
+        / "guardmeter" / "data" / "builtin" / "sample_10.jsonl"
+    )
+    result = CliRunner().invoke(cli, [
+        "compare", "--baseline", "regex-baseline", "--candidate", "regex-enhanced",
+        "--dataset", str(dataset), "--store", str(tmp_path / "h.db"), "--json",
+    ])
+    assert result.exit_code == 0, result.output
+    assert "mcnemar_excluded_pairs" in _json.loads(result.stdout)
+
+
 # ── review item 9: packet must not default to accept ─────────────────────────
 
 def test_pending_decision_does_not_mark_reviewed():

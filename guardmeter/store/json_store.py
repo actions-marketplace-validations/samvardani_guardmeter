@@ -72,6 +72,8 @@ class JSONFileStore(RunStore):
 
     def compare_runs(self, run_id_a: str, run_id_b: str) -> dict[str, Any]:
         """Return a delta dict comparing two runs' candidate metrics."""
+        if run_id_a == run_id_b:
+            return {"error": "Cannot compare a run against itself"}
         a = self.get_run(run_id_a)
         b = self.get_run(run_id_b)
         a_m = a.candidate_metrics.get("strict")

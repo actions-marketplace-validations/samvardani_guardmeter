@@ -231,6 +231,12 @@ def compare(
         _log(line)
     _log(f"Dataset SHA: {results.dataset_sha[:12]}")
 
+    # Significance is computed on paired predictions; errored pairs are excluded.
+    mcnemar_excluded = int(results.environment.get("mcnemar_excluded_pairs", 0) or 0)
+    if results.mcnemar_p is not None:
+        excl = f" ({mcnemar_excluded} errored pairs excluded)" if mcnemar_excluded else ""
+        _log(f"McNemar p: {results.mcnemar_p:.4g}{excl}")
+
     # An incomplete run (any errored guard call) is a loud, always-stderr warning.
     if strict and strict.error_count:
         click.echo(
@@ -256,6 +262,7 @@ def compare(
             "guard_info": results.guard_info,
             "environment": results.environment,
             "mcnemar_p": results.mcnemar_p,
+            "mcnemar_excluded_pairs": mcnemar_excluded,
         }
         click.echo(json.dumps(payload, indent=2))
 
