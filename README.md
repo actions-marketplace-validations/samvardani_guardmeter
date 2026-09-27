@@ -109,7 +109,7 @@ The per-slice overrides in the shipped `gate.json` reflect the built-in regex de
 The composite action runs compare → report → dashboard → gate, writes a Markdown job summary, uploads the HTML report, and fails the job when the gate fails. Pin it to a release tag:
 
 ```yaml
-- uses: samvardani/guardmeter@v0.11.0
+- uses: samvardani/guardmeter@v0.11.1
   with:
     candidate: regex-enhanced
     dataset: dataset/sample.csv
