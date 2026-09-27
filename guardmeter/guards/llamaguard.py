@@ -27,17 +27,25 @@ class LlamaGuardAdapter(Guard):
         model: str = "meta-llama/Llama-Guard-3-8B",
         endpoint: str | None = None,
         api_key: str | None = None,
+        base_url: str | None = None,
+        api_key_env: str | None = None,
     ) -> None:
-        """Initialise with model name, optional HTTP endpoint, and optional API key."""
+        """Initialise with model name, optional HTTP endpoint, and optional API key.
+
+        ``base_url`` is an alias for ``endpoint`` (any OpenAI-compatible host,
+        e.g. NVIDIA); ``api_key_env`` names the environment variable to read the
+        key from when ``api_key`` is unset. Defaults are unchanged.
+        """
+        import os
         self.model = model
-        self.endpoint = endpoint
-        self.api_key = api_key
+        self.endpoint = endpoint or base_url
+        self.api_key = api_key or (os.environ.get(api_key_env) if api_key_env else None)
         self._pipeline: Any = None
         self._http_client: Any = None
         # Remote only in HTTP mode; a local transformers pipeline is not.
-        self.is_remote = endpoint is not None
+        self.is_remote = self.endpoint is not None
 
-        if endpoint:
+        if self.endpoint:
             self._init_http()
         else:
             self._init_pipeline()
