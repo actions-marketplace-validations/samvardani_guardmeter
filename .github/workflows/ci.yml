@@ -19,7 +19,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install guardmeter
-        run: pip install -e ".[dev]"
+        # The llm extra (openai, anthropic) is needed to import the hosted-guard
+        # tests (ollama/nvidia); without it they raise ModuleNotFoundError.
+        run: pip install -e ".[dev,llm]"
       - name: Lint (ruff)
         run: ruff check guardmeter tests
       - name: Type check (mypy)
