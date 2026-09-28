@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.13.1] - 2026-09-27
+Docs only.
+
+### Fixed
+- The starter README written by `init --agent` told users to confirm the suite
+  "audits clean" with `guardmeter scenarios audit starter.yaml`. Without an
+  endpoint that always prints "NOT VALIDATED" (flakiness can't be measured), so
+  a new user would think it was broken. The step now passes `--endpoint`/`--model`,
+  and a line explains that without an endpoint the audit checks review coverage
+  only and reporting "not validated" is expected.
+
 ## [0.13.0] - 2026-09-27
 A starter kit and a one-page decision report, so an agent release check can be
 scaffolded, run, and delivered. Reuses the existing runner, gate, and comparison
