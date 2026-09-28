@@ -46,5 +46,10 @@ text with your own workflow's, agree the critical cases with the customer up
 front, and confirm the suite still audits clean:
 
 ```bash
-guardmeter scenarios audit starter.yaml
+guardmeter scenarios audit starter.yaml \
+  --endpoint http://localhost:11434/v1 --model llama3.2:3b
 ```
+
+Without an endpoint the audit checks review coverage only and reports "not
+validated"; that's expected — flakiness can't be measured without running the
+suite.
