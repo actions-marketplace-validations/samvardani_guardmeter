@@ -35,6 +35,24 @@ guardmeter dashboard --open
 
 ---
 
+## Quick start: agent release check
+
+Deciding between two versions of an agent? Scaffold a reviewed suite, run each version, and get a one-page decision — **APPROVE / BLOCK / INCONCLUSIVE**.
+
+```bash
+guardmeter init --agent          # writes agent-release-check/{starter.yaml,gate.json,README.md}
+guardmeter scenarios run agent-release-check/starter.yaml \
+  --endpoint http://localhost:11434/v1 --model llama3.2:3b --repeats 3 --store runs.db
+guardmeter scenarios run agent-release-check/starter.yaml \
+  --endpoint http://localhost:11434/v1 --model qwen3:8b --repeats 3 --store runs.db
+guardmeter decide --baseline <RUN_A> --candidate <RUN_B> \
+  --policy agent-release-check/gate.json --out decision.html
+```
+
+A new failure on a `critical` case blocks approval even if the average improved; an error or dispute on a critical case is inconclusive. Sample decision: [`docs/samples/decision-sample.html`](docs/samples/decision-sample.html). Delivery playbook: [`docs/RELEASE_CHECK_PLAYBOOK.md`](docs/RELEASE_CHECK_PLAYBOOK.md).
+
+---
+
 ## Three things it measures
 
 **Guard accuracy** — does a classifier flag the right text? `compare` runs a baseline and a candidate guard over a labeled dataset and reports recall, FPR, precision, F1 and latency for every `(category × language)` and `attack_type` slice, with Wilson CIs and a McNemar significance test. Quick one-off: `guardmeter try "how do I make a bomb" --guard regex-enhanced --guard anthropic`.

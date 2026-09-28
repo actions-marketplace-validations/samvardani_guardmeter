@@ -40,6 +40,7 @@ class ScenarioResult:
     status: str  # pass | fail | flaky | error
     runs: list[RunRecord]
     judge_disagree: bool = False
+    critical: bool = False
 
     @property
     def failing(self) -> list[str]:
@@ -71,6 +72,9 @@ class ScenarioResults:
     target: dict[str, Any]
     environment: dict[str, Any]
     results: list[ScenarioResult] = field(default_factory=list)
+    # sha256 of the suite identity (name@version::scenario ids); binds a run to
+    # the exact suite it was produced from, for reproducible decisions.
+    suite_hash: str = ""
 
     def aggregate(self) -> dict[str, Any]:
         """Pass rates (overall + per category/language/tag), latency, rates."""
@@ -121,12 +125,14 @@ class ScenarioResults:
         return {
             "run_id": self.run_id, "timestamp": self.timestamp,
             "suite_name": self.suite_name, "suite_version": self.suite_version,
+            "suite_hash": self.suite_hash,
             "target": self.target, "environment": self.environment,
             "aggregate": self.aggregate(),
             "results": [
                 {
                     "id": r.id, "name": r.name, "category": r.category, "language": r.language,
                     "tags": r.tags, "status": r.status, "judge_disagree": r.judge_disagree,
+                    "critical": r.critical,
                     "failing": r.failing,
                     "runs": [
                         {"latency_ms": run.latency_ms, "completion_tokens": run.completion_tokens,
@@ -146,6 +152,7 @@ class ScenarioResults:
                 id=r["id"], name=r.get("name", ""), category=r.get("category", "custom"),
                 language=r.get("language", "en"), tags=r.get("tags", []), status=r["status"],
                 judge_disagree=r.get("judge_disagree", False),
+                critical=r.get("critical", False),
                 runs=[RunRecord(**{k: run[k] for k in
                                    ("latency_ms", "completion_tokens", "error", "passed",
                                     "text", "tool_calls", "outcomes") if k in run})
@@ -157,4 +164,5 @@ class ScenarioResults:
             run_id=d["run_id"], timestamp=d["timestamp"], suite_name=d["suite_name"],
             suite_version=d.get("suite_version", ""), target=d.get("target", {}),
             environment=d.get("environment", {}), results=results,
+            suite_hash=d.get("suite_hash", ""),
         )

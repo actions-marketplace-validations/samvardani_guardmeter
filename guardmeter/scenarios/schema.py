@@ -172,6 +172,9 @@ class Scenario(BaseModel):
     repeat: int = 2
     reviewed_by: str | None = None
     review_note: str | None = None
+    # A critical scenario gates the release: a new failure blocks approval, and
+    # an error/dispute on it makes the decision inconclusive (see guardmeter decide).
+    critical: bool = False
 
     @field_validator("category")
     @classmethod
@@ -222,3 +225,11 @@ class Suite(BaseModel):
                 raise ValueError(f"duplicate scenario id: {s.id}")
             seen.add(s.id)
         return v
+
+
+def suite_identity(suite: Suite) -> str:
+    """A stable hash of a suite's identity (name + version + ordered scenario ids)."""
+    import hashlib
+    ids = "|".join(s.id for s in suite.scenarios)
+    key = f"{suite.suite.name}@{suite.suite.version}::{ids}"
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]

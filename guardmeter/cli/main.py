@@ -735,13 +735,16 @@ def scenarios_list(suite_path: str) -> None:
 @click.option("--guard", default=None, help="Use a GuardMeter guard as the target (block/allow suites)")
 @click.option("--guard-config", default=None, type=click.Path(exists=True), help="Guard config file")
 @click.option("--concurrency", default=1, show_default=True, type=int)
+@click.option("--repeats", default=None, type=int,
+              help="Override each scenario's repeat count (e.g. 3 for the release check)")
 @click.option("--no-cross-check", "no_cross", is_flag=True, help="Disable judge cross-checking")
 @click.option("--store", "store_path", default=None, help="Override DB path")
 @click.option("--json", "json_out", is_flag=True, help="Print the run JSON to stdout")
 @click.option("--summary-md", "summary_md", default=None, help="Write a Markdown summary")
 @click.option("--junit", "junit_path", default=None, help="Write JUnit XML (one testcase per scenario)")
 def scenarios_run(suite_path: str, endpoint: str | None, model: str | None, key_env: str | None,
-                  guard: str | None, guard_config: str | None, concurrency: int, no_cross: bool,
+                  guard: str | None, guard_config: str | None, concurrency: int,
+                  repeats: int | None, no_cross: bool,
                   store_path: str | None, json_out: bool, summary_md: str | None,
                   junit_path: str | None) -> None:
     """Run a suite against an endpoint (or a guard) and store the results."""
@@ -753,6 +756,11 @@ def scenarios_run(suite_path: str, endpoint: str | None, model: str | None, key_
         click.echo(msg, err=json_out)
 
     suite = _load_suite_or_exit(suite_path)
+    if repeats is not None:
+        if repeats < 1:
+            raise click.UsageError("--repeats must be >= 1")
+        for s in suite.scenarios:
+            s.repeat = repeats
     target = _build_target(endpoint, model, key_env, guard, guard_config)
     _log(f"Running {len(suite.scenarios)} scenarios against {target.describe()} "
          f"(concurrency={concurrency}) …")
@@ -1139,11 +1147,134 @@ def evidence(run_id: str, out_dir: str, gate_path: str | None, store_path: str |
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# guardmeter decide
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _rerun_command(baseline: Any, candidate: Any, policy_path: str, suite_hint: str) -> str:
+    """A copy-pasteable set of commands that reproduces this decision."""
+    def run_line(res: Any) -> str:
+        t = res.target or {}
+        ep = t.get("endpoint", "<endpoint>")
+        model = t.get("model", "<model>")
+        return (f"guardmeter scenarios run {suite_hint} "
+                f"--endpoint {ep} --model {model} --repeats 3 --store runs.db")
+    return (
+        f"# suite hash {candidate.suite_hash}\n"
+        f"{run_line(baseline)}   # → baseline run {baseline.run_id}\n"
+        f"{run_line(candidate)}   # → candidate run {candidate.run_id}\n"
+        f"guardmeter decide --baseline {baseline.run_id} "
+        f"--candidate {candidate.run_id} --policy {policy_path} --out decision.html"
+    )
+
+
+@cli.command()
+@click.option("--baseline", "baseline_id", required=True, help="Baseline scenario run id")
+@click.option("--candidate", "candidate_id", required=True, help="Candidate scenario run id")
+@click.option("--policy", "policy_path", required=True, type=click.Path(exists=True),
+              help="Gate policy (gate.json) whose 'scenarios' block is the acceptance policy")
+@click.option("--out", "out_paths", multiple=True, default=("decision.md",),
+              help="Output path; extension picks md/html. Repeatable to emit both.")
+@click.option("--prices", "prices_path", default=None, type=click.Path(exists=True),
+              help="JSON mapping model → USD per 1k output tokens (for cost per successful task)")
+@click.option("--store", "store_path", default=None, help="Override DB path")
+@click.option("--json", "json_out", is_flag=True, help="Also print the decision as JSON to stdout")
+def decide(baseline_id: str, candidate_id: str, policy_path: str, out_paths: tuple[str, ...],
+           prices_path: str | None, store_path: str | None, json_out: bool) -> None:
+    """Turn two scenario runs into a one-page release decision (APPROVE/BLOCK/INCONCLUSIVE).
+
+    Exit code: 0 APPROVE, 1 BLOCK, 2 INCONCLUSIVE.
+    """
+    from guardmeter.decide.model import build_decision
+    from guardmeter.decide.render import render_html, render_markdown
+    from guardmeter.gate.schema import ScenarioThresholds
+    from guardmeter.scenarios.results import ScenarioResults
+
+    if baseline_id == candidate_id:
+        raise click.UsageError("baseline and candidate must be different runs (no self-comparison)")
+
+    store = _get_store(store_path)
+    try:
+        baseline = ScenarioResults.from_dict(store.get_scenario_run(baseline_id))
+        candidate = ScenarioResults.from_dict(store.get_scenario_run(candidate_id))
+    except KeyError as exc:
+        raise click.ClickException(str(exc)) from exc
+
+    if baseline.suite_hash and candidate.suite_hash and baseline.suite_hash != candidate.suite_hash:
+        raise click.ClickException(
+            f"runs are from different suites (baseline {baseline.suite_hash} != "
+            f"candidate {candidate.suite_hash}); a decision requires the same suite")
+
+    cfg = _load_gate_config(policy_path)
+    thr = cfg.scenarios or ScenarioThresholds()
+    prices = json.loads(Path(prices_path).read_text(encoding="utf-8")) if prices_path else None
+    suite_hint = f"{candidate.suite_name}.yaml"
+    rerun = _rerun_command(baseline, candidate, policy_path, suite_hint)
+
+    report = build_decision(baseline, candidate, thr, rerun_command=rerun, prices=prices)
+
+    for out in out_paths:
+        text = render_html(report) if out.lower().endswith((".html", ".htm")) else render_markdown(report)
+        Path(out).write_text(text, encoding="utf-8")
+        click.echo(f"Wrote {out}", err=json_out)
+
+    click.echo(f"Verdict: {report.verdict} — {report.reason}", err=json_out)
+    if json_out:
+        click.echo(json.dumps(report.to_dict(), indent=2))
+
+    sys.exit({"APPROVE": 0, "BLOCK": 1, "INCONCLUSIVE": 2}[report.verdict])
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # guardmeter init
 # ─────────────────────────────────────────────────────────────────────────────
 
 @cli.command()
-def init() -> None:
+@click.option("--agent", "mode_agent", is_flag=True,
+              help="Scaffold an agent release check (starter suite + gate) instead of the regex demo")
+@click.option("--demo", "mode_demo", is_flag=True,
+              help="Scaffold the regex compare demo (the default)")
+def init(mode_agent: bool, mode_demo: bool) -> None:
+    """Scaffold a new GuardMeter project in the current directory.
+
+    ``--agent`` writes a ready-to-run agent release check (starter scenario
+    suite + gate policy + README). The default (or ``--demo``) writes the regex
+    compare demo used by the README quick start.
+    """
+    if mode_agent and mode_demo:
+        raise click.UsageError("choose one of --agent or --demo, not both")
+    if mode_agent:
+        _init_agent()
+        return
+    _init_demo()
+
+
+def _init_agent() -> None:
+    """Copy the packaged agent-release-check starter into ./agent-release-check/."""
+    import importlib.resources
+    import shutil
+    from pathlib import Path
+
+    dest = Path("agent-release-check")
+    dest.mkdir(exist_ok=True)
+    src_dir = importlib.resources.files("guardmeter.data.starter")
+    wrote = []
+    for fname in ("starter.yaml", "gate.json", "README.md"):
+        target = dest / fname
+        if target.exists():
+            continue
+        with importlib.resources.as_file(src_dir / fname) as src:
+            shutil.copy(str(src), str(target))
+        wrote.append(str(target))
+    for path in wrote:
+        click.echo(f"Created {path}")
+    click.echo("\nAgent release check ready. Run each model version, then decide:")
+    click.echo("  guardmeter scenarios run agent-release-check/starter.yaml \\")
+    click.echo("    --endpoint http://localhost:11434/v1 --model llama3.2:3b --repeats 3 --store runs.db")
+    click.echo("  guardmeter decide --baseline <RUN_A> --candidate <RUN_B> \\")
+    click.echo("    --policy agent-release-check/gate.json --out decision.html")
+
+
+def _init_demo() -> None:
     """Scaffold a new GuardMeter project in the current directory."""
     import shutil
     from pathlib import Path

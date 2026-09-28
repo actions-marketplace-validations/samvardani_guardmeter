@@ -16,7 +16,7 @@ from guardmeter.scenarios.results import (
     ScenarioResults,
     status_of,
 )
-from guardmeter.scenarios.schema import Scenario, Suite
+from guardmeter.scenarios.schema import Scenario, Suite, suite_identity
 from guardmeter.scenarios.target import Target, TargetResponse
 
 
@@ -61,7 +61,7 @@ def run_scenario(scenario: Scenario, target: Target, *, cross_check: bool = True
     return ScenarioResult(
         id=scenario.id, name=scenario.name, category=scenario.category,
         language=scenario.language, tags=scenario.tags, status=status_of(runs),
-        runs=runs, judge_disagree=judge_disagree,
+        runs=runs, judge_disagree=judge_disagree, critical=scenario.critical,
     )
 
 
@@ -100,4 +100,5 @@ def run_suite(
         environment={"guardmeter_version": _guardmeter_version(),
                      "python_version": platform.python_version()},
         results=[r for r in ordered if r is not None],
+        suite_hash=suite_identity(suite),
     )

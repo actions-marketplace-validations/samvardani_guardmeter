@@ -1,6 +1,6 @@
 [project]
 name = "guardmeter"
-version = "0.12.1"
+version = "0.13.0"
 description = "Benchmark, compare, and gate AI safety guards"
 readme = "README.md"
 license = { text = "MIT" }
@@ -63,6 +63,8 @@ include = ["guardmeter*"]
 "guardmeter.report" = ["static/*.js", "static/*.txt"]
 "guardmeter.serve" = ["templates/*.html", "static/*", "static/**"]
 "guardmeter.data.builtin" = ["*.csv", "*.jsonl"]
+"guardmeter.data.starter" = ["*.yaml", "*.json", "*.md"]
+"guardmeter.decide.templates" = ["*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests/guardmeter"]
