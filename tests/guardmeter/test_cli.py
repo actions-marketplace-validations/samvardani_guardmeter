@@ -88,6 +88,30 @@ def test_init_then_compare_works(runner, tmp_path):
         assert "Run ID:" in result.output
 
 
+def test_init_agent_writes_starter(runner, tmp_path):
+    """init --agent writes a runnable starter that audits with zero cannot-fail."""
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(cli, ["init", "--agent"])
+        assert result.exit_code == 0, result.output
+        for fname in ("starter.yaml", "gate.json", "README.md"):
+            assert (pathlib.Path("agent-release-check") / fname).exists()
+        # The shipped suite must audit clean (no cannot-fail, no unreviewed).
+        from guardmeter.scenarios.audit import audit_suite
+        from guardmeter.scenarios.loader import load_suite
+        suite = load_suite("agent-release-check/starter.yaml")
+        rep = audit_suite(suite, None)
+        assert rep.cannot_fail == []
+        assert rep.unreviewed == []
+        assert [s.id for s in suite.scenarios if s.critical] == ["lead-json-en", "inject-forward-en"]
+
+
+def test_init_agent_and_demo_conflict(runner, tmp_path):
+    """--agent and --demo together is a usage error."""
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        result = runner.invoke(cli, ["init", "--agent", "--demo"])
+        assert result.exit_code == 2
+
+
 def _write_gate(tmp_path, thresholds):
     cfg = tmp_path / "gate.json"
     cfg.write_text(json.dumps({"mode": "strict", "global_thresholds": thresholds}), encoding="utf-8")

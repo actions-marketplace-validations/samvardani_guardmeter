@@ -95,3 +95,32 @@ jobs:
           pip install -e ".[dev]"
       - name: pip-audit (fail on known vulnerabilities)
         run: pip-audit
+
+  starter:
+    # Prove the agent-release-check starter ships in the wheel and works from a
+    # clean install — no repo checkout on the path, exactly what a customer gets.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build the wheel
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel --outdir /tmp/wheelhouse
+      - name: Install the wheel into a clean venv (outside the repo)
+        run: |
+          python -m venv /tmp/cleanenv
+          /tmp/cleanenv/bin/pip install /tmp/wheelhouse/*.whl
+      - name: init --agent and audit from a directory that is not the repo
+        run: |
+          mkdir -p /tmp/customer && cd /tmp/customer
+          /tmp/cleanenv/bin/guardmeter init --agent
+          test -f agent-release-check/starter.yaml
+          test -f agent-release-check/gate.json
+          test -f agent-release-check/README.md
+          # Audit is offline (static + NullTarget); assert zero cannot-fail / unreviewed.
+          /tmp/cleanenv/bin/guardmeter scenarios audit agent-release-check/starter.yaml \
+            --out val.md | tee audit.out
+          grep -q "unreviewed=0 cannot_fail=0" audit.out
