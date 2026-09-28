@@ -1,5 +1,42 @@
 # Changelog
 
+## [0.13.0] - 2026-09-27
+A starter kit and a one-page decision report, so an agent release check can be
+scaffolded, run, and delivered. Reuses the existing runner, gate, and comparison
+code — no new engine, integrations, or SaaS.
+
+### Added
+- **`guardmeter init --agent`** scaffolds an agent release check into
+  `agent-release-check/`: a five-case reviewed starter suite (`starter.yaml`), a
+  gate policy (`gate.json`), and a README. The suite ships **inside the wheel**,
+  so a clean `pip install guardmeter` can run it without cloning the repo (proven
+  by a clean-venv CI job). The regex compare demo is still there as
+  `init --demo` (and remains the default).
+- **`guardmeter decide --baseline RUN --candidate RUN --policy gate.json --out decision.{md,html}`**
+  turns two scenario runs into a one-page release decision: **APPROVE / BLOCK /
+  INCONCLUSIVE**, critical regressions (case id, before→after, failing
+  assertion), improvements, other regressions, added/removed cases, disputes,
+  errors, per-category coverage, latency p50/p95 before vs after, cost per
+  successful task (or **unknown** — never estimated), the acceptance policy in
+  plain words, and the exact rerun command with suite hash and both target
+  configs. The HTML is a single offline, print-friendly file. The verdict comes
+  from the canonical scenario gate; a new failure on a `critical` case blocks
+  approval even if the average improved, and an error or dispute on a critical
+  case is inconclusive. Exit code: 0 APPROVE, 1 BLOCK, 2 INCONCLUSIVE.
+- **`critical: true`** on scenarios, and `--repeats` on `scenarios run` to
+  override each scenario's repeat count.
+- **Sample decision** (`docs/samples/decision-sample.{md,html}`) plus run
+  evidence, on two local Ollama models (`llama3.2:3b` vs `qwen3:8b`) — a sample
+  on local open models, **not a customer**, and not tuned: the candidate's
+  average rose (0.6 → 0.8) but it newly failed the critical injection case, so
+  the verdict is **BLOCK**.
+- **`docs/RELEASE_CHECK_PLAYBOOK.md`** — the one-page delivery playbook (intake,
+  day-by-day commands, scope limits, handoff).
+
+### Changed
+- Scenario runs now record a `suite_hash` (bound to the exact suite) and
+  per-scenario `critical` flag; both round-trip through the store.
+
 ## [0.12.1] - 2026-09-27
 Two small fixes, no new features.
 
