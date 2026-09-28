@@ -13,8 +13,10 @@ from typing import Any
 
 from guardmeter.data.validate import NEAR_DUP_JACCARD, _tokens
 from guardmeter.scenarios.runner import run_suite
-from guardmeter.scenarios.schema import Suite
+from guardmeter.scenarios.schema import Suite, suite_identity
 from guardmeter.scenarios.target import NullTarget, Target
+
+__all__ = ["AuditReport", "audit_suite", "render_validation_md", "suite_identity"]
 
 # Assertion kinds that can only pass, never distinguish a broken target on their
 # own (a category built only from these is "weak").
@@ -72,14 +74,6 @@ class AuditReport:
         if langs:
             return f"validated: partial (languages: {', '.join(langs)})"
         return "not validated"
-
-
-def suite_identity(suite: Suite) -> str:
-    """A stable hash of a suite's identity (name + version + ordered scenario ids)."""
-    import hashlib
-    ids = "|".join(s.id for s in suite.scenarios)
-    key = f"{suite.suite.name}@{getattr(suite.suite, 'version', '')}::{ids}"
-    return hashlib.sha256(key.encode("utf-8")).hexdigest()[:16]
 
 
 def _scenario_text(scenario: Any) -> str:
