@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.14.0] - 2026-09-29
+Closes the remaining items from the independent review (P6–P10). No new engine,
+adapters, datasets, or languages. Full status: `docs/review-closure.md`.
+
+### Added
+- **Measured cost per successful task.** Scenario runs now capture the target's
+  prompt tokens (previously parsed then dropped) and the judge's own
+  prompt/completion tokens and retry count. `guardmeter decide` gains
+  `--price-file` (dated prices: `model → {input_per_1k, output_per_1k, as_of}`)
+  and prices prompt+completion per successful task, adding judge cost only when
+  the judge model is priced. Without usage or a price it stays **unknown** —
+  never estimated. (P7)
+- **`guardmeter languages status`** — per-language authored / reviewed /
+  native-signed counts from `MANIFEST.json`. Bare `guardmeter languages` still
+  lists the registry. (P9)
+- **PR release delivery.** `guardmeter decide` accepts run artifacts
+  (`--baseline-file` / `--candidate-file`) and can write an updateable PR-comment
+  body (`--pr-comment`). The `.github/actions/scenarios` action decides from two
+  run artifacts, posts one PR comment (found by marker, edited in place) with the
+  verdict, failing critical case ids, INCONCLUSIVE reasons and the rerun command,
+  and fails the check on BLOCK or INCONCLUSIVE; the comment step is guarded to
+  same-repo PRs. (P8)
+- **Docs:** `docs/review-closure.md` (P1–P12 status), `docs/EVIDENCE.md` +
+  `docs/site-handoff-evidence.md` (evidence appendix, "methods not the reason to
+  buy"), `docs/ENDPOINT_RECIPES.md` (OpenAI/n8n/Make/generic, stub-tested),
+  `docs/ADD_A_LANGUAGE.md`. (P6, P10)
+
+### Changed
+- **Language release now requires a native sign-off.** `can_release` counts only
+  native-reviewed rows and refuses a language without a native reviewer sign-off
+  covering ≥90% of rows — a fully-reviewed but non-native language (`en`) is
+  refused; `fa` (native) is releasable. (P9)
+- The scenario Action's install-version default was fixed (`0.9.0` → `0.14.0`).
+
 ## [0.13.1] - 2026-09-27
 Docs only.
 

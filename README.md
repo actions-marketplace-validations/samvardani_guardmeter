@@ -49,7 +49,7 @@ guardmeter decide --baseline <RUN_A> --candidate <RUN_B> \
   --policy agent-release-check/gate.json --out decision.html
 ```
 
-A new failure on a `critical` case blocks approval even if the average improved; an error or dispute on a critical case is inconclusive. Sample decision: [`docs/samples/decision-sample.html`](docs/samples/decision-sample.html). Delivery playbook: [`docs/RELEASE_CHECK_PLAYBOOK.md`](docs/RELEASE_CHECK_PLAYBOOK.md).
+A new failure on a `critical` case blocks approval even if the average improved; an error or dispute on a critical case is inconclusive. Add `--price-file prices.json` (dated per-model prices) for measured cost per successful task — without it, cost reads "unknown" and is never estimated. Run it on every PR with the [scenario Action](.github/actions/scenarios/action.yml). Sample decision: [`docs/samples/decision-sample.html`](docs/samples/decision-sample.html). Delivery playbook: [`docs/RELEASE_CHECK_PLAYBOOK.md`](docs/RELEASE_CHECK_PLAYBOOK.md). Endpoint recipes: [`docs/ENDPOINT_RECIPES.md`](docs/ENDPOINT_RECIPES.md).
 
 ---
 
@@ -59,7 +59,7 @@ A new failure on a `critical` case blocks approval even if the average improved;
 
 **Endpoint behaviour** — does an *agent* behave? A **scenario** points at any OpenAI-compatible endpoint and checks what it does on one input: calls the right tool, keeps the system prompt secret, answers in valid JSON, stays under a latency budget. `guardmeter scenarios run suite.yaml --endpoint … --model …`.
 
-**Language parity** — does accuracy hold across languages? Metrics slice by language, `gate.json` takes per-language thresholds and a recall-**parity** bound (best−worst gap), and datasets/suites track native-review status per language. `guardmeter languages` lists the registry.
+**Language parity** — does accuracy hold across languages? Metrics slice by language, `gate.json` takes per-language thresholds and a recall-**parity** bound (best−worst gap), and datasets/suites track native-review status per language. `guardmeter languages` lists the registry; `guardmeter languages status` shows per-language authored/reviewed/native-signed counts (release requires a native sign-off).
 
 ---
 
