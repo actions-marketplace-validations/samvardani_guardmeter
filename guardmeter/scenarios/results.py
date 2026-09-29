@@ -26,6 +26,12 @@ class RunRecord:
     text: str = ""  # redacted
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     outcomes: list[dict[str, Any]] = field(default_factory=list)  # {type, passed, detail, judge_disagree}
+    # Target prompt tokens (completion_tokens above), plus the judge's own cost.
+    prompt_tokens: int | None = None
+    judge_prompt_tokens: int | None = None
+    judge_completion_tokens: int | None = None
+    judge_retries: int = 0
+    judge_model: str | None = None
 
 
 @dataclass
@@ -137,7 +143,11 @@ class ScenarioResults:
                     "runs": [
                         {"latency_ms": run.latency_ms, "completion_tokens": run.completion_tokens,
                          "error": run.error, "passed": run.passed, "text": run.text,
-                         "tool_calls": run.tool_calls, "outcomes": run.outcomes}
+                         "tool_calls": run.tool_calls, "outcomes": run.outcomes,
+                         "prompt_tokens": run.prompt_tokens,
+                         "judge_prompt_tokens": run.judge_prompt_tokens,
+                         "judge_completion_tokens": run.judge_completion_tokens,
+                         "judge_retries": run.judge_retries, "judge_model": run.judge_model}
                         for run in r.runs
                     ],
                 }
@@ -155,7 +165,9 @@ class ScenarioResults:
                 critical=r.get("critical", False),
                 runs=[RunRecord(**{k: run[k] for k in
                                    ("latency_ms", "completion_tokens", "error", "passed",
-                                    "text", "tool_calls", "outcomes") if k in run})
+                                    "text", "tool_calls", "outcomes", "prompt_tokens",
+                                    "judge_prompt_tokens", "judge_completion_tokens",
+                                    "judge_retries", "judge_model") if k in run})
                       for run in r.get("runs", [])],
             )
             for r in d.get("results", [])

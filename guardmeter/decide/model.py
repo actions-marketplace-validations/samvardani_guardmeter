@@ -113,33 +113,72 @@ def _policy_plain(thr: ScenarioThresholds) -> list[str]:
     return out
 
 
-def _cost_per_successful_task(candidate: ScenarioResults, prices: dict[str, Any] | None) -> str:
-    """Output-token cost per passing case, only when both usage and a price exist.
+def _price_of(prices: dict[str, Any], model: str) -> tuple[float, float] | None:
+    """Return (input_per_1k, output_per_1k) for a model, or None if unpriced.
 
-    Never estimates: if no price is supplied for the candidate model, or the run
-    carries no token usage, returns "unknown".
+    A price entry may be a number (output-only, legacy) or a dict with
+    ``input_per_1k`` / ``output_per_1k`` (and an optional dated ``as_of``).
+    """
+    p = prices.get(model)
+    if p is None:
+        return None
+    if isinstance(p, (int, float)):
+        return 0.0, float(p)
+    return float(p.get("input_per_1k", 0.0)), float(p.get("output_per_1k", 0.0))
+
+
+def _cost_per_successful_task(candidate: ScenarioResults, prices: dict[str, Any] | None) -> str:
+    """Measured inference cost per passing case, only when usage and a price exist.
+
+    Never estimates. Returns "unknown" when no price file is given, the candidate
+    model is unpriced, there are no passing cases, or the run carries no target
+    token usage. Judge cost is added only when the judge model is also priced.
     """
     if not prices:
         return "unknown"
     model = str(candidate.target.get("model", ""))
-    price = prices.get(model)
-    if price is None:
+    target_price = _price_of(prices, model)
+    if target_price is None:
         return "unknown"
-    per_1k = float(price)
+    in_1k, out_1k = target_price
     passing = [r for r in candidate.results if r.status == "pass"]
     if not passing:
         return "unknown"
-    tokens = 0
+
+    prompt = completion = 0
     have_usage = False
+    judge_prompt = judge_completion = 0
+    judge_model: str | None = None
     for r in passing:
         for run in r.runs:
             if run.completion_tokens is not None:
-                tokens += run.completion_tokens
+                completion += run.completion_tokens
                 have_usage = True
+            if run.prompt_tokens is not None:
+                prompt += run.prompt_tokens
+                have_usage = True
+            judge_prompt += run.judge_prompt_tokens or 0
+            judge_completion += run.judge_completion_tokens or 0
+            judge_model = judge_model or run.judge_model
     if not have_usage:
         return "unknown"
-    cost = tokens / 1000.0 * per_1k
-    return f"${cost / len(passing):.4f} (output tokens, {model} @ ${per_1k}/1k)"
+
+    n = len(passing)
+    target_cost = (prompt * in_1k + completion * out_1k) / 1000.0
+    parts = [f"target {model}: {prompt}+{completion} tok"]
+    total = target_cost
+
+    judge_note = ""
+    if judge_prompt or judge_completion:
+        jp = _price_of(prices, judge_model) if judge_model else None
+        if jp is not None:
+            total += (judge_prompt * jp[0] + judge_completion * jp[1]) / 1000.0
+            parts.append(f"judge {judge_model}: {judge_prompt}+{judge_completion} tok")
+        else:
+            judge_note = f"; judge cost excluded (no price for {judge_model})"
+            parts.append(f"judge {judge_model}: {judge_prompt}+{judge_completion} tok, unpriced")
+
+    return f"${total / n:.4f}/successful task ({'; '.join(parts)}){judge_note}"
 
 
 def build_decision(

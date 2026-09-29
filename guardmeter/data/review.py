@@ -76,15 +76,74 @@ def reviewed_status(records: list[DatasetRecord], code: str) -> str:
     return "authored" if any(r.language == code for r in records) else "draft"
 
 
-def can_release(records: list[DatasetRecord], code: str, validator_ok: bool) -> tuple[bool, str]:
-    """Whether a language may be marked released. Returns (ok, reason)."""
+def native_signoff(manifest: dict[str, Any], code: str) -> dict[str, Any] | None:
+    """The native reviewer sign-off for a language (native=True), or None.
+
+    Picks the native reviewer who signed off on the most rows.
+    """
+    entry = manifest.get("languages", {}).get(code, {})
+    native = [rv for rv in entry.get("reviewers", []) if rv.get("native")]
+    if not native:
+        return None
+    return max(native, key=lambda rv: rv.get("rows_reviewed", 0))
+
+
+def native_reviewed_fraction(manifest: dict[str, Any], code: str) -> float:
+    """Fraction of a language's rows signed off by a native reviewer (0 if none)."""
+    entry = manifest.get("languages", {}).get(code, {})
+    rows = entry.get("rows", 0)
+    signoff = native_signoff(manifest, code)
+    if not rows or signoff is None:
+        return 0.0
+    return min(1.0, signoff.get("rows_reviewed", 0) / rows)
+
+
+def can_release(records: list[DatasetRecord], code: str, validator_ok: bool,
+                manifest: dict[str, Any] | None = None) -> tuple[bool, str]:
+    """Whether a language may be marked released. Returns (ok, reason).
+
+    A release requires (1) ≥ RELEASE_MIN_REVIEWED of rows reviewed, (2) a **native**
+    reviewer sign-off covering ≥ RELEASE_MIN_REVIEWED of rows, and (3) the validator
+    passing. Without a manifest showing a native sign-off, release is refused — a
+    non-native review (e.g. en) cannot release a language.
+    """
     frac = reviewed_fraction(records, code)
     if frac < RELEASE_MIN_REVIEWED:
-        return False, (f"only {frac:.0%} of {code} rows reviewed by a native reviewer "
+        return False, (f"only {frac:.0%} of {code} rows reviewed "
+                       f"(need ≥ {RELEASE_MIN_REVIEWED:.0%})")
+    manifest = manifest or {}
+    if native_signoff(manifest, code) is None:
+        return False, (f"{code} has no native reviewer sign-off; a language cannot be "
+                       "released on a non-native review")
+    native_frac = native_reviewed_fraction(manifest, code)
+    if native_frac < RELEASE_MIN_REVIEWED:
+        return False, (f"only {native_frac:.0%} of {code} rows have a native sign-off "
                        f"(need ≥ {RELEASE_MIN_REVIEWED:.0%})")
     if not validator_ok:
         return False, f"validator does not pass for {code}"
     return True, "eligible"
+
+
+def manifest_language_counts(manifest: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per-language authored / reviewed / native-signed counts from the manifest.
+
+    ``authored`` = rows present; ``reviewed`` = rows signed off by any reviewer;
+    ``native_signed`` = rows signed off by a native reviewer.
+    """
+    out = []
+    for code, e in sorted(manifest.get("languages", {}).items()):
+        reviewers = e.get("reviewers", [])
+        reviewed = max((rv.get("rows_reviewed", 0) for rv in reviewers), default=0)
+        signoff = native_signoff(manifest, code)
+        out.append({
+            "language": code,
+            "status": e.get("status", "draft"),
+            "authored": e.get("rows", 0),
+            "reviewed": reviewed,
+            "native_signed": signoff.get("rows_reviewed", 0) if signoff else 0,
+            "native_reviewer": signoff.get("name") if signoff else None,
+        })
+    return out
 
 
 def status_table(manifest: dict[str, Any], records: list[DatasetRecord] | None = None) -> list[dict[str, Any]]:

@@ -8,12 +8,15 @@ from guardmeter.gate.schema import ScenarioThresholds
 from guardmeter.scenarios.results import RunRecord, ScenarioResult, ScenarioResults
 
 
-def _case(cid, status, *, critical=False, category="agent-tools", tokens=None, latency=10,
-          disagree=False):
+def _case(cid, status, *, critical=False, category="agent-tools", tokens=None, prompt=None,
+          latency=10, disagree=False, judge_tokens=None, judge_model=None):
     return ScenarioResult(
         id=cid, name=cid, category=category, language="en", tags=[], status=status,
         judge_disagree=disagree, critical=critical,
-        runs=[RunRecord(latency_ms=latency, completion_tokens=tokens, passed=(status == "pass"),
+        runs=[RunRecord(latency_ms=latency, completion_tokens=tokens, prompt_tokens=prompt,
+                        passed=(status == "pass"),
+                        judge_prompt_tokens=judge_tokens, judge_completion_tokens=judge_tokens,
+                        judge_model=judge_model,
                         outcomes=[{"type": "must_call_tool", "passed": status == "pass",
                                    "detail": "wrong tool", "judge_disagree": disagree}])],
     )
@@ -94,6 +97,27 @@ def test_cost_computed_with_prices_and_usage():
                        prices={"qwen": 0.5})
     assert r.cost_per_successful_task.startswith("$")
     assert "unknown" not in r.cost_per_successful_task
+
+
+def test_cost_uses_prompt_and_completion_with_dated_price():
+    """A dict price (input+output) prices both prompt and completion tokens."""
+    baseline = _run("base", [_case("a", "pass", tokens=200, prompt=1000)])
+    candidate = _run("cand", [_case("a", "pass", tokens=200, prompt=1000)], model="qwen")
+    r = build_decision(baseline, candidate, ScenarioThresholds(min_pass_rate=0.1, min_total=1),
+                       prices={"qwen": {"input_per_1k": 0.1, "output_per_1k": 0.5, "as_of": "2026-09-01"}})
+    # 1000/1k*0.1 + 200/1k*0.5 = 0.10 + 0.10 = $0.2000 per successful task
+    assert r.cost_per_successful_task.startswith("$0.2000/successful task")
+    assert "target qwen: 1000+200 tok" in r.cost_per_successful_task
+
+
+def test_judge_cost_excluded_when_judge_unpriced():
+    """Judge tokens are shown but excluded from cost when the judge model has no price."""
+    baseline = _run("base", [_case("a", "pass", tokens=100)])
+    candidate = _run("cand", [_case("a", "pass", tokens=100, judge_tokens=50, judge_model="claude")],
+                     model="qwen")
+    r = build_decision(baseline, candidate, ScenarioThresholds(min_pass_rate=0.1, min_total=1),
+                       prices={"qwen": 0.5})
+    assert "judge cost excluded (no price for claude)" in r.cost_per_successful_task
 
 
 def test_decide_cli_end_to_end(tmp_path):
