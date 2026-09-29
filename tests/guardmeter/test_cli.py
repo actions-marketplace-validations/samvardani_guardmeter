@@ -302,8 +302,9 @@ def test_languages_status_falls_back_and_errors_gracefully(runner, tmp_path):
         # No manifest anywhere → friendly guidance, not a repo-relative path error.
         miss = runner.invoke(cli, ["languages", "status"])
         assert miss.exit_code != 0
-        assert "guardmeter dataset fetch agentic-v2" in miss.output
         assert "--manifest" in miss.output
+        assert "dataset/agentic/v2/MANIFEST.json" in miss.output
+        assert "dataset fetch" not in miss.output
 
         # Simulate a fetched dataset: manifest at ./dataset/agentic/v2/MANIFEST.json.
         dest = pathlib.Path("dataset/agentic/v2")

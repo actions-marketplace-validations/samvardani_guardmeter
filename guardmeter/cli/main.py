@@ -634,17 +634,19 @@ def languages(ctx: click.Context, json_out: bool, detect_text: str | None) -> No
     click.echo(f"\n{len(LANGUAGES)} languages.")
 
 
-# Where `guardmeter dataset fetch agentic-v2` writes the dataset, relative to cwd.
+# The dataset manifest as laid out in a repo checkout, relative to cwd.
 _DEFAULT_MANIFEST = "dataset/agentic/v2/MANIFEST.json"
+_MANIFEST_URL = (
+    "https://github.com/samvardani/guardmeter/blob/main/dataset/agentic/v2/MANIFEST.json")
 
 
 def _resolve_manifest(manifest_path: str | None) -> str:
-    """Resolve the manifest path, falling back to the fetched dataset's location.
+    """Resolve the manifest path, falling back to a checked-out dataset manifest.
 
-    Order: an explicit ``--manifest`` → the fetched/checked-out dataset manifest
-    under ``dataset/agentic/v2/`` in the current directory. Raises a friendly
-    error (not a repo-relative path error) when nothing is found — the usual case
-    for a bare ``pip install`` before ``guardmeter dataset fetch``.
+    Order: an explicit ``--manifest`` → the dataset manifest under
+    ``dataset/agentic/v2/`` in the current directory. Raises a friendly error
+    (not a repo-relative path error) when nothing is found — the usual case for a
+    bare ``pip install``, where the manifest is not shipped.
     """
     if manifest_path:
         if not Path(manifest_path).exists():
@@ -653,13 +655,13 @@ def _resolve_manifest(manifest_path: str | None) -> str:
     if Path(_DEFAULT_MANIFEST).exists():
         return _DEFAULT_MANIFEST
     raise click.ClickException(
-        "no manifest here: run `guardmeter dataset fetch agentic-v2` or pass --manifest PATH")
+        f"no manifest here. Pass --manifest PATH, or get it from {_MANIFEST_URL}")
 
 
 @languages.command("status")
 @click.option("--manifest", "manifest_path", default=None,
               help="Dataset MANIFEST.json to read "
-                   "(default: ./dataset/agentic/v2/MANIFEST.json, e.g. after `dataset fetch`)")
+                   "(default: ./dataset/agentic/v2/MANIFEST.json in a repo checkout)")
 @click.option("--json", "json_out", is_flag=True, help="Print the counts as JSON")
 def languages_status(manifest_path: str | None, json_out: bool) -> None:
     """Per-language authored / reviewed / native-signed counts from the manifest."""

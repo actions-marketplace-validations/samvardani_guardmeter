@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.14.2] - 2026-09-29
+### Changed
+- **`guardmeter languages status` message wording.** When no manifest is found,
+  it now points to `--manifest PATH` or the manifest on GitHub, and no longer
+  mentions `dataset fetch` (which does not download the manifest).
+
 ## [0.14.1] - 2026-09-29
 ### Fixed
 - **`guardmeter languages status` works from a `pip install`.** The default
