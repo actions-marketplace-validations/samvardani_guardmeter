@@ -163,6 +163,58 @@ def test_decide_cli_rejects_self_comparison(tmp_path):
     assert result.exit_code == 2  # usage error
 
 
+def test_pr_comment_has_marker_verdict_and_critical_ids():
+    """The PR comment carries the marker, verdict, failing critical ids, and rerun."""
+    from guardmeter.decide.render import PR_COMMENT_MARKER, render_pr_comment
+
+    baseline = _run("base", [_case("crit", "pass", critical=True), _case("a", "pass")])
+    candidate = _run("cand", [_case("crit", "fail", critical=True), _case("a", "pass")])
+    r = build_decision(baseline, candidate, ScenarioThresholds(min_pass_rate=0.1, min_total=1),
+                       rerun_command="guardmeter scenarios run ...")
+    body = render_pr_comment(r)
+    assert body.startswith(PR_COMMENT_MARKER)
+    assert "BLOCK" in body
+    assert "`crit`" in body
+    assert "Reproduce" in body
+
+
+def test_pr_comment_inconclusive_lists_reasons():
+    from guardmeter.decide.render import render_pr_comment
+
+    baseline = _run("base", [_case("crit", "pass", critical=True)])
+    candidate = _run("cand", [_case("crit", "error", critical=True)])
+    r = build_decision(baseline, candidate, ScenarioThresholds(min_pass_rate=0.9, min_total=1))
+    body = render_pr_comment(r)
+    assert "INCONCLUSIVE" in body
+    assert "Why inconclusive" in body
+
+
+def test_decide_from_run_files(tmp_path):
+    """decide reads baseline/candidate from JSON artifacts (no store) and emits a PR comment."""
+    import json
+
+    from click.testing import CliRunner
+
+    from guardmeter.cli.main import cli
+
+    base = _run("baseAAA", [_case("crit", "pass", critical=True), _case("a", "pass")])
+    cand = _run("candBBB", [_case("crit", "fail", critical=True), _case("a", "pass")])
+    bf, cf = tmp_path / "base.json", tmp_path / "cand.json"
+    bf.write_text(json.dumps(base.to_dict()), encoding="utf-8")
+    cf.write_text(json.dumps(cand.to_dict()), encoding="utf-8")
+    policy = tmp_path / "gate.json"
+    policy.write_text(json.dumps({"scenarios": {"min_pass_rate": 0.1, "min_total": 1}}), encoding="utf-8")
+    comment = tmp_path / "comment.md"
+    result = CliRunner().invoke(cli, [
+        "decide", "--baseline-file", str(bf), "--candidate-file", str(cf),
+        "--policy", str(policy), "--out", str(tmp_path / "d.md"), "--pr-comment", str(comment),
+    ])
+    assert result.exit_code == 1, result.output  # BLOCK
+    assert comment.exists()
+    assert "guardmeter-decision" in comment.read_text()
+    assert "`crit`" in comment.read_text()
+
+
 def test_renders_md_and_html():
     """Both renderers produce non-empty output containing the verdict."""
     baseline = _run("base", [_case("a", "pass")])

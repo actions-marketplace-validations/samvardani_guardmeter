@@ -74,6 +74,35 @@ candidate once and regenerate the decision.
 You keep nothing of theirs: no keys, no traffic, no data beyond what they approve
 for the handoff.
 
+## Recurring checks in the customer's CI (optional)
+
+Once the suite is theirs, the decision can run on every pull request. The
+`.github/actions/scenarios` action decides from two **run artifacts** (baseline
+vs candidate scenario-run JSON) — it never needs the customer's endpoint keys,
+because the runs were already produced upstream.
+
+```yaml
+permissions:
+  pull-requests: write   # to post the decision comment
+jobs:
+  release-decision:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ... produce baseline-run.json and candidate-run.json however you run the suite ...
+      - uses: your-org/guardmeter/.github/actions/scenarios@v0.14.0
+        with:
+          baseline-run: baseline-run.json
+          candidate-run: candidate-run.json
+          policy: agent-release-check/gate.json
+```
+
+It posts **one** PR comment (found by a marker and edited in place on reruns)
+with the verdict, failing critical case ids, INCONCLUSIVE reasons, and the rerun
+command, and **fails the check on BLOCK or INCONCLUSIVE**. On fork PRs the comment
+step is skipped (the token is read-only), but the check still fails on a bad
+verdict.
+
 ## Boundaries to say out loud
 
 - "Thirty cases don't prove your agent is safe. This checks agreed business

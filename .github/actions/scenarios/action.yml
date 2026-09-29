@@ -1,39 +1,34 @@
-name: "GuardMeter Scenarios"
-description: "Run a GuardMeter scenario suite against an endpoint and gate on the result."
+name: "GuardMeter Release Decision"
+description: >-
+  Decide a release from two scenario-run artifacts (baseline vs candidate) and
+  post one updateable PR comment. Fails the check on BLOCK or INCONCLUSIVE.
 inputs:
-  suite:
-    description: "Path to the scenario suite (YAML/JSON/JSONL)"
+  baseline-run:
+    description: "Path to the baseline scenario-run JSON artifact"
     required: true
-  endpoint:
-    description: "OpenAI-compatible base URL (e.g. https://host/v1)"
+  candidate-run:
+    description: "Path to the candidate scenario-run JSON artifact"
     required: true
-  model:
-    description: "Model name at the endpoint"
-    required: true
-  key-env:
-    description: "Name of the env var holding the endpoint API key"
-    required: false
-    default: ""
-  gate-config:
-    description: "gate.json with a `scenarios` block"
+  policy:
+    description: "gate.json with a `scenarios` block (the acceptance policy)"
     required: false
     default: "gate.json"
-  allow-unvalidated:
-    description: "Gate even if the suite is not validated"
+  price-file:
+    description: "Optional dated price file for cost per successful task"
     required: false
-    default: "false"
-  concurrency:
-    description: "Parallel scenarios"
-    required: false
-    default: "4"
+    default: ""
   version:
     description: 'guardmeter version to install, or "local"'
     required: false
-    default: "0.9.0"
+    default: "0.14.0"
   python-version:
     description: "Python version"
     required: false
     default: "3.12"
+  github-token:
+    description: "Token used to post the PR comment (needs pull-requests: write)"
+    required: false
+    default: ${{ github.token }}
 runs:
   using: composite
   steps:
@@ -43,24 +38,57 @@ runs:
     - name: Install guardmeter
       shell: bash
       run: |
-        if [ "${{ inputs.version }}" = "local" ]; then pip install -e ".[dev]"; else pip install "guardmeter==${{ inputs.version }}"; fi
-    - name: Run scenarios
+        if [ "${{ inputs.version }}" = "local" ]; then pip install -e "."; else pip install "guardmeter==${{ inputs.version }}"; fi
+    - name: Decide
+      id: decide
       shell: bash
+      # Never needs the customer's endpoint keys: it decides on already-produced
+      # run artifacts. Exit code: 0 APPROVE, 1 BLOCK, 2 INCONCLUSIVE.
       run: |
-        guardmeter scenarios run "${{ inputs.suite }}" \
-          --endpoint "${{ inputs.endpoint }}" --model "${{ inputs.model }}" \
-          ${{ inputs.key-env && format('--key-env {0}', inputs.key-env) || '' }} \
-          --concurrency "${{ inputs.concurrency }}" \
-          --summary-md "$GITHUB_STEP_SUMMARY" --junit guardmeter-scenarios-junit.xml
-    - name: Upload JUnit
+        set +e
+        guardmeter decide \
+          --baseline-file "${{ inputs.baseline-run }}" \
+          --candidate-file "${{ inputs.candidate-run }}" \
+          --policy "${{ inputs.policy }}" \
+          --out decision.html --out decision.md \
+          --pr-comment decision-comment.md \
+          ${{ inputs.price-file && format('--price-file {0}', inputs.price-file) || '' }}
+        echo "exit_code=$?" >> "$GITHUB_OUTPUT"
+        cat decision-comment.md >> "$GITHUB_STEP_SUMMARY"
+    - name: Upload decision report
       if: always()
       uses: actions/upload-artifact@v7
       with:
-        name: guardmeter-scenarios-junit
-        path: guardmeter-scenarios-junit.xml
-    - name: Gate
+        name: guardmeter-decision
+        path: |
+          decision.html
+          decision.md
+    - name: Post or update PR comment
+      # Only on same-repo pull requests: fork PRs get a read-only token, so skip
+      # rather than fail. No secrets are used here beyond the repo token.
+      if: >-
+        always() && github.event_name == 'pull_request' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        PR: ${{ github.event.pull_request.number }}
+        REPO: ${{ github.repository }}
+      run: |
+        MARKER="<!-- guardmeter-decision -->"
+        # Find our previous comment by marker and edit it in place, else create one.
+        ID=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+              --jq "map(select(.body | contains(\"$MARKER\"))) | .[0].id // empty")
+        if [ -n "$ID" ]; then
+          gh api -X PATCH "repos/$REPO/issues/comments/$ID" -F body=@decision-comment.md >/dev/null
+        else
+          gh api -X POST "repos/$REPO/issues/$PR/comments" -F body=@decision-comment.md >/dev/null
+        fi
+    - name: Fail on BLOCK or INCONCLUSIVE
       shell: bash
       run: |
-        guardmeter gate --scenario-run latest --config "${{ inputs.gate-config }}" \
-          --suite "${{ inputs.suite }}" \
-          ${{ inputs.allow-unvalidated == 'true' && '--allow-unvalidated' || '' }}
+        code="${{ steps.decide.outputs.exit_code }}"
+        if [ "$code" != "0" ]; then
+          echo "::error::GuardMeter decision was not APPROVE (decide exit $code)"
+          exit "$code"
+        fi
