@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.14.1] - 2026-09-29
+### Fixed
+- **`guardmeter languages status` works from a `pip install`.** The default
+  manifest path was repo-relative, so it errored anywhere else. It now resolves
+  the fetched dataset's manifest under `./dataset/agentic/v2/` (where
+  `guardmeter dataset fetch agentic-v2` writes it) and, when none is found,
+  prints "no manifest here: run `guardmeter dataset fetch agentic-v2` or pass
+  --manifest PATH" instead of a confusing path error.
+
 ## [0.14.0] - 2026-09-29
 Closes the remaining items from the independent review (P6–P10). No new engine,
 adapters, datasets, or languages. Full status: `docs/review-closure.md`.

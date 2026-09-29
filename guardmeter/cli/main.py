@@ -634,17 +634,38 @@ def languages(ctx: click.Context, json_out: bool, detect_text: str | None) -> No
     click.echo(f"\n{len(LANGUAGES)} languages.")
 
 
+# Where `guardmeter dataset fetch agentic-v2` writes the dataset, relative to cwd.
+_DEFAULT_MANIFEST = "dataset/agentic/v2/MANIFEST.json"
+
+
+def _resolve_manifest(manifest_path: str | None) -> str:
+    """Resolve the manifest path, falling back to the fetched dataset's location.
+
+    Order: an explicit ``--manifest`` → the fetched/checked-out dataset manifest
+    under ``dataset/agentic/v2/`` in the current directory. Raises a friendly
+    error (not a repo-relative path error) when nothing is found — the usual case
+    for a bare ``pip install`` before ``guardmeter dataset fetch``.
+    """
+    if manifest_path:
+        if not Path(manifest_path).exists():
+            raise click.ClickException(f"manifest not found: {manifest_path}")
+        return manifest_path
+    if Path(_DEFAULT_MANIFEST).exists():
+        return _DEFAULT_MANIFEST
+    raise click.ClickException(
+        "no manifest here: run `guardmeter dataset fetch agentic-v2` or pass --manifest PATH")
+
+
 @languages.command("status")
-@click.option("--manifest", "manifest_path", default="dataset/agentic/v2/MANIFEST.json",
-              show_default=True, help="Dataset MANIFEST.json to read")
+@click.option("--manifest", "manifest_path", default=None,
+              help="Dataset MANIFEST.json to read "
+                   "(default: ./dataset/agentic/v2/MANIFEST.json, e.g. after `dataset fetch`)")
 @click.option("--json", "json_out", is_flag=True, help="Print the counts as JSON")
-def languages_status(manifest_path: str, json_out: bool) -> None:
+def languages_status(manifest_path: str | None, json_out: bool) -> None:
     """Per-language authored / reviewed / native-signed counts from the manifest."""
     from guardmeter.data.review import load_manifest, manifest_language_counts
 
-    if not Path(manifest_path).exists():
-        raise click.ClickException(f"manifest not found: {manifest_path}")
-    rows = manifest_language_counts(load_manifest(manifest_path))
+    rows = manifest_language_counts(load_manifest(_resolve_manifest(manifest_path)))
     if json_out:
         click.echo(json.dumps(rows, ensure_ascii=False, indent=2))
         return

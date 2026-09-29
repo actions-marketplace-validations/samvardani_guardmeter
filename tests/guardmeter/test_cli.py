@@ -295,6 +295,28 @@ def test_languages_status_reads_manifest(runner, tmp_path):
     assert reg.exit_code == 0 and "romanization" in reg.output
 
 
+def test_languages_status_falls_back_and_errors_gracefully(runner, tmp_path):
+    """From an arbitrary dir (pip install), `languages status` finds the fetched
+    dataset's manifest, and prints a helpful message when there is none."""
+    with runner.isolated_filesystem(temp_dir=tmp_path):
+        # No manifest anywhere → friendly guidance, not a repo-relative path error.
+        miss = runner.invoke(cli, ["languages", "status"])
+        assert miss.exit_code != 0
+        assert "guardmeter dataset fetch agentic-v2" in miss.output
+        assert "--manifest" in miss.output
+
+        # Simulate a fetched dataset: manifest at ./dataset/agentic/v2/MANIFEST.json.
+        dest = pathlib.Path("dataset/agentic/v2")
+        dest.mkdir(parents=True)
+        (dest / "MANIFEST.json").write_text(json.dumps({"languages": {
+            "fa": {"rows": 121, "status": "reviewed",
+                   "reviewers": [{"name": "sam", "native": True, "rows_reviewed": 121}]},
+        }}), encoding="utf-8")
+        found = runner.invoke(cli, ["languages", "status", "--json"])
+        assert found.exit_code == 0, found.output
+        assert json.loads(found.stdout)[0]["native_signed"] == 121
+
+
 def test_probe_nvidia_requires_key(runner, monkeypatch):
     """`probe nvidia` fails cleanly (non-zero, clear message) when the key is unset."""
     from guardmeter.cli.main import cli
