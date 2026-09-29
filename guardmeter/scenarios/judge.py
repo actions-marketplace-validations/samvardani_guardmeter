@@ -13,6 +13,7 @@ import os
 import re
 import time
 import urllib.request
+from typing import Any
 
 _RUBRIC_SYSTEM = (
     "You are a strict evaluator. Score how well the RESPONSE satisfies the CRITERIA "
@@ -69,8 +70,24 @@ def _user_prompt(criteria: str, response_text: str) -> str:
     return f"CRITERIA:\n{criteria}\n\nRESPONSE:\n{response_text}\n\nScore it."
 
 
-def score_rubric(judge: str, criteria: str, response_text: str) -> tuple[float, str]:
-    """Score a response against criteria with the named judge. Raises on transport error."""
+# A judge scoring result: (score, reasoning, usage). usage carries the judge's
+# own token cost and retries so `guardmeter decide` can price it honestly.
+JudgeUsage = dict[str, Any]
+
+
+def _usage(prompt_tokens: int | None, completion_tokens: int | None, retries: int,
+           model: str) -> JudgeUsage:
+    return {"prompt_tokens": prompt_tokens, "completion_tokens": completion_tokens,
+            "retries": retries, "model": model}
+
+
+def score_rubric(judge: str, criteria: str, response_text: str) -> tuple[float, str, JudgeUsage]:
+    """Score a response against criteria with the named judge.
+
+    Returns ``(score, reasoning, usage)``; raises on transport error. ``usage``
+    records the judge's prompt/completion tokens (None if the API omits them),
+    retry count, and resolved model.
+    """
     prompt = _user_prompt(criteria, response_text)
     if judge in ("anthropic",) or judge.startswith("claude"):
         return _score_anthropic(judge, prompt)
@@ -81,7 +98,7 @@ def score_rubric(judge: str, criteria: str, response_text: str) -> tuple[float, 
     raise ValueError(f"unknown judge {judge!r}")
 
 
-def _score_anthropic(judge: str, prompt: str) -> tuple[float, str]:
+def _score_anthropic(judge: str, prompt: str) -> tuple[float, str, JudgeUsage]:
     import anthropic
     model = judge if judge.startswith("claude") else "claude-sonnet-4-5"
     client = anthropic.Anthropic(api_key=os.environ.get("ANTHROPIC_API_KEY"))
@@ -89,10 +106,13 @@ def _score_anthropic(judge: str, prompt: str) -> tuple[float, str]:
         model=model, max_tokens=256, system=_RUBRIC_SYSTEM,
         messages=[{"role": "user", "content": prompt}])
     content = "".join(getattr(b, "text", "") or "" for b in resp.content)
-    return _parse_score(content)
+    u = getattr(resp, "usage", None)
+    score, reason = _parse_score(content)
+    return score, reason, _usage(getattr(u, "input_tokens", None),
+                                 getattr(u, "output_tokens", None), 0, model)
 
 
-def _score_openai(judge: str, prompt: str) -> tuple[float, str]:
+def _score_openai(judge: str, prompt: str) -> tuple[float, str, JudgeUsage]:
     import openai
     model = judge if judge.startswith(("gpt", "o1", "o3")) else "gpt-4o-mini"
     client = openai.OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
@@ -100,10 +120,13 @@ def _score_openai(judge: str, prompt: str) -> tuple[float, str]:
         model=model, response_format={"type": "json_object"},
         messages=[{"role": "system", "content": _RUBRIC_SYSTEM},
                   {"role": "user", "content": prompt}])
-    return _parse_score(resp.choices[0].message.content or "")
+    u = getattr(resp, "usage", None)
+    score, reason = _parse_score(resp.choices[0].message.content or "")
+    return score, reason, _usage(getattr(u, "prompt_tokens", None),
+                                 getattr(u, "completion_tokens", None), 0, model)
 
 
-def _score_opod(prompt: str) -> tuple[float, str]:
+def _score_opod(prompt: str) -> tuple[float, str, JudgeUsage]:
     url = os.environ["OPOD_URL"].rstrip("/")
     model = os.environ.get("OPOD_JUDGE_MODEL", os.environ.get("OPOD_MODEL", "qwen3-8b"))
     body = json.dumps({
@@ -115,11 +138,16 @@ def _score_opod(prompt: str) -> tuple[float, str]:
     if os.environ.get("OPOD_KEY"):
         headers["Authorization"] = f"Bearer {os.environ['OPOD_KEY']}"
     req = urllib.request.Request(f"{url}/chat/completions", data=body, headers=headers, method="POST")
+    retries = 0
     for _attempt in range(2):
         try:
             with urllib.request.urlopen(req, timeout=120) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
-            return _parse_score(data["choices"][0]["message"].get("content") or "")
+            usage_raw = data.get("usage") or {}
+            score, reason = _parse_score(data["choices"][0]["message"].get("content") or "")
+            return score, reason, _usage(usage_raw.get("prompt_tokens"),
+                                         usage_raw.get("completion_tokens"), retries, model)
         except (json.JSONDecodeError, ValueError, KeyError):
+            retries += 1
             time.sleep(0)  # one retry on a malformed/empty completion
     raise ValueError("opod judge returned no parseable score")

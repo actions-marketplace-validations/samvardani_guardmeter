@@ -35,6 +35,8 @@ def _run_once(scenario: Scenario, target: Target, *, cross_check: bool) -> RunRe
 
     outcomes: list[dict[str, Any]] = []
     all_pass = True
+    judge_prompt = judge_completion = judge_retries = 0
+    judge_model: str | None = None
     for assertion in scenario.expect:
         try:
             oc = evaluate_assertion(assertion, resp, cross_check=cross_check)
@@ -43,6 +45,11 @@ def _run_once(scenario: Scenario, target: Target, *, cross_check: bool) -> RunRe
                              passed=False)
         outcomes.append({"type": oc.assertion_type, "passed": oc.passed,
                          "detail": oc.detail, "judge_disagree": oc.judge_disagree})
+        if oc.usage:
+            judge_prompt += oc.usage.get("prompt_tokens") or 0
+            judge_completion += oc.usage.get("completion_tokens") or 0
+            judge_retries += oc.usage.get("retries") or 0
+            judge_model = judge_model or oc.usage.get("model")
         # A judge-disagree assertion doesn't count toward pass/fail.
         if not oc.judge_disagree and not oc.passed:
             all_pass = False
@@ -51,6 +58,10 @@ def _run_once(scenario: Scenario, target: Target, *, cross_check: bool) -> RunRe
         passed=all_pass, text=redact(resp.text)[:2000],
         tool_calls=[{"name": tc.name, "arguments": tc.arguments} for tc in resp.tool_calls],
         outcomes=outcomes,
+        prompt_tokens=resp.prompt_tokens,
+        judge_prompt_tokens=judge_prompt or None,
+        judge_completion_tokens=judge_completion or None,
+        judge_retries=judge_retries, judge_model=judge_model,
     )
 
 

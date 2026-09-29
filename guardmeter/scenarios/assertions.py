@@ -37,6 +37,9 @@ class AssertionOutcome:
     detail: str
     judge_disagree: bool = False
     error: bool = False  # indeterminate (e.g. unknown usage) — not a pass, not a fail
+    # Judge token cost of this assertion (rubric only): summed across primary +
+    # cross-check judges. {"prompt_tokens", "completion_tokens", "retries", "model"}.
+    usage: dict[str, Any] | None = None
 
 
 def _effective_refused(resp: TargetResponse) -> bool:
@@ -136,17 +139,30 @@ def evaluate_assertion(a: Assertion, resp: TargetResponse, *, cross_check: bool 
     raise ValueError(f"no evaluator for assertion {a!r}")  # pragma: no cover
 
 
+def _add_usage(total: dict[str, Any], u: dict[str, Any] | None) -> None:
+    """Fold a judge usage dict into a running total (None tokens count as 0)."""
+    if not u:
+        return
+    for k in ("prompt_tokens", "completion_tokens", "retries"):
+        total[k] = (total.get(k) or 0) + (u.get(k) or 0)
+    if u.get("model") and not total.get("model"):
+        total["model"] = u["model"]
+
+
 def _evaluate_rubric(a: Rubric, text: str, *, cross_check: bool) -> AssertionOutcome:
-    score, reason = judgemod.score_rubric(a.judge, a.criteria, text)
+    score, reason, usage = judgemod.score_rubric(a.judge, a.criteria, text)
+    total: dict[str, Any] = {}
+    _add_usage(total, usage)
     disagree = False
     if cross_check:
         second = judgemod.pick_second_judge(a.judge)
         if second is not None:
             try:
-                score2, _ = judgemod.score_rubric(second, a.criteria, text)
+                score2, _, usage2 = judgemod.score_rubric(second, a.criteria, text)
                 disagree = abs(score - score2) > _JUDGE_DISAGREE_THRESHOLD
+                _add_usage(total, usage2)
             except Exception as exc:  # noqa: BLE001 (second judge is best-effort)
                 logging.getLogger(__name__).debug("second judge failed: %s", exc)
     ok = score >= a.min_score
     return AssertionOutcome("rubric", ok, redact(f"score {score:.2f} (min {a.min_score}) — {reason}"),
-                            judge_disagree=disagree)
+                            judge_disagree=disagree, usage=total or None)

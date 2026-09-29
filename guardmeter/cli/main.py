@@ -600,11 +600,18 @@ def runs_show(run_id: str, store_path: str | None) -> None:
 # guardmeter languages
 # ─────────────────────────────────────────────────────────────────────────────
 
-@cli.command()
+@cli.group(invoke_without_command=True)
 @click.option("--json", "json_out", is_flag=True, help="Print the registry as JSON")
 @click.option("--detect", "detect_text", default=None, help="Detect the language of a string")
-def languages(json_out: bool, detect_text: str | None) -> None:
-    """List the language registry (script, direction, romanization)."""
+@click.pass_context
+def languages(ctx: click.Context, json_out: bool, detect_text: str | None) -> None:
+    """Language registry and dataset review status.
+
+    With no subcommand, lists the language registry (script, direction,
+    romanization). Use ``languages status`` for per-language review counts.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
     from dataclasses import asdict
 
     from guardmeter.core.languages import LANGUAGES, detect_language
@@ -625,6 +632,30 @@ def languages(json_out: bool, detect_text: str | None) -> None:
         rom = ",".join(la.romanization_systems) or "—"
         click.echo(f"{la.code:<5} {la.name:<12} {la.native_name:<16} {la.script:<11} {la.direction:<4} {rom}")
     click.echo(f"\n{len(LANGUAGES)} languages.")
+
+
+@languages.command("status")
+@click.option("--manifest", "manifest_path", default="dataset/agentic/v2/MANIFEST.json",
+              show_default=True, help="Dataset MANIFEST.json to read")
+@click.option("--json", "json_out", is_flag=True, help="Print the counts as JSON")
+def languages_status(manifest_path: str, json_out: bool) -> None:
+    """Per-language authored / reviewed / native-signed counts from the manifest."""
+    from guardmeter.data.review import load_manifest, manifest_language_counts
+
+    if not Path(manifest_path).exists():
+        raise click.ClickException(f"manifest not found: {manifest_path}")
+    rows = manifest_language_counts(load_manifest(manifest_path))
+    if json_out:
+        click.echo(json.dumps(rows, ensure_ascii=False, indent=2))
+        return
+    click.echo(f"{'lang':<5} {'status':<10} {'authored':>8} {'reviewed':>8} "
+               f"{'native':>7}  native reviewer")
+    click.echo("-" * 60)
+    for r in rows:
+        click.echo(f"{r['language']:<5} {r['status']:<10} {r['authored']:>8} {r['reviewed']:>8} "
+                   f"{r['native_signed']:>7}  {r['native_reviewer'] or '—'}")
+    signed = [r["language"] for r in rows if r["native_signed"] > 0]
+    click.echo(f"\nNative sign-off: {', '.join(signed) if signed else 'none'}.")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -1168,37 +1199,58 @@ def _rerun_command(baseline: Any, candidate: Any, policy_path: str, suite_hint: 
 
 
 @cli.command()
-@click.option("--baseline", "baseline_id", required=True, help="Baseline scenario run id")
-@click.option("--candidate", "candidate_id", required=True, help="Candidate scenario run id")
+@click.option("--baseline", "baseline_id", default=None, help="Baseline scenario run id (from the store)")
+@click.option("--candidate", "candidate_id", default=None, help="Candidate scenario run id (from the store)")
+@click.option("--baseline-file", "baseline_file", default=None, type=click.Path(exists=True),
+              help="Baseline scenario-run JSON artifact (instead of --baseline)")
+@click.option("--candidate-file", "candidate_file", default=None, type=click.Path(exists=True),
+              help="Candidate scenario-run JSON artifact (instead of --candidate)")
 @click.option("--policy", "policy_path", required=True, type=click.Path(exists=True),
               help="Gate policy (gate.json) whose 'scenarios' block is the acceptance policy")
 @click.option("--out", "out_paths", multiple=True, default=("decision.md",),
               help="Output path; extension picks md/html. Repeatable to emit both.")
-@click.option("--prices", "prices_path", default=None, type=click.Path(exists=True),
-              help="JSON mapping model → USD per 1k output tokens (for cost per successful task)")
+@click.option("--pr-comment", "pr_comment_path", default=None,
+              help="Write an updateable PR-comment body (Markdown) to this path")
+@click.option("--price-file", "--prices", "prices_path", default=None, type=click.Path(exists=True),
+              help="JSON of dated prices: model → {input_per_1k, output_per_1k, as_of} "
+                   "(a bare number is treated as output-per-1k). Enables cost per successful task.")
 @click.option("--store", "store_path", default=None, help="Override DB path")
 @click.option("--json", "json_out", is_flag=True, help="Also print the decision as JSON to stdout")
-def decide(baseline_id: str, candidate_id: str, policy_path: str, out_paths: tuple[str, ...],
+def decide(baseline_id: str | None, candidate_id: str | None,
+           baseline_file: str | None, candidate_file: str | None,
+           policy_path: str, out_paths: tuple[str, ...], pr_comment_path: str | None,
            prices_path: str | None, store_path: str | None, json_out: bool) -> None:
     """Turn two scenario runs into a one-page release decision (APPROVE/BLOCK/INCONCLUSIVE).
+
+    Runs come from the store (``--baseline``/``--candidate`` run ids) or from
+    exported JSON artifacts (``--baseline-file``/``--candidate-file``), so CI can
+    decide on uploaded artifacts without a shared database.
 
     Exit code: 0 APPROVE, 1 BLOCK, 2 INCONCLUSIVE.
     """
     from guardmeter.decide.model import build_decision
-    from guardmeter.decide.render import render_html, render_markdown
+    from guardmeter.decide.render import render_html, render_markdown, render_pr_comment
     from guardmeter.gate.schema import ScenarioThresholds
     from guardmeter.scenarios.results import ScenarioResults
 
-    if baseline_id == candidate_id:
+    if baseline_id and candidate_id and baseline_id == candidate_id:
         raise click.UsageError("baseline and candidate must be different runs (no self-comparison)")
 
-    store = _get_store(store_path)
+    def _load(run_id: str | None, file_path: str | None, which: str) -> ScenarioResults:
+        if file_path:
+            return ScenarioResults.from_dict(json.loads(Path(file_path).read_text(encoding="utf-8")))
+        if run_id:
+            return ScenarioResults.from_dict(_get_store(store_path).get_scenario_run(run_id))
+        raise click.UsageError(f"provide --{which} or --{which}-file")
+
     try:
-        baseline = ScenarioResults.from_dict(store.get_scenario_run(baseline_id))
-        candidate = ScenarioResults.from_dict(store.get_scenario_run(candidate_id))
+        baseline = _load(baseline_id, baseline_file, "baseline")
+        candidate = _load(candidate_id, candidate_file, "candidate")
     except KeyError as exc:
         raise click.ClickException(str(exc)) from exc
 
+    if baseline.run_id == candidate.run_id:
+        raise click.UsageError("baseline and candidate must be different runs (no self-comparison)")
     if baseline.suite_hash and candidate.suite_hash and baseline.suite_hash != candidate.suite_hash:
         raise click.ClickException(
             f"runs are from different suites (baseline {baseline.suite_hash} != "
@@ -1216,6 +1268,9 @@ def decide(baseline_id: str, candidate_id: str, policy_path: str, out_paths: tup
         text = render_html(report) if out.lower().endswith((".html", ".htm")) else render_markdown(report)
         Path(out).write_text(text, encoding="utf-8")
         click.echo(f"Wrote {out}", err=json_out)
+    if pr_comment_path:
+        Path(pr_comment_path).write_text(render_pr_comment(report), encoding="utf-8")
+        click.echo(f"Wrote {pr_comment_path}", err=json_out)
 
     click.echo(f"Verdict: {report.verdict} — {report.reason}", err=json_out)
     if json_out:

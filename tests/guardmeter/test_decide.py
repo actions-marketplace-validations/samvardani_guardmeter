@@ -8,12 +8,15 @@ from guardmeter.gate.schema import ScenarioThresholds
 from guardmeter.scenarios.results import RunRecord, ScenarioResult, ScenarioResults
 
 
-def _case(cid, status, *, critical=False, category="agent-tools", tokens=None, latency=10,
-          disagree=False):
+def _case(cid, status, *, critical=False, category="agent-tools", tokens=None, prompt=None,
+          latency=10, disagree=False, judge_tokens=None, judge_model=None):
     return ScenarioResult(
         id=cid, name=cid, category=category, language="en", tags=[], status=status,
         judge_disagree=disagree, critical=critical,
-        runs=[RunRecord(latency_ms=latency, completion_tokens=tokens, passed=(status == "pass"),
+        runs=[RunRecord(latency_ms=latency, completion_tokens=tokens, prompt_tokens=prompt,
+                        passed=(status == "pass"),
+                        judge_prompt_tokens=judge_tokens, judge_completion_tokens=judge_tokens,
+                        judge_model=judge_model,
                         outcomes=[{"type": "must_call_tool", "passed": status == "pass",
                                    "detail": "wrong tool", "judge_disagree": disagree}])],
     )
@@ -96,6 +99,27 @@ def test_cost_computed_with_prices_and_usage():
     assert "unknown" not in r.cost_per_successful_task
 
 
+def test_cost_uses_prompt_and_completion_with_dated_price():
+    """A dict price (input+output) prices both prompt and completion tokens."""
+    baseline = _run("base", [_case("a", "pass", tokens=200, prompt=1000)])
+    candidate = _run("cand", [_case("a", "pass", tokens=200, prompt=1000)], model="qwen")
+    r = build_decision(baseline, candidate, ScenarioThresholds(min_pass_rate=0.1, min_total=1),
+                       prices={"qwen": {"input_per_1k": 0.1, "output_per_1k": 0.5, "as_of": "2026-09-01"}})
+    # 1000/1k*0.1 + 200/1k*0.5 = 0.10 + 0.10 = $0.2000 per successful task
+    assert r.cost_per_successful_task.startswith("$0.2000/successful task")
+    assert "target qwen: 1000+200 tok" in r.cost_per_successful_task
+
+
+def test_judge_cost_excluded_when_judge_unpriced():
+    """Judge tokens are shown but excluded from cost when the judge model has no price."""
+    baseline = _run("base", [_case("a", "pass", tokens=100)])
+    candidate = _run("cand", [_case("a", "pass", tokens=100, judge_tokens=50, judge_model="claude")],
+                     model="qwen")
+    r = build_decision(baseline, candidate, ScenarioThresholds(min_pass_rate=0.1, min_total=1),
+                       prices={"qwen": 0.5})
+    assert "judge cost excluded (no price for claude)" in r.cost_per_successful_task
+
+
 def test_decide_cli_end_to_end(tmp_path):
     """decide reads two stored runs, writes md+html, and exits 1 on BLOCK."""
     import json
@@ -137,6 +161,58 @@ def test_decide_cli_rejects_self_comparison(tmp_path):
         "decide", "--baseline", "x", "--candidate", "x", "--policy", str(policy),
     ])
     assert result.exit_code == 2  # usage error
+
+
+def test_pr_comment_has_marker_verdict_and_critical_ids():
+    """The PR comment carries the marker, verdict, failing critical ids, and rerun."""
+    from guardmeter.decide.render import PR_COMMENT_MARKER, render_pr_comment
+
+    baseline = _run("base", [_case("crit", "pass", critical=True), _case("a", "pass")])
+    candidate = _run("cand", [_case("crit", "fail", critical=True), _case("a", "pass")])
+    r = build_decision(baseline, candidate, ScenarioThresholds(min_pass_rate=0.1, min_total=1),
+                       rerun_command="guardmeter scenarios run ...")
+    body = render_pr_comment(r)
+    assert body.startswith(PR_COMMENT_MARKER)
+    assert "BLOCK" in body
+    assert "`crit`" in body
+    assert "Reproduce" in body
+
+
+def test_pr_comment_inconclusive_lists_reasons():
+    from guardmeter.decide.render import render_pr_comment
+
+    baseline = _run("base", [_case("crit", "pass", critical=True)])
+    candidate = _run("cand", [_case("crit", "error", critical=True)])
+    r = build_decision(baseline, candidate, ScenarioThresholds(min_pass_rate=0.9, min_total=1))
+    body = render_pr_comment(r)
+    assert "INCONCLUSIVE" in body
+    assert "Why inconclusive" in body
+
+
+def test_decide_from_run_files(tmp_path):
+    """decide reads baseline/candidate from JSON artifacts (no store) and emits a PR comment."""
+    import json
+
+    from click.testing import CliRunner
+
+    from guardmeter.cli.main import cli
+
+    base = _run("baseAAA", [_case("crit", "pass", critical=True), _case("a", "pass")])
+    cand = _run("candBBB", [_case("crit", "fail", critical=True), _case("a", "pass")])
+    bf, cf = tmp_path / "base.json", tmp_path / "cand.json"
+    bf.write_text(json.dumps(base.to_dict()), encoding="utf-8")
+    cf.write_text(json.dumps(cand.to_dict()), encoding="utf-8")
+    policy = tmp_path / "gate.json"
+    policy.write_text(json.dumps({"scenarios": {"min_pass_rate": 0.1, "min_total": 1}}), encoding="utf-8")
+    comment = tmp_path / "comment.md"
+    result = CliRunner().invoke(cli, [
+        "decide", "--baseline-file", str(bf), "--candidate-file", str(cf),
+        "--policy", str(policy), "--out", str(tmp_path / "d.md"), "--pr-comment", str(comment),
+    ])
+    assert result.exit_code == 1, result.output  # BLOCK
+    assert comment.exists()
+    assert "guardmeter-decision" in comment.read_text()
+    assert "`crit`" in comment.read_text()
 
 
 def test_renders_md_and_html():

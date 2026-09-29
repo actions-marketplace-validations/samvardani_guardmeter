@@ -131,12 +131,22 @@ def test_error_case(endpoint):
 def test_judge_disagree(endpoint, monkeypatch):
     # Two judges available; they disagree beyond threshold → excluded from gate.
     monkeypatch.setattr(judgemod, "pick_second_judge", lambda primary: "opod")
-    scores = {"anthropic": (0.9, "good"), "opod": (0.3, "bad")}
+    scores = {
+        "anthropic": (0.9, "good", {"prompt_tokens": 40, "completion_tokens": 8, "retries": 0,
+                                    "model": "claude-sonnet-4-5"}),
+        "opod": (0.3, "bad", {"prompt_tokens": 30, "completion_tokens": 5, "retries": 1,
+                              "model": "qwen3-8b"}),
+    }
     monkeypatch.setattr(judgemod, "score_rubric", lambda j, c, t: scores[j])
     r = run_scenario(_scn("s10", "answer", [{"rubric": {"criteria": "good", "min_score": 0.5,
                                                         "judge": "anthropic"}}]),
                      _target(endpoint), cross_check=True)
     assert r.judge_disagree is True
+    # Judge usage from both judges is captured on the run.
+    assert r.runs[0].judge_prompt_tokens == 70
+    assert r.runs[0].judge_completion_tokens == 13
+    assert r.runs[0].judge_retries == 1
+    assert r.runs[0].judge_model == "claude-sonnet-4-5"
 
 
 def test_run_suite_aggregate(endpoint):

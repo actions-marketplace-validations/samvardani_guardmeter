@@ -276,6 +276,25 @@ def test_compare_end_to_end(runner, tmp_path):
     assert "Run ID:" in result.output
 
 
+def test_languages_status_reads_manifest(runner, tmp_path):
+    """`languages status` prints per-language authored/reviewed/native-signed from a manifest."""
+    manifest = tmp_path / "MANIFEST.json"
+    manifest.write_text(json.dumps({"languages": {
+        "en": {"rows": 128, "status": "reviewed",
+               "reviewers": [{"name": "sam", "native": False, "rows_reviewed": 128}]},
+        "fa": {"rows": 121, "status": "reviewed",
+               "reviewers": [{"name": "sam", "native": True, "rows_reviewed": 121}]},
+    }}), encoding="utf-8")
+    result = runner.invoke(cli, ["languages", "status", "--manifest", str(manifest), "--json"])
+    assert result.exit_code == 0, result.output
+    rows = {r["language"]: r for r in json.loads(result.stdout)}
+    assert rows["en"]["native_signed"] == 0      # non-native reviewer
+    assert rows["fa"]["native_signed"] == 121
+    # Bare `languages` still lists the registry.
+    reg = runner.invoke(cli, ["languages"])
+    assert reg.exit_code == 0 and "romanization" in reg.output
+
+
 def test_probe_nvidia_requires_key(runner, monkeypatch):
     """`probe nvidia` fails cleanly (non-zero, clear message) when the key is unset."""
     from guardmeter.cli.main import cli

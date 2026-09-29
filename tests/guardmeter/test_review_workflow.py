@@ -6,6 +6,8 @@ from guardmeter.data.review import (
     apply_packet,
     build_packet,
     can_release,
+    manifest_language_counts,
+    native_signoff,
     refresh_language,
     reviewed_fraction,
     reviewed_status,
@@ -61,18 +63,55 @@ def test_reject_sets_rejected():
     assert recs[0].review_status == "rejected"
 
 
+def _manifest(code, rows, reviewer_rows, native):
+    return {"languages": {code: {"rows": rows, "reviewers": [
+        {"name": "Sam", "native": native, "rows_reviewed": reviewer_rows}]}}}
+
+
 def test_reviewed_fraction_and_release_gate():
     recs = [_rec(f"r{i}", "متن فارسی", "fa", "direct_override", target="override",
                  status=("reviewed" if i < 9 else "authored")) for i in range(10)]
     assert reviewed_fraction(recs, "fa") == 0.9
-    ok, _ = can_release(recs, "fa", validator_ok=True)
+    manifest = _manifest("fa", 10, 10, native=True)
+    ok, _ = can_release(recs, "fa", validator_ok=True, manifest=manifest)
     assert ok
     # Drop below 90% → not releasable.
     recs[0].review_status = "authored"
-    ok, reason = can_release(recs, "fa", validator_ok=True)
+    ok, reason = can_release(recs, "fa", validator_ok=True, manifest=manifest)
     assert not ok and "reviewed" in reason
     # Validator failing also blocks.
-    assert not can_release([_rec("r", "x", "fa", status="reviewed")], "fa", validator_ok=False)[0]
+    assert not can_release([_rec("r", "x", "fa", status="reviewed")], "fa", validator_ok=False,
+                           manifest=_manifest("fa", 1, 1, native=True))[0]
+
+
+def test_release_refused_without_native_signoff():
+    """A fully-reviewed language with only a non-native reviewer cannot be released."""
+    recs = [_rec(f"r{i}", "english lookalike row", "en", "direct_override", target="override",
+                 status="reviewed") for i in range(10)]
+    # en reviewed 100% but the reviewer is non-native → refused.
+    ok, reason = can_release(recs, "en", validator_ok=True, manifest=_manifest("en", 10, 10, native=False))
+    assert not ok and "native" in reason
+    # No manifest at all → also refused (can't prove a native sign-off).
+    assert not can_release(recs, "en", validator_ok=True)[0]
+    # The same rows with a native sign-off → releasable.
+    ok, _ = can_release(recs, "en", validator_ok=True, manifest=_manifest("en", 10, 10, native=True))
+    assert ok
+
+
+def test_native_signoff_and_manifest_counts():
+    manifest = {"languages": {
+        "en": {"rows": 128, "status": "reviewed",
+               "reviewers": [{"name": "sam", "native": False, "rows_reviewed": 128}]},
+        "fa": {"rows": 121, "status": "reviewed",
+               "reviewers": [{"name": "sam", "native": True, "rows_reviewed": 121}]},
+        "de": {"rows": 129, "status": "authored", "reviewers": []},
+    }}
+    assert native_signoff(manifest, "en") is None       # non-native only
+    assert native_signoff(manifest, "fa")["name"] == "sam"
+    counts = {c["language"]: c for c in manifest_language_counts(manifest)}
+    assert counts["en"]["reviewed"] == 128 and counts["en"]["native_signed"] == 0
+    assert counts["fa"]["native_signed"] == 121 and counts["fa"]["native_reviewer"] == "sam"
+    assert counts["de"]["reviewed"] == 0
 
 
 def test_manifest_refresh_and_status_table():

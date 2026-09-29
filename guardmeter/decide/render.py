@@ -96,6 +96,40 @@ def render_markdown(r: DecisionReport) -> str:
     return "\n".join(lines)
 
 
+# Stable marker so a CI job can find and edit its own PR comment in place.
+PR_COMMENT_MARKER = "<!-- guardmeter-decision -->"
+
+_VERDICT_EMOJI = {"APPROVE": "✅", "BLOCK": "🚫", "INCONCLUSIVE": "⚠️"}
+
+
+def render_pr_comment(r: DecisionReport) -> str:
+    """A compact, updateable PR comment body (found by PR_COMMENT_MARKER)."""
+    lines = [PR_COMMENT_MARKER,
+             f"## {_VERDICT_EMOJI.get(r.verdict, '')} GuardMeter release decision: **{r.verdict}**",
+             "",
+             r.reason, ""]
+    if r.verdict == "BLOCK" and r.critical_regressions:
+        lines.append("**Failing critical cases:** "
+                     + ", ".join(f"`{c.id}`" for c in r.critical_regressions))
+        lines.append("")
+    if r.verdict == "INCONCLUSIVE":
+        reasons = r.gate_reasons or [r.reason]
+        lines.append("**Why inconclusive:**")
+        lines.extend(f"- {why}" for why in reasons)
+        lines.append("")
+    lines.append(f"Suite `{r.suite_name}` (`{r.suite_hash}`) — "
+                 f"baseline `{r.baseline_run_id[:12]}` vs candidate `{r.candidate_run_id[:12]}`.")
+    if r.rerun_command:
+        lines.append("")
+        lines.append("<details><summary>Reproduce</summary>")
+        lines.append("")
+        lines.append("```bash")
+        lines.append(r.rerun_command)
+        lines.append("```")
+        lines.append("</details>")
+    return "\n".join(lines)
+
+
 def _env() -> Environment:
     return Environment(
         loader=PackageLoader("guardmeter.decide", "templates"),
